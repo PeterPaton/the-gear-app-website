@@ -178,7 +178,7 @@
   const recentRow = { display: 'flex', alignItems: 'center', gap: 10, padding: '6px 16px 6px 23px', fontSize: 12, color: 'rgba(255,255,255,0.6)' };
   const userBar = (col) => ({ display: 'flex', alignItems: 'center', gap: 10, padding: 14, borderTop: '1px solid rgba(255,255,255,0.08)', justifyContent: col ? 'center' : 'flex-start' });
 
-  const cartRoot = (drag) => ({ width: 300, background: T.ink, color: '#fff', display: 'flex', flexDirection: 'column', flexShrink: 0, outline: drag ? `3px solid ${T.orange}` : '3px solid transparent', outlineOffset: -3, transition: 'outline-color .12s' });
+  const cartRoot = (drag) => ({ width: 400, background: T.ink, color: '#fff', display: 'flex', flexDirection: 'column', flexShrink: 0, outline: drag ? `3px solid ${T.orange}` : '3px solid transparent', outlineOffset: -3, transition: 'outline-color .12s' });
   const cartCollapsed = (drag) => ({ width: 48, background: T.ink, color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, padding: '14px 0', gap: 14, outline: drag ? `3px solid ${T.orange}` : '3px solid transparent', outlineOffset: -3, transition: 'outline-color .12s', position: 'relative' });
   const cartCollapseBtn = { background: 'rgba(255,255,255,0.06)', border: 'none', color: 'rgba(255,255,255,0.7)', width: 22, height: 22, borderRadius: 4, cursor: 'pointer', fontSize: 12, flexShrink: 0 };
   const cartHead = { padding: '18px 20px 14px', borderBottom: '1px solid rgba(255,255,255,0.1)' };

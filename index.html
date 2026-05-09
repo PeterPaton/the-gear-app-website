@@ -20,9 +20,13 @@
   body { -webkit-user-select: none; -moz-user-select: none; user-select: none; }
   /* …but still allow typing/selection inside form fields. */
   input, textarea, select, [contenteditable="true"] { -webkit-user-select: text; -moz-user-select: text; user-select: text; }
-  /* Hide the OS selection highlight everywhere it does manage to fire. */
+  /* Hide the OS selection highlight on regular page text… */
   ::selection { background: transparent; }
   ::-moz-selection { background: transparent; }
+  /* …but keep it visible inside form fields so click-and-drag selection
+     in the group name input (and elsewhere) actually shows feedback. */
+  input::selection, textarea::selection, [contenteditable="true"]::selection { background: rgba(255,87,12,0.28); color: inherit; }
+  input::-moz-selection, textarea::-moz-selection, [contenteditable="true"]::-moz-selection { background: rgba(255,87,12,0.28); color: inherit; }
 </style>
 </head>
 <body>
@@ -793,14 +797,14 @@ function ProjectDetailView({ project, projectItems = [], catalog, onBack, onExpo
       </div>
 
       {/* Kit list */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '24px 40px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 20px' }}>
         {projectItems.length === 0 ? (
           <div style={{ padding: '60px 0', textAlign: 'center', color: T.textMute, fontFamily: S.mono, fontSize: 13 }}>
             No items yet. Go to Inventory or Database and add items to this project.
           </div>
         ) : (
           Object.entries(grouped).map(([cat, rows]) => (
-            <div key={cat} style={{ marginBottom: 16, background: '#fff', borderRadius: 6, border: `1px solid ${T.paperEdge}`, overflow: 'hidden' }}>
+            <div key={cat} style={{ marginBottom: 8, background: '#fff', borderRadius: 6, border: `1px solid ${T.paperEdge}`, overflow: 'hidden' }}>
               <div style={{ padding: '10px 18px', background: '#f6f3ee', borderBottom: `1px solid ${T.paperEdge}`, fontFamily: S.mono, fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.ink, display: 'flex', justifyContent: 'space-between' }}>
                 <span>{cat}</span>
                 <span style={{ color: T.textMute }}>{rows.reduce((s, pi) => s + (pi.qty || 0), 0)}</span>
