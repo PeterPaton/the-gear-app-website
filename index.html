@@ -743,6 +743,8 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
           project={modalExport}
           /* No id => exporting the user's inventory rather than a project. */
           items={modalExport.id ? (projectItems[modalExport.id] || []) : items}
+          mode={modalExport.id ? 'project' : 'inventory'}
+          groups={groups}
           onClose={() => setModalExport(null)}
         />
       )}

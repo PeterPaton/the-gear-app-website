@@ -167,9 +167,13 @@
     );
   }
 
-  function ExportPDFModal({ project, items = [], onClose }) {
+  function ExportPDFModal({ project, items = [], mode = 'project', groups = [], onClose }) {
     const [showPhotos, setShowPhotos] = useState(true);
     const [density, setDensity] = useState('comfortable'); // 'tight' | 'comfortable'
+    // Subheaders default on — for projects this groups by category (Camera /
+    // Lens / etc.), for inventory by user-created group with an "Items"
+    // bucket for ungrouped rows.
+    const [showSubheaders, setShowSubheaders] = useState(true);
     const [busy, setBusy] = useState(false);
     const sheetRef = React.useRef(null);
 
@@ -179,21 +183,91 @@
     const rowPad = isTight ? '4px 0' : '10px 0';
     const thumb = isTight ? 26 : 42;
 
-    const downloadPDF = () => {
+    // Group items into named sections for the subheader render path.
+    // Project: category. Inventory: group name (or "Items" if ungrouped).
+    const sections = React.useMemo(() => {
+      if (!showSubheaders) return null;
+      const buckets = new Map();
+      const ungroupedKey = mode === 'inventory' ? 'Items' : 'Other';
+      let labelFor;
+      if (mode === 'inventory') {
+        const idToGroupName = new Map();
+        (groups || []).forEach(g => g.itemIds.forEach(id => idToGroupName.set(id, g.name)));
+        labelFor = (pi) => idToGroupName.get(pi.id) || ungroupedKey;
+      } else {
+        labelFor = (pi) => pi.category || ungroupedKey;
+      }
+      items.forEach(pi => {
+        const k = labelFor(pi);
+        if (!buckets.has(k)) buckets.set(k, []);
+        buckets.get(k).push(pi);
+      });
+      // Stable ordering: alphabetical, with the ungrouped fallback last.
+      const keys = Array.from(buckets.keys()).filter(k => k !== ungroupedKey).sort((a, b) => a.localeCompare(b));
+      if (buckets.has(ungroupedKey)) keys.push(ungroupedKey);
+      return keys.map(k => ({ name: k, rows: buckets.get(k) }));
+    }, [showSubheaders, items, mode, groups]);
+
+    const colCount = showPhotos ? 4 : 3;
+
+    // Inline every <img> as a data: URL before html2canvas runs. html2canvas
+    // can only bake cross-origin images into the canvas when the source
+    // server returns CORS headers, and many product CDNs don't — so fetching
+    // each image to a Blob and replacing the src removes the CORS dependency
+    // entirely. Falls back to the category placeholder if a fetch can't
+    // succeed (e.g. truly no-CORS hosts) so the PDF row still has an icon.
+    const inlineImagesAsDataUrls = async (node) => {
+      const imgs = Array.from(node.querySelectorAll('img'));
+      await Promise.all(imgs.map(async (img) => {
+        if (!img.src || img.src.startsWith('data:')) return;
+        try {
+          const res = await fetch(img.src, { mode: 'cors', cache: 'no-store' });
+          if (!res.ok) throw new Error('fetch ' + res.status);
+          const blob = await res.blob();
+          const dataUrl = await new Promise((resolve, reject) => {
+            const fr = new FileReader();
+            fr.onload = () => resolve(fr.result);
+            fr.onerror = reject;
+            fr.readAsDataURL(blob);
+          });
+          img.src = dataUrl;
+        } catch (e) {
+          const cat = img.getAttribute('data-category') || 'Camera';
+          img.src = window.GEAR_PLACEHOLDER(cat);
+        }
+        // Wait for the (possibly swapped) source to decode before html2canvas runs.
+        if (!img.complete || img.naturalWidth === 0) {
+          await new Promise(resolve => {
+            const done = () => resolve();
+            img.addEventListener('load', done, { once: true });
+            img.addEventListener('error', done, { once: true });
+          });
+        }
+      }));
+    };
+
+    const downloadPDF = async () => {
       const node = sheetRef.current;
       if (!node || !window.html2pdf || busy) return;
       setBusy(true);
-      window.html2pdf().from(node).set({
-        margin: [0.4, 0.5, 0.5, 0.5],
-        filename: `${project.name.replace(/[^a-z0-9_\- ]/gi, '_').trim() || 'pull-list'}.pdf`,
-        image: { type: 'jpeg', quality: 0.95 },
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
-        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
-        // Let the table break naturally between rows. `avoid-all` would keep
-        // the whole table together and dump it onto page 2 (which is what
-        // produced the empty-first-page output earlier).
-        pagebreak: { mode: ['css', 'legacy'], avoid: 'tr' },
-      }).save().catch(err => console.warn('[Export] html2pdf failed:', err)).finally(() => setBusy(false));
+      try {
+        await inlineImagesAsDataUrls(node);
+        await window.html2pdf().from(node).set({
+          margin: [0.4, 0.5, 0.5, 0.5],
+          filename: `${project.name.replace(/[^a-z0-9_\- ]/gi, '_').trim() || 'pull-list'}.pdf`,
+          image: { type: 'jpeg', quality: 0.95 },
+          html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
+          jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
+          // Let the table break naturally between rows. `avoid-all` would keep
+          // the whole table together and dump it onto page 2 (which is what
+          // produced the empty-first-page output earlier).
+          pagebreak: { mode: ['css', 'legacy'], avoid: 'tr' },
+        }).save();
+      } catch (err) {
+        console.warn('[Export] html2pdf failed:', err);
+      } finally {
+        setBusy(false);
+      }
     };
 
     const toggleBtn = (active) => ({
@@ -220,6 +294,7 @@
         {/* Appearance toggles */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
           <button style={toggleBtn(showPhotos)} onClick={() => setShowPhotos(v => !v)}>{showPhotos ? '✓' : '○'} Photos</button>
+          <button style={toggleBtn(showSubheaders)} onClick={() => setShowSubheaders(v => !v)}>{showSubheaders ? '✓' : '○'} Subheaders</button>
           <div style={{ width: 1, background: T.paperEdge }} />
           <button style={toggleBtn(isTight)} onClick={() => setDensity('tight')}>▤ Compact</button>
           <button style={toggleBtn(!isTight)} onClick={() => setDensity('comfortable')}>≡ Spacious</button>
@@ -256,22 +331,35 @@
                     <th style={{ textAlign: 'left', padding: '8px 0', fontFamily: S.mono, fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Category</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {items.map(pi => (
+                {(() => {
+                  const renderRow = (pi) => (
                     <tr key={pi.id} style={{ borderBottom: '1px solid #f0ebe2', pageBreakInside: 'avoid' }}>
                       <td style={{ padding: rowPad, fontFamily: S.mono, fontWeight: 600 }}>{pi.qty}×</td>
                       {showPhotos && (
                         <td style={{ padding: rowPad }}>
                           <div style={{ width: thumb, height: thumb, background: T.paperLight, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                            <img src={pi.image_url || window.GEAR_PLACEHOLDER(pi.category)} onError={(e) => { e.currentTarget.src = window.GEAR_PLACEHOLDER(pi.category); }} crossOrigin="anonymous" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} alt="" />
+                            <img src={pi.image_url || window.GEAR_PLACEHOLDER(pi.category)} onError={(e) => { e.currentTarget.src = window.GEAR_PLACEHOLDER(pi.category); }} crossOrigin="anonymous" data-category={pi.category || 'Camera'} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} alt="" />
                           </div>
                         </td>
                       )}
                       <td style={{ padding: rowPad }}>{pi.name}</td>
                       <td style={{ padding: rowPad, fontFamily: S.mono, fontSize: 11, color: T.textMute }}>{pi.category}</td>
                     </tr>
-                  ))}
-                </tbody>
+                  );
+                  if (sections) {
+                    return sections.map(sec => (
+                      <tbody key={sec.name}>
+                        <tr>
+                          <td colSpan={colCount} style={{ padding: '14px 0 6px', fontFamily: S.mono, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: T.ink, borderBottom: `1px solid ${T.ink}` }}>
+                            {sec.name}<span style={{ color: T.textMute, marginLeft: 10, fontWeight: 400 }}>{sec.rows.reduce((s, pi) => s + (pi.qty || 0), 0)}</span>
+                          </td>
+                        </tr>
+                        {sec.rows.map(renderRow)}
+                      </tbody>
+                    ));
+                  }
+                  return <tbody>{items.map(renderRow)}</tbody>;
+                })()}
               </table>
             )}
         </div>
