@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Gear — Studio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  html, body, #root { margin: 0; padding: 0; height: 100%; width: 100%; }
+  body { background: #f6f3ee; font-family: 'Inter', system-ui, sans-serif; color: #191919; -webkit-font-smoothing: antialiased; }
+  *, *::before, *::after { box-sizing: border-box; }
+  button { font-family: inherit; }
+  input, select { font-family: inherit; outline: none; }
+  input:focus, select:focus { border-color: #FF570C !important; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.25); }
+  /* Stop text from being highlighted/selected during drag, click, double-click. */
+  body { -webkit-user-select: none; -moz-user-select: none; user-select: none; }
+  /* …but still allow typing/selection inside form fields. */
+  input, textarea, select, [contenteditable="true"] { -webkit-user-select: text; -moz-user-select: text; user-select: text; }
+  /* Hide the OS selection highlight everywhere it does manage to fire. */
+  ::selection { background: transparent; }
+  ::-moz-selection { background: transparent; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="data-items.js"></script>
+<script>window.__GEAR_ITEMS_SEED = (window.GEAR_ITEMS || []).slice();</script>
+<script src="data-projects.js"></script>
+<script src="gear-tokens.js"></script>
+<script src="studio-styles.js"></script>
+<!-- Optional: Supabase client (no-op if SUPABASE_CONFIG below is empty) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>
+<script src="gear-db.js"></script>
+
+<script src="studio-row.js"></script>
+<script type="text/babel" src="studio-modals.jsx"></script>
+<script type="text/babel" src="studio-shell.jsx"></script>
+<script type="text/babel" src="studio-inventory.jsx"></script>
+<script type="text/babel" src="studio-database.jsx"></script>
+<script type="text/babel" src="studio-projects.jsx"></script>
+<script type="text/babel" src="studio-auth.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useMemo, useEffect } = React;
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "supabaseUrl": "https:\/\/uoivcbkzovccudjksrfg.supabase.co",
+  "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvaXZjYmt6b3ZjY3VkamtzcmZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMDA3NDAsImV4cCI6MjA5MDg3Njc0MH0.y5ymEa4rV9FY0TToeOx43GzW4lpspZ0c_deqTP-Dlho",
+  "imageMode": "supabase",
+  "imageColumn": "image_url",
+  "tableName": "items"
+}/*EDITMODE-END*/;
+
+function App() {
+  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  // Strip spellcheck / autocorrect / autocapitalize / autocomplete from every
+  // input that appears on the page, including ones rendered later in modals.
+  useEffect(() => {
+    const apply = (el) => {
+      if (!el || !el.setAttribute) return;
+      el.setAttribute('spellcheck', 'false');
+      el.setAttribute('autocorrect', 'off');
+      el.setAttribute('autocapitalize', 'off');
+      // Don't override an explicit autocomplete (e.g. password fields).
+      if (!el.hasAttribute('autocomplete')) el.setAttribute('autocomplete', 'off');
+    };
+    document.querySelectorAll('input, textarea, [contenteditable="true"]').forEach(apply);
+    const obs = new MutationObserver(muts => {
+      muts.forEach(m => m.addedNodes.forEach(n => {
+        if (n.nodeType !== 1) return;
+        if (n.matches && n.matches('input, textarea, [contenteditable="true"]')) apply(n);
+        if (n.querySelectorAll) n.querySelectorAll('input, textarea, [contenteditable="true"]').forEach(apply);
+      }));
+    });
+    obs.observe(document.body, { childList: true, subtree: true });
+    return () => obs.disconnect();
+  }, []);
+
+  // ── Auth ─────────────────────────────────────────────────────
+  const [user, setUser] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('gear.user') || 'null'); } catch { return null; }
+  });
+  const [session, setSession] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('gear.session') || 'null'); } catch { return null; }
+  });
+  const signIn = (u, sess) => {
+    localStorage.setItem('gear.user', JSON.stringify(u));
+    if (sess) localStorage.setItem('gear.session', JSON.stringify(sess));
+    setUser(u);
+    setSession(sess || null);
+  };
+  const [signingOut, setSigningOut] = useState(false);
+  const signOut = async () => {
+    setSigningOut(true);
+    // Clear Supabase's own session first — otherwise the OAuth listener below
+    // will pick the stale token back up on refresh and re-sign-in the user.
+    if (window.supabase && window.SUPABASE_CONFIG?.url && window.SUPABASE_CONFIG?.anonKey) {
+      try {
+        const sb = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey);
+        await sb.auth.signOut();
+      } catch (e) { /* fall through and clear local state anyway */ }
+    }
+    localStorage.removeItem('gear.user');
+    localStorage.removeItem('gear.session');
+    setUser(null);
+    setSession(null);
+    // Drop cached project state so the next sign-in gets a fresh load and
+    // the loadProjectItems guards above don't keep stale data around.
+    setProjects([]);
+    setProjectItems({});
+    setActiveProjectId(null);
+    setOpenProjectId(null);
+    setGroups([]);
+    groupsLoadedFor.current = null;
+    setSigningOut(false);
+  };
+  const updateUser = (patch) => { const next = { ...user, ...patch }; localStorage.setItem('gear.user', JSON.stringify(next)); setUser(next); };
+
+  // ── OAuth callback handler ──────────────────────────────────────
+  // After Google/Apple/GitHub sign-in, the user lands back here with a session
+  // in the URL hash. The Supabase client picks it up automatically; we listen
+  // for the auth state change and persist a profile + session into our state.
+  useEffect(() => {
+    if (!window.supabase) return;
+    const url = (window.SUPABASE_CONFIG?.url) || '';
+    const key = (window.SUPABASE_CONFIG?.anonKey) || '';
+    if (!url || !key) return;
+    const sb = window.supabase.createClient(url, key, {
+      auth: { detectSessionInUrl: true, persistSession: true, autoRefreshToken: true },
+    });
+    const adoptSession = (sess) => {
+      if (!sess?.user) return;
+      const u = sess.user;
+      const profile = {
+        email: u.email,
+        name: u.user_metadata?.full_name || u.user_metadata?.name || (u.email || '').split('@')[0] || 'Filmmaker',
+        plan: 'Studio',
+        provider: u.app_metadata?.provider,
+      };
+      signIn(profile, sess);
+    };
+    // Pick up the hash on first load (OAuth redirect just happened)
+    sb.auth.getSession().then(({ data }) => {
+      if (data.session) {
+        adoptSession(data.session);
+        // Strip the auth fragment so a refresh doesn't re-process it.
+        if (window.location.hash.includes('access_token')) {
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+      }
+    });
+    const { data: sub } = sb.auth.onAuthStateChange((event, sess) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') adoptSession(sess);
+      if (event === 'SIGNED_OUT') {
+        // Just clear local state — don't call signOut() here or it would
+        // re-call sb.auth.signOut() and risk a loop.
+        localStorage.removeItem('gear.user');
+        localStorage.removeItem('gear.session');
+        setUser(null);
+        setSession(null);
+      }
+    });
+    return () => sub?.subscription?.unsubscribe?.();
+  }, [tweaks.supabaseUrl, tweaks.supabaseAnonKey]);
+
+  // ── Core state ────────────────────────────────────────────────────────────
+  // Inventory persists in localStorage, keyed per-user so one browser can host
+  // multiple accounts without bleeding items between them.
+  const itemsKey = session?.user?.id ? `gear.items.${session.user.id}` : 'gear.items.anon';
+  const [items, setItems] = useState([]);
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem(itemsKey) || '[]');
+      setItems(Array.isArray(stored) ? stored : []);
+    } catch { setItems([]); }
+  }, [itemsKey]);
+  useEffect(() => {
+    try { localStorage.setItem(itemsKey, JSON.stringify(items)); } catch {}
+  }, [items, itemsKey]);
+
+  // Inventory groups — local label that bundles a set of item ids together.
+  // Mirrors `items` persistence (localStorage scoped per user) and also syncs
+  // to Supabase when enabled (gear-db.js#loadGroups/saveGroup/deleteGroup).
+  const groupsKey = session?.user?.id ? `gear.groups.${session.user.id}` : 'gear.groups.anon';
+  const [groups, setGroups] = useState([]);
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem(groupsKey) || '[]');
+      setGroups(Array.isArray(stored) ? stored : []);
+    } catch { setGroups([]); }
+  }, [groupsKey]);
+  useEffect(() => {
+    try { localStorage.setItem(groupsKey, JSON.stringify(groups)); } catch {}
+  }, [groups, groupsKey]);
+
+  // Pull groups from Supabase once per signed-in user; merge into local state
+  // (Supabase wins for shared rows, local-only rows stay).
+  const groupsLoadedFor = React.useRef(null);
+  useEffect(() => {
+    if (!session?.user?.id || !window.GEAR_DB?.enabled) return;
+    if (groupsLoadedFor.current === session.user.id) return;
+    groupsLoadedFor.current = session.user.id;
+    window.GEAR_DB.loadGroups(session).then(loaded => {
+      if (!Array.isArray(loaded) || loaded.length === 0) return;
+      setGroups(prev => {
+        const byId = new Map(prev.map(g => [g.id, g]));
+        loaded.forEach(g => byId.set(g.id, g));
+        return Array.from(byId.values());
+      });
+    }).catch(err => {
+      groupsLoadedFor.current = null;
+      console.warn('[App] loadGroups failed:', err.message);
+    });
+  }, [session]);
+  const [catalog, setCatalog] = useState(window.GEAR_ITEMS || []);
+  const [activeProjectId, setActiveProjectId] = useState(null);
+  const [projects, setProjects] = useState([]);
+  const [projectItems, setProjectItems] = useState({}); //{ [projectId]: [item, ...] }
+  const [dbStatus, setDbStatus] = useState({ state: 'idle', count: 0, msg: '' });
+  const [loadTick, setLoadTick] = useState(0);
+
+  // ── Supabase equipment catalog loader ─────────────────────────
+  // Loads the shared equipment reference table. Re-runs when credentials change.
+  useEffect(() => {
+    const cfg = { url: tweaks.supabaseUrl, anonKey: tweaks.supabaseAnonKey };
+    try { localStorage.setItem('gear.supabase', JSON.stringify(cfg)); } catch (e) {}
+    window.SUPABASE_CONFIG = cfg;
+
+    if (!cfg.url || !cfg.anonKey) {
+      setDbStatus({ state: 'local', count: window.GEAR_ITEMS.length, msg: 'Sample catalog' });
+      setCatalog(window.GEAR_ITEMS);
+      return;
+    }
+    if (!window.supabase) {
+      setDbStatus({ state: 'error', count: 0, msg: 'Supabase client not loaded' });
+      return;
+    }
+
+    // Re-init GEAR_DB with current credentials
+    const enabled = !!(cfg.url && cfg.anonKey);
+    window.GEAR_DB = { ...window.GEAR_DB, enabled, mode: enabled ? 'supabase' : 'local' };
+
+    let cancelled = false;
+    setDbStatus({ state: 'loading', count: 0, msg: 'Fetching equipment…' });
+
+    (async () => {
+      try {
+        const sb = window.supabase.createClient(cfg.url, cfg.anonKey);
+        const PAGE = 1000;
+        const all = [];
+        let from = 0;
+        while (true) {
+          const { data, error } = await sb
+            .from('equipment')
+            .select('UUID, name, image_url, category')
+            .order('name', { ascending: true })
+            .range(from, from + PAGE - 1);
+          if (error) {
+            setDbStatus({ state: 'error', count: 0, msg: error.message });
+            return;
+          }
+          if (!data || data.length === 0) break;
+          // Normalise UUID → id for the rest of the app
+          const rows = data.map(r => ({ ...r, id: r.UUID, qty: 1, status: 'available', value: 0, brand: '', model: '', serial: '—', location: '—' }));
+          all.push(...rows);
+          if (!cancelled) setDbStatus({ state: 'loading', count: all.length, msg: 'Loaded ' + all.length + '…' });
+          if (data.length < PAGE) break;
+          from += PAGE;
+          if (cancelled) return;
+        }
+        if (cancelled) return;
+        window.GEAR_ITEMS = all;
+        setCatalog(all);
+        setDbStatus({ state: 'ok', count: all.length, msg: all.length + ' items from equipment table' });
+      } catch (e) {
+        if (!cancelled) setDbStatus({ state: 'error', count: 0, msg: String(e.message || e) });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [tweaks.supabaseUrl, tweaks.supabaseAnonKey, tweaks.tableName, loadTick]);
+  const [page, setPage] = useState('inventory'); // inventory | database | projects
+
+  useEffect(() => {
+    if (!activeProjectId || !session || !window.GEAR_DB?.enabled) return;
+    // Skip if we've already loaded this project — Supabase auto-refreshes the
+    // session token periodically (creating a new session ref), and an
+    // unconditional refetch here would overwrite optimistic in-flight inserts
+    // with a pre-INSERT snapshot from the DB.
+    if (projectItems[activeProjectId] !== undefined) return;
+    window.GEAR_DB.loadProjectItems(activeProjectId, session).then(items => {
+      setProjectItems(prev => ({ ...prev, [activeProjectId]: items }));
+    }).catch(err => console.warn('[App] loadProjectItems failed:', err.message));
+  }, [activeProjectId, session]);
+
+
+  // ── Load user projects from Supabase after sign-in ────────────
+  // Track which user id we've already loaded projects for. Without this,
+  // every Supabase token refresh produces a new `session` reference, which
+  // re-fires this effect and clobbers optimistic create/delete updates with a
+  // pre-write snapshot from the DB.
+  const projectsLoadedFor = React.useRef(null);
+  useEffect(() => {
+    if (!user) {
+      setProjects([]);
+      projectsLoadedFor.current = null;
+      return;
+    }
+    if (!window.GEAR_DB?.enabled || !session) {
+      setProjects(window.GEAR_PROJECTS);
+      return;
+    }
+    const uid = session?.user?.id;
+    if (projectsLoadedFor.current === uid) return;
+    projectsLoadedFor.current = uid;
+    window.GEAR_DB.loadProjects(session).then(loaded => {
+      if (Array.isArray(loaded)) setProjects(loaded);
+    }).catch(err => {
+      // Allow a retry next time deps change rather than locking out future loads.
+      projectsLoadedFor.current = null;
+      console.warn('[App] loadProjects failed:', err.message);
+    });
+  }, [user, session]);
+
+  // Auto-select the first project when none is active so + / drag-to-cart
+  // work immediately after sign-in instead of silently no-op'ing.
+  useEffect(() => {
+    if (activeProjectId == null && projects.length > 0) {
+      setActiveProjectId(projects[0].id);
+    }
+  }, [projects, activeProjectId]);
+  
+  const [collapsed, setCollapsed] = useState(false);
+  const [cartCollapsed, setCartCollapsed] = useState(false);
+  const [density, setDensity] = useState('comfortable');
+
+  // Drag-to-cart
+  const [draggedId, setDraggedId] = useState(null);
+  const [hoverCart, setHoverCart] = useState(false);
+
+  // Modals
+  const [modalNewProject, setModalNewProject] = useState(false);
+  const [modalEditItem, setModalEditItem] = useState(null);  // item or null
+  const [modalExport, setModalExport] = useState(null);      // project or null
+  const [openProjectId, setOpenProjectId] = useState(null);  // for "Open project" full-screen view
+  const [showAccount, setShowAccount] = useState(false);
+
+  // Load items for whichever project the user opens full-screen, even if it
+  // isn't the currently-active one — otherwise the detail view shows empty.
+  useEffect(() => {
+    if (!openProjectId || !session || !window.GEAR_DB?.enabled) return;
+    if (openProjectId === activeProjectId) return; // already loaded by the effect above
+    if (projectItems[openProjectId] !== undefined) return; // already cached
+    window.GEAR_DB.loadProjectItems(openProjectId, session).then(items => {
+      setProjectItems(prev => ({ ...prev, [openProjectId]: items }));
+    }).catch(err => console.warn('[App] loadProjectItems (open) failed:', err.message));
+  }, [openProjectId, session, activeProjectId]);
+
+  // Load items for every project on the Projects page so the card grid can
+  // show each project's kit strip. Each fetch is a no-op if we already have
+  // that project's items in state.
+  useEffect(() => {
+    if (!session || !window.GEAR_DB?.enabled || projects.length === 0) return;
+    projects.forEach(p => {
+      if (projectItems[p.id]) return;
+      window.GEAR_DB.loadProjectItems(p.id, session)
+        .then(items => setProjectItems(prev => ({ ...prev, [p.id]: items })))
+        .catch(err => console.warn('[App] loadProjectItems for', p.id, 'failed:', err.message));
+    });
+  }, [projects, session]);
+
+  // ── Mutations ────────────────────────────────────────────────
+  
+  const addToProject = (equipmentId) => {
+    if (!activeProjectId) return;
+    // Find the full equipment object — prefer catalog (database/Supabase),
+    // fall back to the user's inventory so drags from the inventory page also work.
+    const equipment = catalog.find(it => it.id === equipmentId || it.UUID === equipmentId)
+                   || items.find(it => it.id === equipmentId || it.UUID === equipmentId);
+    if (!equipment) return;
+
+    // Snapshot existing row from local state — lets us pick a single-query DB
+    // path (UPDATE for already-in-project, INSERT otherwise) instead of the
+    // SELECT-then-INSERT/UPDATE that addProjectItem used to do.
+    const current = projectItems[activeProjectId] || [];
+    const existing = current.find(it => it.equipment_id === equipmentId);
+    // Generate the row id client-side so the optimistic row already has the
+    // final UUID — no temp→real key swap, so React doesn't remount the row.
+    const newId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : ('local-' + Date.now() + '-' + Math.random().toString(36).slice(2));
+
+    // Optimistic local update.
+    setProjectItems(prev => {
+      const cur = prev[activeProjectId] || [];
+      const ex = cur.find(it => it.equipment_id === equipmentId);
+      if (ex) {
+        return { ...prev, [activeProjectId]: cur.map(it =>
+          it.equipment_id === equipmentId ? { ...it, qty: it.qty + 1 } : it
+        )};
+      }
+      return { ...prev, [activeProjectId]: [...cur, {
+        id: newId,
+        project_id: activeProjectId,
+        equipment_id: equipmentId,
+        name: equipment.name,
+        image_url: equipment.image_url,
+        category: equipment.category,
+        qty: 1,
+      }]};
+    });
+
+    // Persist to Supabase — single roundtrip per case.
+    if (window.GEAR_DB?.enabled && session) {
+      if (existing && existing.id) {
+        // Already in project: just bump the qty on the known row.
+        window.GEAR_DB.updateProjectItemQty(existing.id, existing.qty + 1, session);
+      } else {
+        // New row: INSERT directly with the client-generated id. We don't roll
+        // back the optimistic row on a null response — Supabase often returns
+        // data:null from insert().select().single() even on a successful write
+        // (RLS post-write SELECT rules), and removing the row only to have a
+        // subsequent loadProjectItems re-fetch put it back was the cause of
+        // the appear → disappear → re-appear flicker.
+        window.GEAR_DB.addProjectItem(activeProjectId, equipment, session, newId)
+          .catch(err => console.warn('[App] addProjectItem failed:', err?.message || err));
+      }
+    }
+  };
+
+const changeQty = (itemId, delta, projectId = activeProjectId) => {
+  if (!projectId) return;
+  setProjectItems(prev => {
+    const current = prev[projectId] || [];
+    const item = current.find(it => it.equipment_id === itemId || it.id === itemId);
+    if (!item) return prev;
+    const newQty = item.qty + delta;
+    const updated = newQty <= 0
+      ? current.filter(it => it.id !== item.id)
+      : current.map(it => it.id === item.id ? { ...it, qty: newQty } : it);
+
+    // Persist to Supabase
+    if (window.GEAR_DB?.enabled && session) {
+      if (newQty <= 0) {
+        window.GEAR_DB.deleteProjectItem(item.id, session);
+      } else {
+        window.GEAR_DB.updateProjectItemQty(item.id, newQty, session);
+      }
+    }
+    return { ...prev, [projectId]: updated };
+  });
+};
+
+
+  const createProject = (proj) => {
+    setProjects(ps => [proj, ...ps]);
+    setActiveProjectId(proj.id);
+    if (window.GEAR_DB?.enabled && session) {
+      window.GEAR_DB.saveProject(proj, session).catch(err => console.warn('[App] saveProject:', err.message));
+    }
+  };
+  const deleteProject = (id) => {
+    setProjects(ps => {
+      const next = ps.filter(p => p.id !== id);
+      if (id === activeProjectId) setActiveProjectId(next[0] ? next[0].id : null);
+      return next;
+    });
+    if (window.GEAR_DB?.enabled && session) {
+      window.GEAR_DB.deleteProject(id, session).catch(err => console.warn('[App] deleteProject:', err.message));
+    }
+  };
+  const saveItem = (item) => {
+    setItems(its => {
+      const exists = item.id && its.find(i => i.id === item.id);
+      if (exists) return its.map(i => i.id === item.id ? item : i);
+      return [{ ...item, id: item.id || ('i' + Date.now()) }, ...its];
+    });
+  };
+
+  // Adjust an inventory item's ownership qty. Independent from project qty.
+  // Decrementing past 1 removes the item from inventory entirely.
+  const changeInvQty = (itemId, delta) => {
+    setItems(its => {
+      const it = its.find(i => i.id === itemId);
+      if (!it) return its;
+      const newQty = (it.qty || 1) + delta;
+      if (newQty <= 0) return its.filter(i => i.id !== itemId);
+      return its.map(i => i.id === itemId ? { ...i, qty: newQty } : i);
+    });
+  };
+
+  // Merge two inventory items into a group. Either-side-existing groups are
+  // preserved; merging two existing groups absorbs the second into the first.
+  // Returns `{ id, isNew }` so the caller can focus the inline name editor on
+  // freshly-created groups.
+  const combineIntoGroup = (idA, idB) => {
+    if (!idA || !idB || idA === idB) return null;
+    const existingA = groups.find(g => g.itemIds.includes(idA));
+    const existingB = groups.find(g => g.itemIds.includes(idB));
+    if (existingA && existingB && existingA.id === existingB.id) return { id: existingA.id, isNew: false };
+
+    let next, toSave, toDelete, resultId, isNew = false;
+    if (existingA && existingB) {
+      const merged = { ...existingA, itemIds: Array.from(new Set([...existingA.itemIds, ...existingB.itemIds])) };
+      next = groups.filter(g => g.id !== existingB.id).map(g => g.id === existingA.id ? merged : g);
+      toSave = merged;
+      toDelete = existingB.id;
+      resultId = existingA.id;
+    } else if (existingA) {
+      const merged = { ...existingA, itemIds: Array.from(new Set([...existingA.itemIds, idB])) };
+      next = groups.map(g => g.id === existingA.id ? merged : g);
+      toSave = merged;
+      resultId = existingA.id;
+    } else if (existingB) {
+      const merged = { ...existingB, itemIds: Array.from(new Set([...existingB.itemIds, idA])) };
+      next = groups.map(g => g.id === existingB.id ? merged : g);
+      toSave = merged;
+      resultId = existingB.id;
+    } else {
+      const fresh = {
+        id: 'g_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        name: 'New Group',
+        itemIds: [idA, idB],
+      };
+      next = [fresh, ...groups];
+      toSave = fresh;
+      resultId = fresh.id;
+      isNew = true;
+    }
+    setGroups(next);
+    if (window.GEAR_DB?.enabled && session) {
+      if (toSave) window.GEAR_DB.saveGroup(toSave, session).catch(err => console.warn('[App] saveGroup:', err.message));
+      if (toDelete) window.GEAR_DB.deleteGroup(toDelete, session).catch(err => console.warn('[App] deleteGroup:', err.message));
+    }
+    return { id: resultId, isNew };
+  };
+
+  const renameGroup = (groupId, name) => {
+    const trimmed = String(name || '').trim() || 'Untitled Group';
+    setGroups(gs => gs.map(g => g.id === groupId ? { ...g, name: trimmed } : g));
+    if (window.GEAR_DB?.enabled && session) {
+      const g = groups.find(gr => gr.id === groupId);
+      if (g) window.GEAR_DB.saveGroup({ ...g, name: trimmed }, session).catch(err => console.warn('[App] saveGroup (rename):', err.message));
+    }
+  };
+
+  const deleteGroup = (groupId) => {
+    setGroups(gs => gs.filter(g => g.id !== groupId));
+    if (window.GEAR_DB?.enabled && session) {
+      window.GEAR_DB.deleteGroup(groupId, session).catch(err => console.warn('[App] deleteGroup:', err.message));
+    }
+  };
+
+  const activeProject = projects.find(p => p.id === activeProjectId);
+  const openProject = openProjectId ? projects.find(p => p.id === openProjectId) : null;
+
+  // ── Sign-out loading overlay (full screen, takes priority over auth gate
+  // so the login page doesn't flash for the brief moment user is null but
+  // Supabase signOut is still in flight). ──
+  if (signingOut) {
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: '#191919', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18, zIndex: 9999 }}>
+        <div style={{ width: 32, height: 32, border: '3px solid rgba(255,255,255,0.15)', borderTopColor: '#FF570C', borderRadius: '50%', animation: 'gearSpin 0.7s linear infinite' }} />
+        <div style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)' }}>Signing out…</div>
+        <style>{`@keyframes gearSpin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  // ── Auth gate ──
+  if (!user) return <window.STUDIO_AUTH.LoginPage onSignIn={signIn} />;
+
+  return (
+    <div style={{ width: '100vw', height: '100vh', display: 'flex', overflow: 'hidden', background: '#f6f3ee' }}>
+      <window.STUDIO_SHELL.Sidebar
+        page={page} setPage={(p) => {
+          // Clicking a top-level nav while a project is open should
+          // minimise the project view back to the workspace page.
+          if (openProjectId) setOpenProjectId(null);
+          if (showAccount) setShowAccount(false);
+          setPage(p);
+        }}
+        items={items} projects={projects}
+        collapsed={collapsed} setCollapsed={setCollapsed}
+        user={user}
+        onOpenAccount={() => setShowAccount(true)}
+        onOpenProject={(id) => {
+          // Recent-projects row: same project = no-op (stay in current view),
+          // different project = swap the open project view.
+          if (openProjectId === id) return;
+          setOpenProjectId(id);
+        }}
+      />
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {showAccount && (
+          <window.STUDIO_AUTH.AccountPage
+            user={user}
+            onBack={() => setShowAccount(false)}
+            onSignOut={() => { setShowAccount(false); signOut(); }}
+            onUpdate={updateUser}
+          />
+        )}
+        {!showAccount && !openProject && page === 'inventory' && (
+          <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+            <window.STUDIO_INVENTORY
+              items={items} projects={projects} activeProjectId={activeProjectId}
+              density={density} setDensity={setDensity}
+              onEditItem={setModalEditItem}
+              onAddToCart={addToProject}
+              onChangeInvQty={changeInvQty}
+              groups={groups}
+              onCombineIntoGroup={combineIntoGroup}
+              onRenameGroup={renameGroup}
+              onDeleteGroup={deleteGroup}
+              onAddItem={() => setModalEditItem({ category: 'Camera', qty: 1, status: 'available' })}
+              onOpenDatabase={() => setPage('database')}
+              draggedId={draggedId} setDraggedId={setDraggedId}
+              hoverCart={hoverCart} setHoverCart={setHoverCart}
+            />
+            <window.STUDIO_SHELL.CartPanel
+              projects={projects} activeProjectId={activeProjectId}
+              projectItems={projectItems[activeProjectId] || []}
+              onSelectProject={setActiveProjectId}
+              hoverCart={hoverCart} setHoverCart={setHoverCart}
+              draggedId={draggedId} setDraggedId={setDraggedId}
+              onDrop={addToProject} onChangeQty={changeQty}
+              onExport={() => setModalExport(activeProject)}
+              onOpenProject={(id) => setOpenProjectId(id)}
+              onNewProject={() => setModalNewProject(true)}
+              collapsed={cartCollapsed} setCollapsed={setCartCollapsed}
+            />
+          </div>
+        )}
+
+        {!showAccount && !openProject && page === 'database' && window.STUDIO_DATABASE && (
+          <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+            <window.STUDIO_DATABASE
+              catalog={catalog} items={items}
+              dbStatus={dbStatus}
+              onAddToInventory={saveItem}
+              onAddToCart={addToProject}
+              draggedId={draggedId} setDraggedId={setDraggedId}
+              hoverCart={hoverCart} setHoverCart={setHoverCart}
+              density={density} setDensity={setDensity}
+            />
+            <window.STUDIO_SHELL.CartPanel
+              projects={projects} activeProjectId={activeProjectId}
+              projectItems={projectItems[activeProjectId] || []}
+              onSelectProject={setActiveProjectId}
+              hoverCart={hoverCart} setHoverCart={setHoverCart}
+              draggedId={draggedId} setDraggedId={setDraggedId}
+              onDrop={addToProject} onChangeQty={changeQty}
+              onExport={() => setModalExport(activeProject)}
+              onOpenProject={(id) => setOpenProjectId(id)}
+              onNewProject={() => setModalNewProject(true)}
+              collapsed={cartCollapsed} setCollapsed={setCartCollapsed}
+            />
+          </div>
+        )}
+
+        {!showAccount && !openProject && page === 'projects' && (
+          <window.STUDIO_PROJECTS
+            projects={projects}
+            catalog={catalog}
+            projectItems={projectItems}
+            activeProjectId={activeProjectId}
+            onSelectProject={setActiveProjectId}
+            onOpenProject={setOpenProjectId}
+            onNewProject={() => setModalNewProject(true)}
+            onDeleteProject={deleteProject}
+          />
+        )}
+
+        {!showAccount && openProject && (
+          <ProjectDetailView
+            project={openProject}
+            projectItems={projectItems[openProject.id] || []}
+            catalog={catalog}
+            onBack={() => setOpenProjectId(null)}
+            onExport={() => setModalExport(openProject)}
+            onChangeQty={(id, d) => changeQty(id, d, openProject.id)}
+          />
+        )}
+      </div>
+
+      {/* Modals */}
+      {modalNewProject && (
+        <window.STUDIO_MODALS.NewProjectModal
+          onClose={() => setModalNewProject(false)}
+          onCreate={createProject}
+        />
+      )}
+      {modalEditItem && (
+        <window.STUDIO_MODALS.EditItemModal
+          item={modalEditItem}
+          onClose={() => setModalEditItem(null)}
+          onSave={saveItem}
+        />
+      )}
+      {modalExport && (
+        <window.STUDIO_MODALS.ExportPDFModal
+          project={modalExport}
+          items={projectItems[modalExport.id] || []}
+          onClose={() => setModalExport(null)}
+        />
+      )}
+
+      <TweaksPanel title="Supabase">
+        <TweakSection label="Connection">
+          <TweakText label="Project URL" value={tweaks.supabaseUrl} placeholder="https://xxx.supabase.co" onChange={(v) => setTweak('supabaseUrl', v.trim())} />
+          <TweakText label="Anon key" value={tweaks.supabaseAnonKey} placeholder="eyJhbGci…" onChange={(v) => setTweak('supabaseAnonKey', v.trim())} />
+        </TweakSection>
+        <TweakSection label="Status">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '8px 10px', borderRadius: 7, background: 'rgba(0,0,0,0.04)', fontFamily: '"JetBrains Mono", monospace', fontSize: 10.5, color: 'rgba(41,38,27,0.78)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: dbStatus.state === 'ok' ? '#1f8a5b' : dbStatus.state === 'error' ? '#c44a2c' : dbStatus.state === 'loading' ? '#c98a1d' : '#999' }} />
+              <span style={{ textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+                {dbStatus.state === 'ok' ? 'Connected' : dbStatus.state === 'error' ? 'Error' : dbStatus.state === 'loading' ? 'Loading' : dbStatus.state === 'local' ? 'Sample data' : 'Idle'}
+              </span>
+            </div>
+            <div style={{ wordBreak: 'break-word', color: 'rgba(41,38,27,0.55)' }}>{dbStatus.msg || '—'}</div>
+            {dbStatus.state === 'ok' && (<div style={{ color: 'rgba(41,38,27,0.55)' }}>with image: {catalog.filter(it => it.image_url).length} / {catalog.length}</div>)}
+          </div>
+          <TweakButton label="Reload from Supabase" onClick={() => setLoadTick(t => t + 1)} />
+        </TweakSection>
+      </TweaksPanel>
+    </div>
+  );
+}
+
+// Project detail view — full-screen kit list for one project.
+function ProjectDetailView({ project, projectItems = [], catalog, onBack, onExport, onChangeQty }) {
+  const T = window.GEAR.tokens;
+  const S = window.STUDIO_STYLES;
+  const R = window.GEAR_ROW;
+  const [editMode, setEditMode] = React.useState(false);
+
+  const totalQty = projectItems.reduce((s, pi) => s + (pi.qty || 0), 0);
+  const uniqueCount = projectItems.length;
+
+  // Group rows by category for display
+  const grouped = projectItems.reduce((acc, pi) => {
+    const cat = pi.category || 'Other';
+    (acc[cat] = acc[cat] || []).push(pi);
+    return acc;
+  }, {});
+
+  const rowH = 64;
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#faf7f2' }}>
+
+      {/* Top bar */}
+      <div style={{ padding: '14px 28px', borderBottom: `1px solid ${T.paperEdge}`, background: '#fff', display: 'flex', alignItems: 'center', gap: 14 }}>
+        <button onClick={onBack} style={{ ...S.btnG, padding: '6px 12px' }}>← Back</button>
+        <div style={{ fontFamily: S.mono, fontSize: 11, color: T.textMute, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Project</div>
+        <div style={{ flex: 1 }} />
+        <button style={R.editToggleBtn(editMode)} onClick={() => setEditMode(e => !e)}>
+          {editMode ? '✕ Done' : '✎ Edit'}
+        </button>
+        <button style={S.btnP} onClick={onExport}>Export PDF</button>
+      </div>
+
+      {/* Project hero */}
+      <div style={{ background: T.ink, color: '#fff', padding: '32px 40px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 24 }}>
+          <div>
+            <div style={{ fontFamily: S.mono, fontSize: 11, color: T.orange, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 10 }}>● {project.status}</div>
+            <div style={{ fontFamily: S.mono, fontSize: 48, fontWeight: 400, letterSpacing: '-0.03em', lineHeight: 0.95, marginBottom: 14 }}>{project.name}</div>
+            <div style={{ display: 'flex', gap: 24, fontSize: 11, fontFamily: S.mono, color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              {project.client && <span><span style={{ color: 'rgba(255,255,255,0.35)' }}>Client </span>{project.client}</span>}
+              {project.shoot && <span><span style={{ color: 'rgba(255,255,255,0.35)' }}>Shoot </span>{project.shoot}</span>}
+              {project.location && <span><span style={{ color: 'rgba(255,255,255,0.35)' }}>Location </span>{project.location}</span>}
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 32, fontFamily: S.mono, flexShrink: 0 }}>
+            <div><div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 4 }}>Items</div><div style={{ fontSize: 28, fontWeight: 600 }}>{totalQty}</div></div>
+            <div><div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 4 }}>Unique</div><div style={{ fontSize: 28, fontWeight: 600 }}>{uniqueCount}</div></div>
+          </div>
+        </div>
+      </div>
+
+      {/* Kit list */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '24px 40px' }}>
+        {projectItems.length === 0 ? (
+          <div style={{ padding: '60px 0', textAlign: 'center', color: T.textMute, fontFamily: S.mono, fontSize: 13 }}>
+            No items yet. Go to Inventory or Database and add items to this project.
+          </div>
+        ) : (
+          Object.entries(grouped).map(([cat, rows]) => (
+            <div key={cat} style={{ marginBottom: 16, background: '#fff', borderRadius: 6, border: `1px solid ${T.paperEdge}`, overflow: 'hidden' }}>
+              <div style={{ padding: '10px 18px', background: '#f6f3ee', borderBottom: `1px solid ${T.paperEdge}`, fontFamily: S.mono, fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.ink, display: 'flex', justifyContent: 'space-between' }}>
+                <span>{cat}</span>
+                <span style={{ color: T.textMute }}>{rows.reduce((s, pi) => s + (pi.qty || 0), 0)}</span>
+              </div>
+              {rows.map(pi => (
+                <div key={pi.id}
+                  style={{ display: 'flex', alignItems: 'stretch', borderBottom: '1px solid #f0ebe2', background: '#faf7f2', height: rowH, transition: 'background .08s' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = '#f0ebe2'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = '#faf7f2'; }}>
+
+                  {/* Image */}
+                  <div style={{ position: 'relative', width: rowH, height: rowH, padding: 6, flexShrink: 0 }}>
+                    <div style={{ width: '100%', height: '100%', background: '#fff', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                      <img src={pi.image_url || window.GEAR_PLACEHOLDER(pi.category)} onError={(e) => { e.currentTarget.src = window.GEAR_PLACEHOLDER(pi.category); }} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} alt="" />
+                    </div>
+                    {pi.qty > 1 && (
+                      <div style={{ position: 'absolute', bottom: 2, right: 2, background: T.orange, color: '#fff', fontSize: 11, fontFamily: S.mono, fontWeight: 700, padding: '2px 6px', minWidth: 20, textAlign: 'center', lineHeight: 1.3, borderRadius: 4 }}>{pi.qty}</div>
+                    )}
+                  </div>
+
+                  {/* Name + category */}
+                  <div style={{ flex: 1, minWidth: 0, padding: '0 18px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: T.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pi.name}</div>
+                    {pi.category && <div style={{ fontSize: 10, fontFamily: S.mono, color: T.textMute, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>{pi.category}</div>}
+                  </div>
+
+                  {/* +/- only in edit mode */}
+                  {editMode && (
+                    <div style={{ display: 'flex', alignItems: 'center', paddingRight: 14, flexShrink: 0 }}>
+                      <div style={R.qPill(false)}>
+                        <button onClick={() => onChangeQty(pi.equipment_id, -1)} title={pi.qty <= 1 ? 'Remove' : 'Decrease'} style={R.qPillBtn(false)}>−</button>
+                        <button onClick={() => onChangeQty(pi.equipment_id, 1)} style={R.qPillBtn(false)}>+</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
