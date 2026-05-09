@@ -211,7 +211,7 @@
     });
 
     return (
-      <ModalShell title="Export Pull List" onClose={onClose} width={760} footer={
+      <ModalShell title="Export Full List" onClose={onClose} width={760} footer={
         <React.Fragment>
           <button style={S.btnG} onClick={onClose} disabled={busy}>Cancel</button>
           <button style={{ ...S.btnP, opacity: busy ? 0.6 : 1 }} onClick={downloadPDF} disabled={busy}>{busy ? 'Generating…' : 'Download PDF'}</button>
@@ -234,7 +234,7 @@
         <div ref={sheetRef} style={{ background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 4, padding: '32px 36px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, paddingBottom: 16, borderBottom: `2px solid ${T.ink}` }}>
               <div>
-                <div style={{ fontFamily: S.mono, fontSize: 10, color: T.textMute, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>Pull list</div>
+                <div style={{ fontFamily: S.mono, fontSize: 10, color: T.textMute, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>Full list</div>
                 <div style={{ fontFamily: S.mono, fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1 }}>{project.name}</div>
                 <div style={{ fontSize: 12, color: T.textMute, marginTop: 6 }}>{[project.client, project.shoot, project.location].filter(Boolean).join(' · ')}</div>
               </div>

@@ -63,10 +63,10 @@
           </div>
           <div>
             <div style={{ fontFamily: S.mono, fontSize: 64, fontWeight: 400, letterSpacing: '-0.03em', lineHeight: 0.95, marginBottom: 24, maxWidth: 560 }}>
-              Pull lists.<br/>Less paper.<br/>More shooting.
+              Full lists.<br/>Less paper.<br/>More shooting.
             </div>
             <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.55)', maxWidth: 460, lineHeight: 1.55 }}>
-              Inventory, projects, and pull lists for filmmakers. Track every lens, light and cable. Build kits in seconds. Ship the PDF before call time.
+              Inventory, projects, and full lists for filmmakers. Track every lens, light and cable. Build kits in seconds. Ship the PDF before call time.
             </div>
           </div>
           <div style={{ display: 'flex', gap: 28, fontSize: 11, fontFamily: S.mono, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
