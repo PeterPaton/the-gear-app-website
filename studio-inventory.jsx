@@ -9,8 +9,8 @@
     items, projects, activeProjectId,
     density, setDensity,
     onEditItem, onAddToCart, onChangeInvQty,
-    groups = [], onCombineIntoGroup, onRenameGroup, onDeleteGroup,
-    onAddItem, onOpenDatabase,
+    groups = [], onCombineIntoGroup, onRenameGroup, onDeleteGroup, onMoveItemToGroup,
+    onAddItem, onOpenDatabase, onExportInventory,
     draggedId, setDraggedId, hoverCart, setHoverCart,
   }) {
     const activeProject = projects.find(p => p.id === activeProjectId);
@@ -32,6 +32,9 @@
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+    // Which section card is currently being hovered during a drag (for the
+    // outline highlight and to guard our own drop logic).
+    const [hoverCardId, setHoverCardId] = useState(null);
 
     // Auto-focus the name field whenever editingGroupId changes (used right
     // after dropping items together to create a new group).
@@ -98,7 +101,7 @@
              draggable={!editMode}
              onClick={() => { if (editMode) toggleSel(it.id); }}
              onDragStart={(e) => { if (!editMode) { setDraggedId(it.id); e.dataTransfer.effectAllowed = 'copy'; } }}
-             onDragEnd={() => { setDraggedId(null); setHoverCart(false); setHoverRowId(null); }}
+             onDragEnd={() => { setDraggedId(null); setHoverCart(false); setHoverRowId(null); setHoverCardId(null); }}
              onDragOver={(e) => {
                if (draggedId && draggedId !== it.id && !editMode) {
                  e.preventDefault();
@@ -170,8 +173,36 @@
       if (rows.length === 0 && !group) return null; // skip empty ungrouped section
       const totalQty = rows.reduce((s, it) => s + (it.qty || 1), 0);
       const collapsed = group ? collapsedGroups.has(group.id) : false;
+      const cardKey = group ? group.id : '_ungrouped';
+      const isCardDropTarget = !!draggedId && hoverCardId === cardKey && !editMode;
       return (
-        <div key={key} style={{ marginBottom: 8, background: '#fff', borderRadius: 6, border: `1px solid ${T.paperEdge}`, overflow: 'hidden' }}>
+        <div key={key}
+             onDragOver={(e) => {
+               // Section-level drop target: the row drop handler stops
+               // propagation, so we only ever see drops over header / empty
+               // card area. Useful for collapsed groups (no rows visible) and
+               // for "release to ungrouped" via the Items section.
+               if (draggedId && !editMode) {
+                 e.preventDefault();
+                 if (hoverCardId !== cardKey) setHoverCardId(cardKey);
+               }
+             }}
+             onDragLeave={(e) => {
+               if (!e.currentTarget.contains(e.relatedTarget)) {
+                 setHoverCardId(prev => prev === cardKey ? null : prev);
+               }
+             }}
+             onDrop={(e) => {
+               if (draggedId && !editMode && onMoveItemToGroup) {
+                 e.preventDefault();
+                 onMoveItemToGroup(draggedId, group ? group.id : null);
+                 setDraggedId(null);
+                 setHoverCardId(null);
+                 setHoverRowId(null);
+                 setHoverCart(false);
+               }
+             }}
+             style={{ marginBottom: 8, background: '#fff', borderRadius: 6, border: `1px solid ${T.paperEdge}`, overflow: 'hidden', outline: isCardDropTarget ? `2px solid ${T.orange}` : 'none', outlineOffset: -2, transition: 'outline-color .12s' }}>
           <div style={{ padding: '10px 14px 10px 18px', background: '#f6f3ee', borderBottom: collapsed ? 'none' : `1px solid ${T.paperEdge}`, display: 'flex', alignItems: 'center', gap: 10 }}>
             {group ? (
               <input
@@ -235,6 +266,9 @@
             <button onClick={() => setDensity('tight')} style={R.densityBtn(density === 'tight')} title="Tight">▤</button>
             <button onClick={() => setDensity('comfortable')} style={R.densityBtn(density === 'comfortable')} title="Comfortable">≡</button>
           </div>
+          {onExportInventory && (
+            <button style={{ ...S.btnG, padding: '7px 14px', fontSize: 11, fontFamily: S.mono, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }} onClick={onExportInventory}>Export PDF</button>
+          )}
           <button style={S.btnP} onClick={onOpenDatabase}>+ Add Item</button>
         </div>
 

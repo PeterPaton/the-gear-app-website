@@ -550,6 +550,29 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
     return { id: resultId, isNew };
   };
 
+  // Move an item into a target group (or out of every group when groupId is null).
+  // Used by the inventory's per-section drop targets — drop on a (possibly
+  // collapsed) group adds, drop on the default Items section releases.
+  const moveItemToGroup = (itemId, groupId) => {
+    if (!itemId) return;
+    const next = groups.map(g => {
+      if (g.id === groupId) {
+        if (g.itemIds.includes(itemId)) return g;
+        return { ...g, itemIds: [...g.itemIds, itemId] };
+      }
+      if (g.itemIds.includes(itemId)) {
+        return { ...g, itemIds: g.itemIds.filter(id => id !== itemId) };
+      }
+      return g;
+    });
+    const changed = next.filter((g, i) => groups[i] && g.itemIds !== groups[i].itemIds);
+    if (changed.length === 0) return;
+    setGroups(next);
+    if (window.GEAR_DB?.enabled && session) {
+      changed.forEach(g => window.GEAR_DB.saveGroup(g, session).catch(err => console.warn('[App] saveGroup (move):', err.message)));
+    }
+  };
+
   const renameGroup = (groupId, name) => {
     const trimmed = String(name || '').trim() || 'Untitled Group';
     setGroups(gs => gs.map(g => g.id === groupId ? { ...g, name: trimmed } : g));
@@ -628,8 +651,10 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
               onCombineIntoGroup={combineIntoGroup}
               onRenameGroup={renameGroup}
               onDeleteGroup={deleteGroup}
+              onMoveItemToGroup={moveItemToGroup}
               onAddItem={() => setModalEditItem({ category: 'Camera', qty: 1, status: 'available' })}
               onOpenDatabase={() => setPage('database')}
+              onExportInventory={() => setModalExport({ name: (user && user.name) ? `${user.name}'s Inventory` : 'Inventory', client: '', shoot: '', location: '' })}
               draggedId={draggedId} setDraggedId={setDraggedId}
               hoverCart={hoverCart} setHoverCart={setHoverCart}
             />
@@ -716,7 +741,8 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
       {modalExport && (
         <window.STUDIO_MODALS.ExportPDFModal
           project={modalExport}
-          items={projectItems[modalExport.id] || []}
+          /* No id => exporting the user's inventory rather than a project. */
+          items={modalExport.id ? (projectItems[modalExport.id] || []) : items}
           onClose={() => setModalExport(null)}
         />
       )}

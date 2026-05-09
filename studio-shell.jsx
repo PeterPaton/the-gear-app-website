@@ -181,11 +181,11 @@
   const cartRoot = (drag) => ({ width: 400, background: T.ink, color: '#fff', display: 'flex', flexDirection: 'column', flexShrink: 0, outline: drag ? `3px solid ${T.orange}` : '3px solid transparent', outlineOffset: -3, transition: 'outline-color .12s' });
   const cartCollapsed = (drag) => ({ width: 48, background: T.ink, color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, padding: '14px 0', gap: 14, outline: drag ? `3px solid ${T.orange}` : '3px solid transparent', outlineOffset: -3, transition: 'outline-color .12s', position: 'relative' });
   const cartCollapseBtn = { background: 'rgba(255,255,255,0.06)', border: 'none', color: 'rgba(255,255,255,0.7)', width: 22, height: 22, borderRadius: 4, cursor: 'pointer', fontSize: 12, flexShrink: 0 };
-  const cartHead = { padding: '18px 20px 14px', borderBottom: '1px solid rgba(255,255,255,0.1)' };
-  const cartList = { flex: 1, overflowY: 'auto', padding: '6px 0' };
+  const cartHead = { padding: '20px 24px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)' };
+  const cartList = { flex: 1, overflowY: 'auto', padding: '8px 0' };
   const cartRowH = 56;
   const cartItem = { display: 'flex', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', height: cartRowH };
-  const cartFoot = { padding: '14px 20px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', gap: 8 };
+  const cartFoot = { padding: '16px 24px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', gap: 8 };
   const emptyCart = { padding: '32px 20px', textAlign: 'center', color: 'rgba(255,255,255,0.4)' };
 
   window.STUDIO_SHELL = { Sidebar, CartPanel };
