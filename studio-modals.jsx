@@ -216,24 +216,38 @@
     // each image to a Blob and replacing the src removes the CORS dependency
     // entirely. Falls back to the category placeholder if a fetch can't
     // succeed (e.g. truly no-CORS hosts) so the PDF row still has an icon.
+    // Convert a remote URL into a data: URL. Tries the direct CORS fetch
+    // first (works for Supabase Storage and other CORS-friendly hosts), then
+    // falls through to our /api/proxy serverless route which re-serves
+    // anything CORS-restricted with the right headers attached.
+    const fetchToDataUrl = async (url) => {
+      const res = await fetch(url, { mode: 'cors', cache: 'no-store' });
+      if (!res.ok) throw new Error('fetch ' + res.status);
+      const blob = await res.blob();
+      return await new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(fr.result);
+        fr.onerror = reject;
+        fr.readAsDataURL(blob);
+      });
+    };
+
     const inlineImagesAsDataUrls = async (node) => {
       const imgs = Array.from(node.querySelectorAll('img'));
       await Promise.all(imgs.map(async (img) => {
         if (!img.src || img.src.startsWith('data:')) return;
+        const orig = img.src;
         try {
-          const res = await fetch(img.src, { mode: 'cors', cache: 'no-store' });
-          if (!res.ok) throw new Error('fetch ' + res.status);
-          const blob = await res.blob();
-          const dataUrl = await new Promise((resolve, reject) => {
-            const fr = new FileReader();
-            fr.onload = () => resolve(fr.result);
-            fr.onerror = reject;
-            fr.readAsDataURL(blob);
-          });
-          img.src = dataUrl;
-        } catch (e) {
-          const cat = img.getAttribute('data-category') || 'Camera';
-          img.src = window.GEAR_PLACEHOLDER(cat);
+          img.src = await fetchToDataUrl(orig);
+        } catch (e1) {
+          try {
+            // Fallback: our same-origin serverless image proxy.
+            img.src = await fetchToDataUrl('/api/proxy?url=' + encodeURIComponent(orig));
+          } catch (e2) {
+            // Last resort — the category-shaped placeholder so the row isn't blank.
+            const cat = img.getAttribute('data-category') || 'Camera';
+            img.src = window.GEAR_PLACEHOLDER(cat);
+          }
         }
         // Wait for the (possibly swapped) source to decode before html2canvas runs.
         if (!img.complete || img.naturalWidth === 0) {
