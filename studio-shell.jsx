@@ -112,12 +112,12 @@
             const R = window.GEAR_ROW;
             return (
               <div key={pi.id} style={cartItem}>
-                <div style={{ position: 'relative', width: cartRowH, height: cartRowH, padding: 6, flexShrink: 0 }}>
-                  <div style={{ width: '100%', height: '100%', background: '#fff', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                <div style={{ position: 'relative', width: 44, height: 44, padding: 3, flexShrink: 0, marginLeft: 14 }}>
+                  <div style={{ width: '100%', height: '100%', background: '#fff', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                     <img src={pi.image_url || window.GEAR_PLACEHOLDER(pi.category)} onError={(e) => { e.currentTarget.src = window.GEAR_PLACEHOLDER(pi.category); }} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} alt="" />
                   </div>
                   {pi.qty > 1 && (
-                    <div style={{ position: 'absolute', bottom: 2, right: 2, background: T.orange, color: '#fff', fontSize: 11, fontFamily: S.mono, fontWeight: 700, padding: '2px 6px', minWidth: 20, textAlign: 'center', lineHeight: 1.3, borderRadius: 4 }}>{pi.qty}</div>
+                    <div style={{ position: 'absolute', bottom: -2, right: -2, background: T.orange, color: '#fff', fontSize: 10, fontFamily: S.mono, fontWeight: 700, padding: '1px 5px', minWidth: 16, textAlign: 'center', lineHeight: 1.2, borderRadius: 3 }}>{pi.qty}</div>
                   )}
                 </div>
                 <div style={{ flex: 1, minWidth: 0, padding: '0 14px' }}>
