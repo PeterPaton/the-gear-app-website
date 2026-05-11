@@ -639,77 +639,70 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
             onUpdate={updateUser}
           />
         )}
-        {!showAccount && !openProject && page === 'inventory' && (
+        {/* All three pages stay mounted; only the active one is visible.
+            Keeps per-page state (search, filters, collapsed groups, sort,
+            pagination) intact when the user switches tabs and back. */}
+        {!showAccount && !openProject && (
           <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-            <window.STUDIO_INVENTORY
-              items={items} projects={projects} activeProjectId={activeProjectId}
-              density={density} setDensity={setDensity}
-              onEditItem={setModalEditItem}
-              onAddToCart={addToProject}
-              onChangeInvQty={changeInvQty}
-              groups={groups}
-              onCombineIntoGroup={combineIntoGroup}
-              onRenameGroup={renameGroup}
-              onDeleteGroup={deleteGroup}
-              onMoveItemToGroup={moveItemToGroup}
-              onAddItem={() => setModalEditItem({ category: 'Camera', qty: 1, status: 'available' })}
-              onOpenDatabase={() => setPage('database')}
-              onExportInventory={() => setModalExport({ name: (user && user.name) ? `${user.name}'s Inventory` : 'Inventory', client: '', shoot: '', location: '' })}
-              draggedId={draggedId} setDraggedId={setDraggedId}
-              hoverCart={hoverCart} setHoverCart={setHoverCart}
-            />
-            <window.STUDIO_SHELL.CartPanel
-              projects={projects} activeProjectId={activeProjectId}
-              projectItems={projectItems[activeProjectId] || []}
-              onSelectProject={setActiveProjectId}
-              hoverCart={hoverCart} setHoverCart={setHoverCart}
-              draggedId={draggedId} setDraggedId={setDraggedId}
-              onDrop={addToProject} onChangeQty={changeQty}
-              onExport={() => setModalExport(activeProject)}
-              onOpenProject={(id) => setOpenProjectId(id)}
-              onNewProject={() => setModalNewProject(true)}
-              collapsed={cartCollapsed} setCollapsed={setCartCollapsed}
-            />
+            <div style={{ flex: 1, display: page === 'inventory' ? 'flex' : 'none', overflow: 'hidden' }}>
+              <window.STUDIO_INVENTORY
+                items={items} projects={projects} activeProjectId={activeProjectId}
+                density={density} setDensity={setDensity}
+                onEditItem={setModalEditItem}
+                onAddToCart={addToProject}
+                onChangeInvQty={changeInvQty}
+                groups={groups}
+                onCombineIntoGroup={combineIntoGroup}
+                onRenameGroup={renameGroup}
+                onDeleteGroup={deleteGroup}
+                onMoveItemToGroup={moveItemToGroup}
+                onAddItem={() => setModalEditItem({ category: 'Camera', qty: 1, status: 'available' })}
+                onOpenDatabase={() => setPage('database')}
+                onExportInventory={() => setModalExport({ name: (user && user.name) ? `${user.name}'s Inventory` : 'Inventory', client: '', shoot: '', location: '' })}
+                draggedId={draggedId} setDraggedId={setDraggedId}
+                hoverCart={hoverCart} setHoverCart={setHoverCart}
+              />
+            </div>
+            {window.STUDIO_DATABASE && (
+              <div style={{ flex: 1, display: page === 'database' ? 'flex' : 'none', overflow: 'hidden' }}>
+                <window.STUDIO_DATABASE
+                  catalog={catalog} items={items}
+                  dbStatus={dbStatus}
+                  onAddToInventory={saveItem}
+                  onAddToCart={addToProject}
+                  draggedId={draggedId} setDraggedId={setDraggedId}
+                  hoverCart={hoverCart} setHoverCart={setHoverCart}
+                  density={density} setDensity={setDensity}
+                />
+              </div>
+            )}
+            <div style={{ flex: 1, display: page === 'projects' ? 'flex' : 'none', overflow: 'hidden' }}>
+              <window.STUDIO_PROJECTS
+                projects={projects}
+                catalog={catalog}
+                projectItems={projectItems}
+                activeProjectId={activeProjectId}
+                onSelectProject={setActiveProjectId}
+                onOpenProject={setOpenProjectId}
+                onNewProject={() => setModalNewProject(true)}
+                onDeleteProject={deleteProject}
+              />
+            </div>
+            {(page === 'inventory' || page === 'database') && (
+              <window.STUDIO_SHELL.CartPanel
+                projects={projects} activeProjectId={activeProjectId}
+                projectItems={projectItems[activeProjectId] || []}
+                onSelectProject={setActiveProjectId}
+                hoverCart={hoverCart} setHoverCart={setHoverCart}
+                draggedId={draggedId} setDraggedId={setDraggedId}
+                onDrop={addToProject} onChangeQty={changeQty}
+                onExport={() => setModalExport(activeProject)}
+                onOpenProject={(id) => setOpenProjectId(id)}
+                onNewProject={() => setModalNewProject(true)}
+                collapsed={cartCollapsed} setCollapsed={setCartCollapsed}
+              />
+            )}
           </div>
-        )}
-
-        {!showAccount && !openProject && page === 'database' && window.STUDIO_DATABASE && (
-          <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-            <window.STUDIO_DATABASE
-              catalog={catalog} items={items}
-              dbStatus={dbStatus}
-              onAddToInventory={saveItem}
-              onAddToCart={addToProject}
-              draggedId={draggedId} setDraggedId={setDraggedId}
-              hoverCart={hoverCart} setHoverCart={setHoverCart}
-              density={density} setDensity={setDensity}
-            />
-            <window.STUDIO_SHELL.CartPanel
-              projects={projects} activeProjectId={activeProjectId}
-              projectItems={projectItems[activeProjectId] || []}
-              onSelectProject={setActiveProjectId}
-              hoverCart={hoverCart} setHoverCart={setHoverCart}
-              draggedId={draggedId} setDraggedId={setDraggedId}
-              onDrop={addToProject} onChangeQty={changeQty}
-              onExport={() => setModalExport(activeProject)}
-              onOpenProject={(id) => setOpenProjectId(id)}
-              onNewProject={() => setModalNewProject(true)}
-              collapsed={cartCollapsed} setCollapsed={setCartCollapsed}
-            />
-          </div>
-        )}
-
-        {!showAccount && !openProject && page === 'projects' && (
-          <window.STUDIO_PROJECTS
-            projects={projects}
-            catalog={catalog}
-            projectItems={projectItems}
-            activeProjectId={activeProjectId}
-            onSelectProject={setActiveProjectId}
-            onOpenProject={setOpenProjectId}
-            onNewProject={() => setModalNewProject(true)}
-            onDeleteProject={deleteProject}
-          />
         )}
 
         {!showAccount && openProject && (

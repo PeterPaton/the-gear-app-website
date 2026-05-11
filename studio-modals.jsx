@@ -250,22 +250,30 @@
       const node = sheetRef.current;
       if (!node || !window.html2pdf || busy) return;
       setBusy(true);
+      // Clone the preview off-screen and only mutate the clone — this keeps
+      // the visible modal preview unchanged while we replace each <img> src
+      // with an inlined data: URL so html2canvas isn't blocked by CORS.
+      const clone = node.cloneNode(true);
+      clone.style.position = 'fixed';
+      clone.style.left = '-100000px';
+      clone.style.top = '0';
+      clone.style.width = node.offsetWidth + 'px';
+      clone.style.background = '#fff';
+      document.body.appendChild(clone);
       try {
-        await inlineImagesAsDataUrls(node);
-        await window.html2pdf().from(node).set({
+        await inlineImagesAsDataUrls(clone);
+        await window.html2pdf().from(clone).set({
           margin: [0.4, 0.5, 0.5, 0.5],
           filename: `${project.name.replace(/[^a-z0-9_\- ]/gi, '_').trim() || 'pull-list'}.pdf`,
           image: { type: 'jpeg', quality: 0.95 },
           html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
           jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
-          // Let the table break naturally between rows. `avoid-all` would keep
-          // the whole table together and dump it onto page 2 (which is what
-          // produced the empty-first-page output earlier).
           pagebreak: { mode: ['css', 'legacy'], avoid: 'tr' },
         }).save();
       } catch (err) {
         console.warn('[Export] html2pdf failed:', err);
       } finally {
+        if (clone.parentNode) clone.parentNode.removeChild(clone);
         setBusy(false);
       }
     };
@@ -338,7 +346,7 @@
                       {showPhotos && (
                         <td style={{ padding: rowPad }}>
                           <div style={{ width: thumb, height: thumb, background: T.paperLight, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                            <img src={pi.image_url || window.GEAR_PLACEHOLDER(pi.category)} onError={(e) => { e.currentTarget.src = window.GEAR_PLACEHOLDER(pi.category); }} crossOrigin="anonymous" data-category={pi.category || 'Camera'} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} alt="" />
+                            <img src={pi.image_url || window.GEAR_PLACEHOLDER(pi.category)} onError={(e) => { e.currentTarget.src = window.GEAR_PLACEHOLDER(pi.category); }} data-category={pi.category || 'Camera'} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} alt="" />
                           </div>
                         </td>
                       )}
