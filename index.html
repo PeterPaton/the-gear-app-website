@@ -394,6 +394,10 @@ function App() {
   
   const [collapsed, setCollapsed] = useState(false);
   const [cartCollapsed, setCartCollapsed] = useState(false);
+  // Cart panel width is user-resizable via the left-edge handle. Clamped to a
+  // sane minimum and to a quarter of the viewport so it never crowds the main
+  // workspace; kept in-memory only so a refresh resets to the default.
+  const [cartWidth, setCartWidth] = useState(400);
   const [density, setDensity] = useState('comfortable');
 
   // Drag-to-cart
@@ -802,6 +806,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
                 onOpenProject={(id) => setOpenProjectId(id)}
                 onNewProject={() => setModalNewProject(true)}
                 collapsed={cartCollapsed} setCollapsed={setCartCollapsed}
+                width={cartWidth} setWidth={setCartWidth}
               />
             )}
           </div>
@@ -815,6 +820,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
             onBack={() => setOpenProjectId(null)}
             onExport={() => setModalExport(openProject)}
             onChangeQty={(id, d) => changeQty(id, d, openProject.id)}
+            onRename={(name) => renameProject(openProject.id, name)}
           />
         )}
       </div>
@@ -868,7 +874,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
 }
 
 // Project detail view — full-screen kit list for one project.
-function ProjectDetailView({ project, projectItems = [], catalog, onBack, onExport, onChangeQty }) {
+function ProjectDetailView({ project, projectItems = [], catalog, onBack, onExport, onChangeQty, onRename }) {
   const T = window.GEAR.tokens;
   const S = window.STUDIO_STYLES;
   const R = window.GEAR_ROW;
@@ -905,7 +911,24 @@ function ProjectDetailView({ project, projectItems = [], catalog, onBack, onExpo
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 24 }}>
           <div>
             <div style={{ fontFamily: S.mono, fontSize: 11, color: T.orange, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 10 }}>● {project.status}</div>
-            <div style={{ fontFamily: S.mono, fontSize: 48, fontWeight: 400, letterSpacing: '-0.03em', lineHeight: 0.95, marginBottom: 14 }}>{project.name}</div>
+            {editMode && onRename ? (
+              <input
+                defaultValue={project.name}
+                key={project.id + ':' + project.name}
+                onBlur={(e) => {
+                  const v = (e.target.value || '').trim();
+                  if (v && v !== project.name) onRename(v);
+                  if (!v) e.target.value = project.name;
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') e.target.blur();
+                  if (e.key === 'Escape') { e.target.value = project.name; e.target.blur(); }
+                }}
+                style={{ fontFamily: S.mono, fontSize: 48, fontWeight: 400, letterSpacing: '-0.03em', lineHeight: 0.95, marginBottom: 14, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 4, outline: 'none', color: '#fff', padding: '4px 10px', minWidth: 260, maxWidth: '100%' }}
+              />
+            ) : (
+              <div style={{ fontFamily: S.mono, fontSize: 48, fontWeight: 400, letterSpacing: '-0.03em', lineHeight: 0.95, marginBottom: 14 }}>{project.name}</div>
+            )}
             <div style={{ display: 'flex', gap: 24, fontSize: 11, fontFamily: S.mono, color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
               {project.client && <span><span style={{ color: 'rgba(255,255,255,0.35)' }}>Client </span>{project.client}</span>}
               {project.shoot && <span><span style={{ color: 'rgba(255,255,255,0.35)' }}>Shoot </span>{project.shoot}</span>}

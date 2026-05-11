@@ -5,13 +5,43 @@
   const T = S.T;
 
   // ─── Right cart panel ───────────────────────────────────────────────
-  function CartPanel({ projects, activeProjectId, projectItems = [], onSelectProject, items, hoverCart, setHoverCart, draggedId, setDraggedId, onDrop, onChangeQty, onRemove, onExport, onOpenProject, onNewProject, collapsed, setCollapsed }) {
+  function CartPanel({ projects, activeProjectId, projectItems = [], onSelectProject, items, hoverCart, setHoverCart, draggedId, setDraggedId, onDrop, onChangeQty, onRemove, onExport, onOpenProject, onNewProject, collapsed, setCollapsed, width = 400, setWidth }) {
     const active = projects.find(p => p.id === activeProjectId);
+    // Drag the left edge to resize. Clamped to a sane minimum and capped at a
+    // quarter of the viewport so the cart never crowds the main workspace.
+    const startResize = (e) => {
+      if (!setWidth) return;
+      e.preventDefault();
+      const startX = e.clientX;
+      const startW = width;
+      const onMove = (ev) => {
+        const next = startW + (startX - ev.clientX);
+        const max = Math.floor(window.innerWidth / 4);
+        const min = 300;
+        setWidth(Math.max(min, Math.min(max, next)));
+      };
+      const onUp = () => {
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      };
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    };
+    const ResizeHandle = (collapsed || !setWidth) ? null : (
+      <div onMouseDown={startResize}
+           title="Drag to resize"
+           style={{ position: 'absolute', left: -3, top: 0, bottom: 0, width: 6, cursor: 'col-resize', zIndex: 10 }} />
+    );
     if (!active) {
       // No project selected — always show the full CTA (collapsing here just
       // hides the "+ New Project" button behind a thin "Full list" bar).
       return (
-        <div style={cartRoot(false)}>
+        <div style={cartRoot(false, width)}>
+          {ResizeHandle}
           <div style={cartHead}>
             <div>
               <div style={{ fontFamily: S.mono, fontSize: 9, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 4 }}>Full list</div>
@@ -51,10 +81,11 @@
     }
 
     return (
-      <div style={cartRoot(hoverCart)}
+      <div style={cartRoot(hoverCart, width)}
            onDragOver={(e) => { e.preventDefault(); setHoverCart(true); }}
            onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setHoverCart(false); }}
            onDrop={(e) => { e.preventDefault(); if (draggedId) onDrop(draggedId); setHoverCart(false); setDraggedId(null); }}>
+        {ResizeHandle}
         <div style={cartHead}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -178,7 +209,7 @@
   const recentRow = { display: 'flex', alignItems: 'center', gap: 10, padding: '6px 16px 6px 23px', fontSize: 12, color: 'rgba(255,255,255,0.6)' };
   const userBar = (col) => ({ display: 'flex', alignItems: 'center', gap: 10, padding: 14, borderTop: '1px solid rgba(255,255,255,0.08)', justifyContent: col ? 'center' : 'flex-start' });
 
-  const cartRoot = (drag) => ({ width: 400, background: T.ink, color: '#fff', display: 'flex', flexDirection: 'column', flexShrink: 0, outline: drag ? `3px solid ${T.orange}` : '3px solid transparent', outlineOffset: -3, transition: 'outline-color .12s' });
+  const cartRoot = (drag, width = 400) => ({ width: width, background: T.ink, color: '#fff', display: 'flex', flexDirection: 'column', flexShrink: 0, outline: drag ? `3px solid ${T.orange}` : '3px solid transparent', outlineOffset: -3, transition: 'outline-color .12s', position: 'relative' });
   const cartCollapsed = (drag) => ({ width: 48, background: T.ink, color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, padding: '14px 0', gap: 14, outline: drag ? `3px solid ${T.orange}` : '3px solid transparent', outlineOffset: -3, transition: 'outline-color .12s', position: 'relative' });
   const cartCollapseBtn = { background: 'rgba(255,255,255,0.06)', border: 'none', color: 'rgba(255,255,255,0.7)', width: 22, height: 22, borderRadius: 4, cursor: 'pointer', fontSize: 12, flexShrink: 0 };
   const cartHead = { padding: '20px 24px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)' };
