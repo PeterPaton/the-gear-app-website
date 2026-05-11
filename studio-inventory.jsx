@@ -32,9 +32,12 @@
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
-    // Which section card is currently being hovered during a drag (for the
-    // outline highlight and to guard our own drop logic).
+    // Drag highlight is mutually-exclusive between three zones — the scroll
+    // page background, an individual group card, or a single row in the
+    // ungrouped Items section. Each handler sets its own and clears the
+    // others so only one outline shows at a time, Finder-style.
     const [hoverCardId, setHoverCardId] = useState(null);
+    const [hoverPage, setHoverPage] = useState(false);
 
     // Auto-focus the name field whenever editingGroupId changes (used right
     // after dropping items together to create a new group).
@@ -89,11 +92,16 @@
       return Array.from(seen);
     }, [items]);
 
-    // Item row, used inside both group sections and the ungrouped section.
-    const renderRow = (it) => {
+    // Item row. `inGroup=true` means this row lives inside a group card —
+    // drop events should pass through to the card so the whole card lights up
+    // (Finder-style) rather than the individual row. Rows in the ungrouped
+    // Items section keep the per-row combine target behavior because that's
+    // the only place where dragging item-onto-item creates a new group.
+    const renderRow = (it, opts) => {
+      const inGroup = !!(opts && opts.inGroup);
       const ownedQty = it.qty || 1;
       const isSel = editMode && selected.has(it.id);
-      const isDropTarget = draggedId && draggedId !== it.id && hoverRowId === it.id && !editMode;
+      const isRowDropTarget = !inGroup && draggedId && draggedId !== it.id && hoverRowId === it.id && !editMode;
       const rowBg = isSel ? '#fff3ed' : '#faf7f2';
 
       return (
@@ -101,18 +109,20 @@
              draggable={!editMode}
              onClick={() => { if (editMode) toggleSel(it.id); }}
              onDragStart={(e) => { if (!editMode) { setDraggedId(it.id); e.dataTransfer.effectAllowed = 'copy'; } }}
-             onDragEnd={() => { setDraggedId(null); setHoverCart(false); setHoverRowId(null); setHoverCardId(null); }}
-             onDragOver={(e) => {
+             onDragEnd={() => { setDraggedId(null); setHoverCart(false); setHoverRowId(null); setHoverCardId(null); setHoverPage(false); }}
+             onDragOver={inGroup ? undefined : (e) => {
                if (draggedId && draggedId !== it.id && !editMode) {
                  e.preventDefault();
                  e.stopPropagation();
                  if (hoverRowId !== it.id) setHoverRowId(it.id);
+                 if (hoverPage) setHoverPage(false);
+                 if (hoverCardId) setHoverCardId(null);
                }
              }}
-             onDragLeave={(e) => {
+             onDragLeave={inGroup ? undefined : (e) => {
                if (!e.currentTarget.contains(e.relatedTarget)) setHoverRowId(prev => prev === it.id ? null : prev);
              }}
-             onDrop={(e) => {
+             onDrop={inGroup ? undefined : (e) => {
                if (draggedId && draggedId !== it.id && !editMode && onCombineIntoGroup) {
                  e.preventDefault();
                  e.stopPropagation();
@@ -120,6 +130,7 @@
                  setDraggedId(null);
                  setHoverRowId(null);
                  setHoverCart(false);
+                 setHoverPage(false);
                  if (result && result.isNew) setEditingGroupId(result.id);
                }
              }}
@@ -127,16 +138,16 @@
                display: 'flex',
                alignItems: 'stretch',
                borderBottom: '1px solid #f0ebe2',
-               background: isDropTarget ? '#fff3ed' : (draggedId === it.id ? '#f6f3ee' : rowBg),
+               background: isRowDropTarget ? '#fff3ed' : (draggedId === it.id ? '#f6f3ee' : rowBg),
                opacity: draggedId === it.id ? 0.5 : 1,
-               outline: isSel ? `2px solid ${T.orange}` : (isDropTarget ? `2px solid ${T.orange}` : 'none'),
+               outline: isSel ? `2px solid ${T.orange}` : (isRowDropTarget ? `2px solid ${T.orange}` : 'none'),
                outlineOffset: '-2px',
                cursor: editMode ? 'pointer' : 'grab',
                height: rowH,
                transition: 'background .08s, outline-color .08s',
              }}
-             onMouseEnter={(e) => { if (!isSel && !isDropTarget) e.currentTarget.style.background = '#f0ebe2'; }}
-             onMouseLeave={(e) => { if (!isSel && !isDropTarget) e.currentTarget.style.background = rowBg; }}>
+             onMouseEnter={(e) => { if (!isSel && !isRowDropTarget) e.currentTarget.style.background = '#f0ebe2'; }}
+             onMouseLeave={(e) => { if (!isSel && !isRowDropTarget) e.currentTarget.style.background = rowBg; }}>
 
           {/* Image with qty badge */}
           <div style={{ position: 'relative', width: rowH, height: rowH, padding: 6, flexShrink: 0 }}>
@@ -174,41 +185,54 @@
       const totalQty = rows.reduce((s, it) => s + (it.qty || 1), 0);
       const collapsed = group ? collapsedGroups.has(group.id) : false;
       const cardKey = group ? group.id : '_ungrouped';
-      const isCardDropTarget = !!draggedId && hoverCardId === cardKey && !editMode;
+      // Only real group cards outline as a drop target. The ungrouped Items
+      // card hands its drops through to the page-background drop zone so the
+      // "release from group" gesture lights up the whole middle page.
+      const isCardDropTarget = !!group && !!draggedId && hoverCardId === cardKey && !editMode;
+      const cardDragHandlers = group ? {
+        onDragOver: (e) => {
+          if (draggedId && !editMode) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (hoverCardId !== cardKey) setHoverCardId(cardKey);
+            if (hoverPage) setHoverPage(false);
+            if (hoverRowId) setHoverRowId(null);
+          }
+        },
+        onDragLeave: (e) => {
+          if (!e.currentTarget.contains(e.relatedTarget)) {
+            setHoverCardId(prev => prev === cardKey ? null : prev);
+          }
+        },
+        onDrop: (e) => {
+          if (draggedId && !editMode && onMoveItemToGroup) {
+            e.preventDefault();
+            e.stopPropagation();
+            onMoveItemToGroup(draggedId, group.id);
+            setDraggedId(null);
+            setHoverCardId(null);
+            setHoverRowId(null);
+            setHoverPage(false);
+            setHoverCart(false);
+          }
+        },
+      } : {};
       return (
         <div key={key}
-             onDragOver={(e) => {
-               // Section-level drop target: the row drop handler stops
-               // propagation, so we only ever see drops over header / empty
-               // card area. Useful for collapsed groups (no rows visible) and
-               // for "release to ungrouped" via the Items section.
-               if (draggedId && !editMode) {
-                 e.preventDefault();
-                 if (hoverCardId !== cardKey) setHoverCardId(cardKey);
-               }
-             }}
-             onDragLeave={(e) => {
-               if (!e.currentTarget.contains(e.relatedTarget)) {
-                 setHoverCardId(prev => prev === cardKey ? null : prev);
-               }
-             }}
-             onDrop={(e) => {
-               if (draggedId && !editMode && onMoveItemToGroup) {
-                 e.preventDefault();
-                 onMoveItemToGroup(draggedId, group ? group.id : null);
-                 setDraggedId(null);
-                 setHoverCardId(null);
-                 setHoverRowId(null);
-                 setHoverCart(false);
-               }
-             }}
-             style={{ marginBottom: 8, background: '#fff', borderRadius: 6, border: `1px solid ${T.paperEdge}`, overflow: 'hidden', outline: isCardDropTarget ? `2px solid ${T.orange}` : 'none', outlineOffset: -2, transition: 'outline-color .12s' }}>
-          <div style={{ padding: '10px 14px 10px 18px', background: '#f6f3ee', borderBottom: collapsed ? 'none' : `1px solid ${T.paperEdge}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+             {...cardDragHandlers}
+             style={{ marginBottom: 8, background: '#fff', borderRadius: 6, border: `1px solid ${T.paperEdge}`, overflow: 'hidden', outline: isCardDropTarget ? `3px solid ${T.orange}` : 'none', outlineOffset: -2, transition: 'outline-color .12s' }}>
+          {/* Header — clicking the bar (anywhere except the rename input)
+              toggles collapse. The chevron button still works as a discrete
+              control; both call stopPropagation so we don't double-toggle. */}
+          <div onClick={() => { if (group) toggleGroupCollapse(group.id); }}
+               style={{ padding: '10px 14px 10px 18px', background: '#f6f3ee', borderBottom: collapsed ? 'none' : `1px solid ${T.paperEdge}`, display: 'flex', alignItems: 'center', gap: 10, cursor: group ? 'pointer' : 'default', userSelect: 'none' }}>
             {group ? (
               <input
                 ref={el => { if (el) groupInputRefs.current[group.id] = el; else delete groupInputRefs.current[group.id]; }}
                 defaultValue={group.name}
                 key={group.id + ':' + group.name /* re-mount when name changes externally */}
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
                 onBlur={(e) => {
                   const v = (e.target.value || '').trim();
                   if (v && v !== group.name) onRenameGroup && onRenameGroup(group.id, v);
@@ -226,21 +250,21 @@
             )}
             <span style={{ fontFamily: S.mono, fontSize: 10, color: T.textMute, fontWeight: 600 }}>{totalQty}</span>
             {group && (
-              <button onClick={() => { if (window.confirm(`Delete group "${group.name}"? Items stay in inventory.`)) onDeleteGroup && onDeleteGroup(group.id); }}
+              <button onClick={(e) => { e.stopPropagation(); if (window.confirm(`Delete group "${group.name}"? Items stay in inventory.`)) onDeleteGroup && onDeleteGroup(group.id); }}
                       title="Delete group"
                       style={{ width: 22, height: 22, border: 'none', background: 'rgba(196,74,44,0.1)', color: '#c44a2c', borderRadius: 4, cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: 0 }}>×</button>
             )}
             {group && (
-              <button onClick={() => toggleGroupCollapse(group.id)}
+              <button onClick={(e) => { e.stopPropagation(); toggleGroupCollapse(group.id); }}
                       title={collapsed ? 'Expand group' : 'Collapse group'}
-                      style={{ width: 22, height: 22, border: 'none', background: 'rgba(0,0,0,0.06)', color: T.ink, borderRadius: 4, cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform .15s', transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}>▾</button>
+                      style={{ width: 22, height: 22, border: 'none', background: 'rgba(0,0,0,0.06)', color: T.ink, borderRadius: 4, cursor: 'pointer', fontSize: 20, lineHeight: 1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform .15s', transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}>▾</button>
             )}
           </div>
           {!collapsed && (
             <div>
               {rows.length === 0 ? (
                 <div style={{ padding: '20px 18px', fontFamily: S.mono, fontSize: 11, color: T.textMute, letterSpacing: '0.06em', textTransform: 'uppercase' }}>No items match the current filter</div>
-              ) : rows.map(renderRow)}
+              ) : rows.map(it => renderRow(it, { inGroup: !!group }))}
             </div>
           )}
         </div>
@@ -299,7 +323,35 @@
           ))}
         </div>
 
-        <div style={{ flex: 1, overflowY: 'auto', background: '#faf7f2', padding: '10px 14px' }}>
+        <div
+          style={{ flex: 1, overflowY: 'auto', background: '#faf7f2', padding: '10px 14px', boxShadow: hoverPage ? `inset 0 0 0 3px ${T.orange}` : 'none', transition: 'box-shadow .12s' }}
+          onDragOver={(e) => {
+            // Page-background drop target. The group cards stopPropagation on
+            // their dragover, so we only ever see drags over the empty space
+            // around them — exactly the "release this item from its group"
+            // gesture the user wants.
+            if (draggedId && !editMode) {
+              e.preventDefault();
+              if (!hoverPage) setHoverPage(true);
+              if (hoverCardId) setHoverCardId(null);
+              if (hoverRowId) setHoverRowId(null);
+            }
+          }}
+          onDragLeave={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget)) setHoverPage(false);
+          }}
+          onDrop={(e) => {
+            if (draggedId && !editMode && onMoveItemToGroup) {
+              e.preventDefault();
+              onMoveItemToGroup(draggedId, null);
+              setDraggedId(null);
+              setHoverPage(false);
+              setHoverCardId(null);
+              setHoverRowId(null);
+              setHoverCart(false);
+            }
+          }}
+        >
           {items.length === 0 ? (
             <div style={{ padding: '60px 40px', textAlign: 'center' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
