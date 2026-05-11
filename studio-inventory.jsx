@@ -226,28 +226,38 @@
               control; both call stopPropagation so we don't double-toggle. */}
           <div onClick={() => { if (group) toggleGroupCollapse(group.id); }}
                style={{ padding: '10px 14px 10px 18px', background: '#f6f3ee', borderBottom: collapsed ? 'none' : `1px solid ${T.paperEdge}`, display: 'flex', alignItems: 'center', gap: 10, cursor: group ? 'pointer' : 'default', userSelect: 'none' }}>
-            {group ? (
-              <input
-                ref={el => { if (el) groupInputRefs.current[group.id] = el; else delete groupInputRefs.current[group.id]; }}
-                defaultValue={group.name}
-                key={group.id + ':' + group.name /* re-mount when name changes externally */}
-                onClick={(e) => e.stopPropagation()}
-                onMouseDown={(e) => e.stopPropagation()}
-                onBlur={(e) => {
-                  const v = (e.target.value || '').trim();
-                  if (v && v !== group.name) onRenameGroup && onRenameGroup(group.id, v);
-                  if (!v) e.target.value = group.name;
-                  setEditingGroupId(prev => prev === group.id ? null : prev);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') e.target.blur();
-                  if (e.key === 'Escape') { e.target.value = group.name; e.target.blur(); }
-                }}
-                style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', outline: 'none', fontFamily: S.mono, fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.ink, padding: '2px 0' }}
-              />
-            ) : (
-              <span style={{ flex: 1, fontFamily: S.mono, fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.ink }}>{label}</span>
-            )}
+            {(() => {
+              if (!group) return <span style={{ flex: 1, fontFamily: S.mono, fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.ink }}>{label}</span>;
+              // Names are only renamable when (a) the group was just created
+              // and is waiting for its initial name, or (b) the user has the
+              // Edit toggle on. Outside those it renders as plain text so
+              // accidental clicks don't put the input into edit mode.
+              const editable = editMode || editingGroupId === group.id;
+              if (!editable) {
+                return <span style={{ flex: 1, fontFamily: S.mono, fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.ink, padding: '2px 0' }}>{group.name}</span>;
+              }
+              return (
+                <input
+                  ref={el => { if (el) groupInputRefs.current[group.id] = el; else delete groupInputRefs.current[group.id]; }}
+                  defaultValue={group.name}
+                  key={group.id + ':' + group.name /* re-mount when name changes externally */}
+                  onClick={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onBlur={(e) => {
+                    const v = (e.target.value || '').trim();
+                    if (v && v !== group.name) onRenameGroup && onRenameGroup(group.id, v);
+                    if (!v) e.target.value = group.name;
+                    setEditingGroupId(prev => prev === group.id ? null : prev);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') e.target.blur();
+                    if (e.key === 'Escape') { e.target.value = group.name; e.target.blur(); }
+                  }}
+                  // Field styling makes it obvious the name is editable when the user is in Edit mode.
+                  style={{ flex: 1, minWidth: 0, background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 4, outline: 'none', fontFamily: S.mono, fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.ink, padding: '5px 10px' }}
+                />
+              );
+            })()}
             <span style={{ fontFamily: S.mono, fontSize: 10, color: T.textMute, fontWeight: 600 }}>{totalQty}</span>
             {group && (
               <button onClick={(e) => { e.stopPropagation(); if (window.confirm(`Delete group "${group.name}"? Items stay in inventory.`)) onDeleteGroup && onDeleteGroup(group.id); }}
@@ -277,10 +287,14 @@
           <div style={R.pageTitle}>Inventory</div>
           <div style={R.countChip}>{filtered.length} of {items.length}</div>
           <div style={{ position: 'relative', flex: 1, maxWidth: 380 }}>
-            <input style={{ ...S.input, padding: '8px 12px 8px 32px', background: '#f6f3ee' }}
+            <input style={{ ...S.input, padding: query ? '8px 30px 8px 32px' : '8px 12px 8px 32px', background: '#f6f3ee' }}
                    placeholder="Search inventory..."
                    value={query} onChange={e => setQuery(e.target.value)} />
             <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: T.textMute, fontSize: 13 }}>⌕</span>
+            {query && (
+              <button onClick={() => setQuery('')} title="Clear" type="button"
+                      style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 20, height: 20, border: 'none', background: 'rgba(0,0,0,0.08)', color: T.ink, borderRadius: '50%', cursor: 'pointer', fontSize: 12, lineHeight: 1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+            )}
           </div>
           <div style={{ flex: 1 }} />
           <button style={R.editToggleBtn(editMode)} onClick={() => { setEditMode(e => !e); setSelected(new Set()); }}>
@@ -367,12 +381,15 @@
             </div>
           ) : (
             <React.Fragment>
-              {/* One section per group (only when it has items in the current filter) */}
-              {groups.map(g => renderSection({
-                key: g.id,
-                group: g,
-                rows: sections.groupItems[g.id] || [],
-              })).filter(Boolean)}
+              {/* One section per group. When a filter is active, hide groups
+                  that have no matching items (no more "No items match the
+                  current filter" empty section). With no filter we still show
+                  every group so the user can manage them. */}
+              {groups.map(g => {
+                const sectionRows = sections.groupItems[g.id] || [];
+                if (sectionRows.length === 0 && filter !== 'all') return null;
+                return renderSection({ key: g.id, group: g, rows: sectionRows });
+              }).filter(Boolean)}
               {/* Ungrouped fallback */}
               {renderSection({
                 key: '_ungrouped',

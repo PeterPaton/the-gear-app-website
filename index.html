@@ -194,6 +194,53 @@ function App() {
     try { localStorage.setItem(itemsKey, JSON.stringify(items)); } catch {}
   }, [items, itemsKey]);
 
+  // Re-sync category from the catalog onto stored inventory rows. Users have
+  // been re-tagging items in their DB tool, but the items state captured the
+  // category at the time it was added — leaving inventory rows with stale
+  // labels. We only ever update `category` here (we don't touch name/image
+  // because the user might have edited those locally via the Edit modal).
+  useEffect(() => {
+    if (!catalog || catalog.length === 0 || items.length === 0) return;
+    let changed = false;
+    const next = items.map(it => {
+      const c = catalog.find(cc => cc.id === it.id || cc.UUID === it.id);
+      if (c && c.category && c.category !== it.category) {
+        changed = true;
+        return { ...it, category: c.category };
+      }
+      return it;
+    });
+    if (changed) setItems(next);
+  }, [catalog, items]);
+
+  // ── Undo stack + keyboard shortcut (Cmd/Ctrl+Z) ───────────────
+  // Holds inverse functions for destructive actions (delete project / group
+  // / inventory item). Cmd+Z while focus isn't in a text field pops + runs
+  // the most recent inverse. Kept in-memory only — undo doesn't survive page
+  // reloads, which matches "session-only" UX.
+  const undoStackRef = React.useRef([]);
+  const pushUndo = React.useCallback((label, fn) => {
+    undoStackRef.current = [...undoStackRef.current.slice(-49), { label, fn }];
+  }, []);
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      if (e.key !== 'z' && e.key !== 'Z') return;
+      if (e.shiftKey) return; // leave room for future redo
+      // Let the browser handle Cmd+Z inside text fields (text editing undo).
+      const t = document.activeElement;
+      const inField = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+      if (inField) return;
+      if (undoStackRef.current.length === 0) return;
+      e.preventDefault();
+      const last = undoStackRef.current[undoStackRef.current.length - 1];
+      undoStackRef.current = undoStackRef.current.slice(0, -1);
+      try { last.fn(); } catch (err) { console.warn('[App] undo failed:', err); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   // Inventory groups — local label that bundles a set of item ids together.
   // Mirrors `items` persistence (localStorage scoped per user) and also syncs
   // to Supabase when enabled (gear-db.js#loadGroups/saveGroup/deleteGroup).
@@ -475,13 +522,30 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
     }
   };
   const deleteProject = (id) => {
+    const proj = projects.find(p => p.id === id);
+    const projItems = projectItems[id];
+    const wasActive = id === activeProjectId;
     setProjects(ps => {
       const next = ps.filter(p => p.id !== id);
-      if (id === activeProjectId) setActiveProjectId(next[0] ? next[0].id : null);
+      if (wasActive) setActiveProjectId(next[0] ? next[0].id : null);
       return next;
     });
     if (window.GEAR_DB?.enabled && session) {
       window.GEAR_DB.deleteProject(id, session).catch(err => console.warn('[App] deleteProject:', err.message));
+    }
+    if (proj) {
+      pushUndo(`Restore project ${proj.name}`, () => {
+        setProjects(ps => ps.some(p => p.id === proj.id) ? ps : [proj, ...ps]);
+        if (projItems) setProjectItems(prev => ({ ...prev, [id]: projItems }));
+        if (wasActive) setActiveProjectId(id);
+        if (window.GEAR_DB?.enabled && session) {
+          window.GEAR_DB.saveProject(proj, session).catch(err => console.warn('[App] saveProject (undo):', err.message));
+          (projItems || []).forEach(pi => {
+            window.GEAR_DB.addProjectItem(id, { id: pi.equipment_id, name: pi.name, image_url: pi.image_url, category: pi.category }, session, pi.id)
+              .catch(err => console.warn('[App] re-add project item (undo):', err.message));
+          });
+        }
+      });
     }
   };
   const saveItem = (item) => {
@@ -494,14 +558,24 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
 
   // Adjust an inventory item's ownership qty. Independent from project qty.
   // Decrementing past 1 removes the item from inventory entirely.
+  // Removing an item pushes an undo so Cmd/Ctrl+Z restores it.
   const changeInvQty = (itemId, delta) => {
-    setItems(its => {
-      const it = its.find(i => i.id === itemId);
-      if (!it) return its;
-      const newQty = (it.qty || 1) + delta;
-      if (newQty <= 0) return its.filter(i => i.id !== itemId);
-      return its.map(i => i.id === itemId ? { ...i, qty: newQty } : i);
-    });
+    const existing = items.find(i => i.id === itemId);
+    if (!existing) return;
+    const newQty = (existing.qty || 1) + delta;
+    if (newQty <= 0) {
+      const idx = items.indexOf(existing);
+      setItems(its => its.filter(i => i.id !== itemId));
+      pushUndo(`Restore ${existing.name}`, () => {
+        setItems(prev => {
+          if (prev.some(i => i.id === existing.id)) return prev;
+          const insertAt = Math.min(idx, prev.length);
+          return [...prev.slice(0, insertAt), existing, ...prev.slice(insertAt)];
+        });
+      });
+    } else {
+      setItems(its => its.map(i => i.id === itemId ? { ...i, qty: newQty } : i));
+    }
   };
 
   // Merge two inventory items into a group. Either-side-existing groups are
@@ -583,9 +657,18 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
   };
 
   const deleteGroup = (groupId) => {
+    const group = groups.find(g => g.id === groupId);
     setGroups(gs => gs.filter(g => g.id !== groupId));
     if (window.GEAR_DB?.enabled && session) {
       window.GEAR_DB.deleteGroup(groupId, session).catch(err => console.warn('[App] deleteGroup:', err.message));
+    }
+    if (group) {
+      pushUndo(`Restore group ${group.name}`, () => {
+        setGroups(gs => gs.some(g => g.id === group.id) ? gs : [group, ...gs]);
+        if (window.GEAR_DB?.enabled && session) {
+          window.GEAR_DB.saveGroup(group, session).catch(err => console.warn('[App] saveGroup (undo):', err.message));
+        }
+      });
     }
   };
 

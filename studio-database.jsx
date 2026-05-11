@@ -72,10 +72,14 @@
           <div style={R.pageTitle}>Database</div>
           <div style={R.countChip}>{isLoading ? 'loading…' : `${filtered.length} of ${catalog.length}`}</div>
           <div style={{ position: 'relative', flex: 1, maxWidth: 380 }}>
-            <input style={{ ...S.input, padding: '8px 12px 8px 32px', background: '#f6f3ee' }}
+            <input style={{ ...S.input, padding: query ? '8px 30px 8px 32px' : '8px 12px 8px 32px', background: '#f6f3ee' }}
                    placeholder="Search catalog..."
                    value={query} onChange={e => setQuery(e.target.value)} />
             <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: T.textMute, fontSize: 13 }}>⌕</span>
+            {query && (
+              <button onClick={() => setQuery('')} title="Clear" type="button"
+                      style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 20, height: 20, border: 'none', background: 'rgba(0,0,0,0.08)', color: T.ink, borderRadius: '50%', cursor: 'pointer', fontSize: 12, lineHeight: 1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+            )}
           </div>
           <div style={{ flex: 1 }} />
           <div style={R.densityToggle}>
