@@ -120,11 +120,11 @@
                     <div style={{ position: 'absolute', bottom: 2, right: 2, background: T.orange, color: '#fff', fontSize: 11, fontFamily: S.mono, fontWeight: 700, padding: '2px 6px', minWidth: 20, textAlign: 'center', lineHeight: 1.3, borderRadius: 4 }}>{pi.qty}</div>
                   )}
                 </div>
-                <div style={{ flex: 1, minWidth: 0, padding: '0 4px' }}>
+                <div style={{ flex: 1, minWidth: 0, padding: '0 14px' }}>
                   <div style={{ fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 2 }}>{pi.name}</div>
                   <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.45)', fontFamily: S.mono, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{pi.category}</div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', paddingRight: 12, flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', paddingRight: 16, flexShrink: 0 }}>
                   <div style={R.qPill(true)}>
                     <button onClick={() => onChangeQty(pi.equipment_id, -1)} title={pi.qty <= 1 ? 'Remove' : 'Decrease'} style={R.qPillBtn(true)}>−</button>
                     <button onClick={() => onChangeQty(pi.equipment_id, 1)} style={R.qPillBtn(true)}>+</button>
@@ -213,8 +213,8 @@
   const cartCollapsed = (drag) => ({ width: 48, background: T.ink, color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, padding: '14px 0', gap: 14, outline: drag ? `3px solid ${T.orange}` : '3px solid transparent', outlineOffset: -3, transition: 'outline-color .12s', position: 'relative' });
   const cartCollapseBtn = { background: 'rgba(255,255,255,0.06)', border: 'none', color: 'rgba(255,255,255,0.7)', width: 22, height: 22, borderRadius: 4, cursor: 'pointer', fontSize: 12, flexShrink: 0 };
   const cartHead = { padding: '20px 24px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)' };
-  const cartList = { flex: 1, overflowY: 'auto', padding: '8px 0' };
-  const cartRowH = 56;
+  const cartList = { flex: 1, overflowY: 'auto', padding: '10px 0' };
+  const cartRowH = 68;
   const cartItem = { display: 'flex', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', height: cartRowH };
   const cartFoot = { padding: '16px 24px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', gap: 8 };
   const emptyCart = { padding: '32px 20px', textAlign: 'center', color: 'rgba(255,255,255,0.4)' };

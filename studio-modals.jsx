@@ -250,19 +250,16 @@
       const node = sheetRef.current;
       if (!node || !window.html2pdf || busy) return;
       setBusy(true);
-      // Clone the preview off-screen and only mutate the clone — this keeps
-      // the visible modal preview unchanged while we replace each <img> src
-      // with an inlined data: URL so html2canvas isn't blocked by CORS.
-      const clone = node.cloneNode(true);
-      clone.style.position = 'fixed';
-      clone.style.left = '-100000px';
-      clone.style.top = '0';
-      clone.style.width = node.offsetWidth + 'px';
-      clone.style.background = '#fff';
-      document.body.appendChild(clone);
+      // html2canvas refuses to render elements that are positioned far off-
+      // screen (the cloned-and-hidden approach was producing blank PDFs), so
+      // mutate the visible preview's <img> srcs in place, generate the PDF,
+      // then restore the original sources. The user briefly sees the images
+      // swap to inlined data URLs during generation, which is acceptable.
+      const imgs = Array.from(node.querySelectorAll('img'));
+      const originalSrcs = imgs.map(img => img.getAttribute('src'));
       try {
-        await inlineImagesAsDataUrls(clone);
-        await window.html2pdf().from(clone).set({
+        await inlineImagesAsDataUrls(node);
+        await window.html2pdf().from(node).set({
           margin: [0.4, 0.5, 0.5, 0.5],
           filename: `${project.name.replace(/[^a-z0-9_\- ]/gi, '_').trim() || 'pull-list'}.pdf`,
           image: { type: 'jpeg', quality: 0.95 },
@@ -273,7 +270,12 @@
       } catch (err) {
         console.warn('[Export] html2pdf failed:', err);
       } finally {
-        if (clone.parentNode) clone.parentNode.removeChild(clone);
+        // Restore original sources so the preview keeps showing actual remote
+        // images (the data-URL versions would still look identical but are
+        // wasteful to keep in memory after we're done generating).
+        imgs.forEach((img, i) => {
+          if (originalSrcs[i] != null) img.setAttribute('src', originalSrcs[i]);
+        });
         setBusy(false);
       }
     };
