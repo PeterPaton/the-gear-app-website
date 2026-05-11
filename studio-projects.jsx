@@ -4,7 +4,7 @@
   const S = window.STUDIO_STYLES;
   const T = S.T;
 
-  function ProjectCard({ p, items, onOpen, onDelete }) {
+  function ProjectCard({ p, items, editMode, onOpen, onDelete, onRename }) {
     const sCol = window.GEAR.statusColor[p.status];
     const totalQty = items.reduce((s, pi) => s + (pi.qty || 0), 0);
     const handleDelete = (e) => {
@@ -12,14 +12,35 @@
       if (window.confirm(`Delete "${p.name}"? This removes the project and its kit list.`)) onDelete(p.id);
     };
     return (
-      <div style={card} onClick={onOpen}
-           onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.08)'; const x = e.currentTarget.querySelector('[data-del]'); if (x) x.style.opacity = 1; }}
-           onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; const x = e.currentTarget.querySelector('[data-del]'); if (x) x.style.opacity = 0; }}>
-        <button data-del onClick={handleDelete} title="Delete project" style={delBtn}>×</button>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={card} onClick={editMode ? undefined : onOpen}
+           onMouseEnter={e => { if (!editMode) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.08)'; } }}
+           onMouseLeave={e => { if (!editMode) { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; } }}>
+        {editMode && (
+          <button onClick={handleDelete} title="Delete project" style={delBtn}>×</button>
+        )}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16, gap: 10 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontFamily: S.mono, fontSize: 9, color: T.textMute, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>{p.client}</div>
-            <div style={{ fontSize: 22, fontWeight: 600, lineHeight: 1.15, marginBottom: 4, fontFamily: S.mono, letterSpacing: '-0.01em' }}>{p.name}</div>
+            {editMode ? (
+              <input
+                defaultValue={p.name}
+                key={p.id + ':' + p.name}
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                onBlur={(e) => {
+                  const v = (e.target.value || '').trim();
+                  if (v && v !== p.name) onRename && onRename(p.id, v);
+                  if (!v) e.target.value = p.name;
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') e.target.blur();
+                  if (e.key === 'Escape') { e.target.value = p.name; e.target.blur(); }
+                }}
+                style={{ width: '100%', background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 4, outline: 'none', fontSize: 22, fontWeight: 600, lineHeight: 1.15, marginBottom: 4, fontFamily: S.mono, letterSpacing: '-0.01em', padding: '4px 8px', color: T.ink }}
+              />
+            ) : (
+              <div style={{ fontSize: 22, fontWeight: 600, lineHeight: 1.15, marginBottom: 4, fontFamily: S.mono, letterSpacing: '-0.01em' }}>{p.name}</div>
+            )}
             <div style={{ fontFamily: S.mono, fontSize: 10, color: T.textMute, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{p.shoot} · {p.location}</div>
           </div>
           <span style={S.pill(sCol.bg, sCol.fg)}>{p.status}</span>
@@ -49,9 +70,11 @@
     );
   }
 
-  function ProjectsPage({ projects, catalog, projectItems = {}, activeProjectId, onSelectProject, onOpenProject, onNewProject, onDeleteProject }) {
+  function ProjectsPage({ projects, catalog, projectItems = {}, activeProjectId, onSelectProject, onOpenProject, onNewProject, onDeleteProject, onRenameProject }) {
+    const R = window.GEAR_ROW;
     const [filter, setFilter] = useState('all'); // all, active, planning, wrapped
     const [query, setQuery] = useState('');
+    const [editMode, setEditMode] = useState(false);
     const filtered = projects.filter(p => {
       if (filter !== 'all' && p.status !== filter) return false;
       if (query && !(p.name + ' ' + p.client + ' ' + p.location).toLowerCase().includes(query.toLowerCase())) return false;
@@ -74,6 +97,9 @@
             )}
           </div>
           <div style={{ flex: 1 }}></div>
+          <button style={R.editToggleBtn(editMode)} onClick={() => setEditMode(e => !e)}>
+            {editMode ? '✕ Done' : '✎ Edit'}
+          </button>
           <button style={S.btnP} onClick={onNewProject}>+ New Project</button>
         </div>
 
@@ -91,7 +117,7 @@
         <div style={{ flex: 1, overflowY: 'auto', padding: 28, background: '#faf7f2' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 18 }}>
             {filtered.map(p => (
-              <ProjectCard key={p.id} p={p} items={projectItems[p.id] || []} onDelete={onDeleteProject} onOpen={() => { onSelectProject(p.id); onOpenProject(p.id); }} />
+              <ProjectCard key={p.id} p={p} items={projectItems[p.id] || []} editMode={editMode} onDelete={onDeleteProject} onRename={onRenameProject} onOpen={() => { onSelectProject(p.id); onOpenProject(p.id); }} />
             ))}
             <div onClick={onNewProject} style={emptyCard}>
               <div style={{ fontSize: 28, color: T.textMute, marginBottom: 6 }}>+</div>
@@ -104,7 +130,7 @@
   }
 
   const card = { background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 6, padding: 20, cursor: 'pointer', transition: 'transform .14s, box-shadow .14s', position: 'relative' };
-  const delBtn = { position: 'absolute', top: 10, left: 10, width: 22, height: 22, border: 'none', background: 'rgba(196,74,44,0.1)', color: '#c44a2c', borderRadius: 4, cursor: 'pointer', fontSize: 14, lineHeight: 1, opacity: 0, transition: 'opacity .12s', zIndex: 2 };
+  const delBtn = { position: 'absolute', top: 10, left: 10, width: 22, height: 22, border: 'none', background: 'rgba(196,74,44,0.1)', color: '#c44a2c', borderRadius: 4, cursor: 'pointer', fontSize: 14, lineHeight: 1, zIndex: 2 };
   const kitStrip = { display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 4, marginBottom: 16 };
   const kitChip = { aspectRatio: '1', background: '#fff', borderRadius: 3, position: 'relative', overflow: 'hidden' };
   const emptyCard = { background: 'transparent', border: `1.5px dashed ${T.paperEdge}`, borderRadius: 6, padding: 20, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 220, transition: 'border-color .14s', };

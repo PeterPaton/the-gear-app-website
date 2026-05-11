@@ -11,9 +11,26 @@
   function DatabasePage({ catalog, items, onAddToInventory, onAddToCart, draggedId, setDraggedId, hoverCart, setHoverCart, density, setDensity, dbStatus = { state: 'idle' } }) {
     const [query, setQuery] = useState('');
     const [cat, setCat] = useState('All');
-    const [sortBy, setSortBy] = useState({ key: 'name', dir: 'asc' });
+    // Default sort is a stable random shuffle so the same item doesn't always
+    // greet you at the top. Clicking a column header still switches to name /
+    // category sorting; clicking it again toggles direction.
+    const [sortBy, setSortBy] = useState({ key: 'random', dir: 'asc' });
     const [visible, setVisible] = useState(PAGE);
     const scrollRef = useRef(null);
+
+    // Build the shuffle once per catalog load and keep it stable for the
+    // session — re-shuffling on every render would jump items around as the
+    // user types or filters.
+    const shuffledOrder = useMemo(() => {
+      const order = new Map();
+      const arr = catalog.map((it, i) => i);
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      arr.forEach((origIdx, pos) => order.set(catalog[origIdx].id, pos));
+      return order;
+    }, [catalog]);
 
     const inventoryIds = useMemo(() => new Set((items || []).map(it => it.id)), [items]);
 
@@ -34,13 +51,17 @@
         const hay = (String(it.name || '') + ' ' + String(it.brand || '') + ' ' + String(it.category || '')).toLowerCase();
         return tokens.every(t => hay.includes(t));
       });
-      r.sort((a, b) => {
-        const va = a[sortBy.key], vb = b[sortBy.key];
-        if (typeof va === 'number') return sortBy.dir === 'asc' ? va - vb : vb - va;
-        return sortBy.dir === 'asc' ? String(va || '').localeCompare(String(vb || '')) : String(vb || '').localeCompare(String(va || ''));
-      });
+      if (sortBy.key === 'random') {
+        r.sort((a, b) => (shuffledOrder.get(a.id) || 0) - (shuffledOrder.get(b.id) || 0));
+      } else {
+        r.sort((a, b) => {
+          const va = a[sortBy.key], vb = b[sortBy.key];
+          if (typeof va === 'number') return sortBy.dir === 'asc' ? va - vb : vb - va;
+          return sortBy.dir === 'asc' ? String(va || '').localeCompare(String(vb || '')) : String(vb || '').localeCompare(String(va || ''));
+        });
+      }
       return r;
-    }, [catalog, query, cat, sortBy]);
+    }, [catalog, query, cat, sortBy, shuffledOrder]);
 
     useEffect(() => { setVisible(PAGE); if (scrollRef.current) scrollRef.current.scrollTop = 0; }, [query, cat, sortBy]);
 

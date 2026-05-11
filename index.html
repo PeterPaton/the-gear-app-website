@@ -521,6 +521,24 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
       window.GEAR_DB.saveProject(proj, session).catch(err => console.warn('[App] saveProject:', err.message));
     }
   };
+  const renameProject = (id, name) => {
+    const trimmed = String(name || '').trim();
+    if (!trimmed) return;
+    const proj = projects.find(p => p.id === id);
+    if (!proj || proj.name === trimmed) return;
+    const updated = { ...proj, name: trimmed };
+    setProjects(ps => ps.map(p => p.id === id ? updated : p));
+    if (window.GEAR_DB?.enabled && session) {
+      window.GEAR_DB.saveProject(updated, session).catch(err => console.warn('[App] renameProject:', err.message));
+    }
+    pushUndo(`Rename ${proj.name}`, () => {
+      setProjects(ps => ps.map(p => p.id === id ? proj : p));
+      if (window.GEAR_DB?.enabled && session) {
+        window.GEAR_DB.saveProject(proj, session).catch(err => console.warn('[App] renameProject undo:', err.message));
+      }
+    });
+  };
+
   const deleteProject = (id) => {
     const proj = projects.find(p => p.id === id);
     const projItems = projectItems[id];
@@ -769,6 +787,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
                 onOpenProject={setOpenProjectId}
                 onNewProject={() => setModalNewProject(true)}
                 onDeleteProject={deleteProject}
+                onRenameProject={renameProject}
               />
             </div>
             {(page === 'inventory' || page === 'database') && (
