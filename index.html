@@ -194,25 +194,6 @@ function App() {
     try { localStorage.setItem(itemsKey, JSON.stringify(items)); } catch {}
   }, [items, itemsKey]);
 
-  // Re-sync category from the catalog onto stored inventory rows. Users have
-  // been re-tagging items in their DB tool, but the items state captured the
-  // category at the time it was added — leaving inventory rows with stale
-  // labels. We only ever update `category` here (we don't touch name/image
-  // because the user might have edited those locally via the Edit modal).
-  useEffect(() => {
-    if (!catalog || catalog.length === 0 || items.length === 0) return;
-    let changed = false;
-    const next = items.map(it => {
-      const c = catalog.find(cc => cc.id === it.id || cc.UUID === it.id);
-      if (c && c.category && c.category !== it.category) {
-        changed = true;
-        return { ...it, category: c.category };
-      }
-      return it;
-    });
-    if (changed) setItems(next);
-  }, [catalog, items]);
-
   // ── Undo stack + keyboard shortcut (Cmd/Ctrl+Z) ───────────────
   // Holds inverse functions for destructive actions (delete project / group
   // / inventory item). Cmd+Z while focus isn't in a text field pops + runs
@@ -281,6 +262,25 @@ function App() {
   const [projectItems, setProjectItems] = useState({}); //{ [projectId]: [item, ...] }
   const [dbStatus, setDbStatus] = useState({ state: 'idle', count: 0, msg: '' });
   const [loadTick, setLoadTick] = useState(0);
+
+  // Re-sync category from the catalog onto stored inventory rows. Users have
+  // been re-tagging items in their DB tool, but the items state captured the
+  // category at the time it was added — leaving inventory rows with stale
+  // labels. We only ever update `category` here (we don't touch name/image
+  // because the user might have edited those locally via the Edit modal).
+  useEffect(() => {
+    if (!catalog || catalog.length === 0 || items.length === 0) return;
+    let changed = false;
+    const next = items.map(it => {
+      const c = catalog.find(cc => cc.id === it.id || cc.UUID === it.id);
+      if (c && c.category && c.category !== it.category) {
+        changed = true;
+        return { ...it, category: c.category };
+      }
+      return it;
+    });
+    if (changed) setItems(next);
+  }, [catalog, items]);
 
   // ── Supabase equipment catalog loader ─────────────────────────
   // Loads the shared equipment reference table. Re-runs when credentials change.
