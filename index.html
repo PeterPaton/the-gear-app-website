@@ -108,6 +108,10 @@ function App() {
     setSession(sess || null);
   };
   const [signingOut, setSigningOut] = useState(false);
+  // Whether the user is currently mid-password-reset (returned from the
+  // reset email). Set by the OAuth listener on the PASSWORD_RECOVERY event.
+  const [recoveryMode, setRecoveryMode] = useState(false);
+
   const signOut = async () => {
     setSigningOut(true);
     // Clear Supabase's own session first — otherwise the OAuth listener below
@@ -169,6 +173,7 @@ function App() {
     });
     const { data: sub } = sb.auth.onAuthStateChange((event, sess) => {
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') adoptSession(sess);
+      if (event === 'PASSWORD_RECOVERY') setRecoveryMode(true);
       if (event === 'SIGNED_OUT') {
         // Just clear local state — don't call signOut() here or it would
         // re-call sb.auth.signOut() and risk a loop.
@@ -184,14 +189,56 @@ function App() {
   // ── Core state ────────────────────────────────────────────────────────────
   // Inventory persists in localStorage, keyed per-user so one browser can host
   // multiple accounts without bleeding items between them.
+  // Inventory state. Supabase (user_inventory table) is the source of truth
+  // for signed-in users. localStorage is kept only as an offline cache so the
+  // last-seen list shows instantly on reload before the Supabase fetch lands;
+  // every mutation writes to both. Anonymous (demo) users fall back to
+  // localStorage only.
   const itemsKey = session?.user?.id ? `gear.items.${session.user.id}` : 'gear.items.anon';
   const [items, setItems] = useState([]);
+  const itemsLoadedFor = React.useRef(null);
+
+  // Optimistic load: show the localStorage cache while we wait for Supabase.
   useEffect(() => {
     try {
       const stored = JSON.parse(localStorage.getItem(itemsKey) || '[]');
       setItems(Array.isArray(stored) ? stored : []);
     } catch { setItems([]); }
   }, [itemsKey]);
+
+  // Authoritative load + one-time migration from localStorage when the user
+  // first signs in (so existing local inventories don't get orphaned).
+  useEffect(() => {
+    if (!user) { itemsLoadedFor.current = null; return; }
+    if (!session?.user?.id || !window.GEAR_DB?.enabled) return;
+    if (itemsLoadedFor.current === session.user.id) return;
+    itemsLoadedFor.current = session.user.id;
+    const isUuid = (s) => typeof s === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+    window.GEAR_DB.loadInventory(session).then(loaded => {
+      const fromDB = Array.isArray(loaded) ? loaded : [];
+      // First sign-in for this user, but localStorage has rows — push them up.
+      if (fromDB.length === 0) {
+        let cached = [];
+        try { cached = JSON.parse(localStorage.getItem(`gear.items.${session.user.id}`) || '[]'); } catch {}
+        if (cached.length > 0) {
+          const migrated = cached.map(it => ({
+            ...it,
+            id: isUuid(it.id) ? it.id : ((typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : it.id),
+          }));
+          migrated.forEach(it => window.GEAR_DB.saveInventoryItem(it, session).catch(err => console.warn('[App] migrate inventory:', err.message)));
+          setItems(migrated);
+          return;
+        }
+      }
+      setItems(fromDB);
+    }).catch(err => {
+      itemsLoadedFor.current = null;
+      console.warn('[App] loadInventory:', err.message);
+    });
+  }, [user, session]);
+
+  // Mirror items to localStorage so the next page load has a cached starting
+  // point before Supabase responds.
   useEffect(() => {
     try { localStorage.setItem(itemsKey, JSON.stringify(items)); } catch {}
   }, [items, itemsKey]);
@@ -589,11 +636,35 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
     }
   };
   const saveItem = (item) => {
-    setItems(its => {
-      const exists = item.id && its.find(i => i.id === item.id);
-      if (exists) return its.map(i => i.id === item.id ? item : i);
-      return [{ ...item, id: item.id || ('i' + Date.now()) }, ...its];
-    });
+    const isUuid = (s) => typeof s === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+    const genId = () => (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'i' + Date.now();
+
+    // Editing an item that's already in our state — just patch in place.
+    if (item.id && items.find(i => i.id === item.id)) {
+      const updated = { ...item };
+      setItems(its => its.map(i => i.id === item.id ? updated : i));
+      if (window.GEAR_DB?.enabled && session) {
+        window.GEAR_DB.saveInventoryItem(updated, session).catch(err => console.warn('[App] saveInventoryItem:', err.message));
+      }
+      return;
+    }
+
+    // New item. If the supplied id is a catalog UUID, treat it as
+    // equipment_id and mint a fresh per-row inventory id so multiple users
+    // can each own a copy of the same catalog row without PK collisions.
+    let id = item.id;
+    let equipment_id = item.equipment_id;
+    if (isUuid(id) && !equipment_id) {
+      equipment_id = id;
+      id = genId();
+    } else if (!id || !isUuid(id)) {
+      id = genId();
+    }
+    const next = { ...item, id, equipment_id };
+    setItems(its => [next, ...its]);
+    if (window.GEAR_DB?.enabled && session) {
+      window.GEAR_DB.saveInventoryItem(next, session).catch(err => console.warn('[App] saveInventoryItem:', err.message));
+    }
   };
 
   // Adjust an inventory item's ownership qty. Independent from project qty.
@@ -606,15 +677,25 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
     if (newQty <= 0) {
       const idx = items.indexOf(existing);
       setItems(its => its.filter(i => i.id !== itemId));
+      if (window.GEAR_DB?.enabled && session) {
+        window.GEAR_DB.deleteInventoryItem(itemId, session).catch(err => console.warn('[App] deleteInventoryItem:', err.message));
+      }
       pushUndo(`Restore ${existing.name}`, () => {
         setItems(prev => {
           if (prev.some(i => i.id === existing.id)) return prev;
           const insertAt = Math.min(idx, prev.length);
           return [...prev.slice(0, insertAt), existing, ...prev.slice(insertAt)];
         });
+        if (window.GEAR_DB?.enabled && session) {
+          window.GEAR_DB.saveInventoryItem(existing, session).catch(err => console.warn('[App] saveInventoryItem (undo):', err.message));
+        }
       });
     } else {
-      setItems(its => its.map(i => i.id === itemId ? { ...i, qty: newQty } : i));
+      const updated = { ...existing, qty: newQty };
+      setItems(its => its.map(i => i.id === itemId ? updated : i));
+      if (window.GEAR_DB?.enabled && session) {
+        window.GEAR_DB.saveInventoryItem(updated, session).catch(err => console.warn('[App] saveInventoryItem (qty):', err.message));
+      }
     }
   };
 
@@ -733,6 +814,11 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
   // with a "use it on your laptop" pointer, signed in or not.
   const isMobileViewport = window.STUDIO_AUTH.useIsMobile();
   if (isMobileViewport) return <window.STUDIO_AUTH.MobileLanding />;
+
+  // ── Password recovery ──
+  // Triggered when Supabase fires PASSWORD_RECOVERY after the user clicks
+  // the reset email link. Block the rest of the app until they pick a new one.
+  if (recoveryMode) return <window.STUDIO_AUTH.RecoveryForm onComplete={() => setRecoveryMode(false)} />;
 
   // ── Auth gate ──
   if (!user) return <window.STUDIO_AUTH.LoginPage onSignIn={signIn} />;
@@ -875,25 +961,36 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
         />
       )}
 
-      <TweaksPanel title="Supabase">
-        <TweakSection label="Connection">
-          <TweakText label="Project URL" value={tweaks.supabaseUrl} placeholder="https://xxx.supabase.co" onChange={(v) => setTweak('supabaseUrl', v.trim())} />
-          <TweakText label="Anon key" value={tweaks.supabaseAnonKey} placeholder="eyJhbGci…" onChange={(v) => setTweak('supabaseAnonKey', v.trim())} />
-        </TweakSection>
-        <TweakSection label="Status">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '8px 10px', borderRadius: 7, background: 'rgba(0,0,0,0.04)', fontFamily: '"JetBrains Mono", monospace', fontSize: 10.5, color: 'rgba(41,38,27,0.78)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: dbStatus.state === 'ok' ? '#1f8a5b' : dbStatus.state === 'error' ? '#c44a2c' : dbStatus.state === 'loading' ? '#c98a1d' : '#999' }} />
-              <span style={{ textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
-                {dbStatus.state === 'ok' ? 'Connected' : dbStatus.state === 'error' ? 'Error' : dbStatus.state === 'loading' ? 'Loading' : dbStatus.state === 'local' ? 'Sample data' : 'Idle'}
-              </span>
-            </div>
-            <div style={{ wordBreak: 'break-word', color: 'rgba(41,38,27,0.55)' }}>{dbStatus.msg || '—'}</div>
-            {dbStatus.state === 'ok' && (<div style={{ color: 'rgba(41,38,27,0.55)' }}>with image: {catalog.filter(it => it.image_url).length} / {catalog.length}</div>)}
-          </div>
-          <TweakButton label="Reload from Supabase" onClick={() => setLoadTick(t => t + 1)} />
-        </TweakSection>
-      </TweaksPanel>
+      {/* Tweaks panel is hidden in production. Show only when explicitly
+          requested via ?debug=1, on localhost, or on Vercel preview builds. */}
+      {(() => {
+        const host = typeof window !== 'undefined' ? window.location.hostname : '';
+        const isLocal = host === 'localhost' || host === '127.0.0.1';
+        const isPreview = host.endsWith('.vercel.app');
+        const wantsDebug = (new URLSearchParams(window.location.search)).get('debug') === '1';
+        if (!isLocal && !isPreview && !wantsDebug) return null;
+        return (
+          <TweaksPanel title="Supabase">
+            <TweakSection label="Connection">
+              <TweakText label="Project URL" value={tweaks.supabaseUrl} placeholder="https://xxx.supabase.co" onChange={(v) => setTweak('supabaseUrl', v.trim())} />
+              <TweakText label="Anon key" value={tweaks.supabaseAnonKey} placeholder="eyJhbGci…" onChange={(v) => setTweak('supabaseAnonKey', v.trim())} />
+            </TweakSection>
+            <TweakSection label="Status">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '8px 10px', borderRadius: 7, background: 'rgba(0,0,0,0.04)', fontFamily: '"JetBrains Mono", monospace', fontSize: 10.5, color: 'rgba(41,38,27,0.78)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: dbStatus.state === 'ok' ? '#1f8a5b' : dbStatus.state === 'error' ? '#c44a2c' : dbStatus.state === 'loading' ? '#c98a1d' : '#999' }} />
+                  <span style={{ textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+                    {dbStatus.state === 'ok' ? 'Connected' : dbStatus.state === 'error' ? 'Error' : dbStatus.state === 'loading' ? 'Loading' : dbStatus.state === 'local' ? 'Sample data' : 'Idle'}
+                  </span>
+                </div>
+                <div style={{ wordBreak: 'break-word', color: 'rgba(41,38,27,0.55)' }}>{dbStatus.msg || '—'}</div>
+                {dbStatus.state === 'ok' && (<div style={{ color: 'rgba(41,38,27,0.55)' }}>with image: {catalog.filter(it => it.image_url).length} / {catalog.length}</div>)}
+              </div>
+              <TweakButton label="Reload from Supabase" onClick={() => setLoadTick(t => t + 1)} />
+            </TweakSection>
+          </TweaksPanel>
+        );
+      })()}
     </div>
   );
 }

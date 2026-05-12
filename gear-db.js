@@ -158,9 +158,23 @@ window.SUPABASE_CONFIG = __stored || {
     async saveInventoryItem(item, session) {
       if (!isEnabled() || !session) return item;
       const sb = makeClient(session);
+      // Send only columns the user_inventory table actually has — passing
+      // extras (brand, model, serial, value, location) makes the row
+      // rejected by Postgres. If you add those columns to your schema later,
+      // include them here too.
+      const payload = {
+        id: item.id,
+        user_id: session.user.id,
+        equipment_id: item.equipment_id || null,
+        name: item.name,
+        image_url: item.image_url || null,
+        category: item.category || null,
+        qty: item.qty || 1,
+        status: item.status || 'available',
+      };
       const { data, error } = await sb
         .from('user_inventory')
-        .upsert({ ...item, user_id: session.user.id })
+        .upsert(payload)
         .select()
         .single();
       if (error) console.warn('[GEAR_DB] saveInventoryItem:', error.message);

@@ -69,49 +69,59 @@
     const submit = async (e) => {
       e.preventDefault();
       setBusy(true);
-      // If Supabase is wired, route through it; otherwise fake-auth.
       try {
-        if (window.GEAR_DB?.enabled && window.supabase) {
-          const sb = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey);
-          const fn = mode === 'signin' ? 'signInWithPassword' : 'signUp';
-          const { data, error } = await sb.auth[fn]({ email, password });
-          if (error) throw error;
-          // Pass both user profile and the full session (contains access_token for RLS)
-          onSignIn(
-            { email: data.user?.email || email, name: email.split('@')[0], plan: 'Studio' },
-            data.session
-          );
-        } else {
-          await new Promise(r => setTimeout(r, 400));
-          onSignIn({ email, name: email.split('@')[0] || 'Filmmaker', plan: 'Studio' }, null);
+        if (!window.GEAR_DB?.enabled || !window.supabase) {
+          throw new Error('Authentication is unavailable right now. Please try again in a moment.');
         }
+        const sb = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey);
+        if (mode === 'reset') {
+          const host = window.location.hostname;
+          const isLocal = host === 'localhost' || host === '127.0.0.1';
+          const redirectTo = isLocal ? (window.location.origin + window.location.pathname) : 'https://www.gearapp.io/';
+          const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo });
+          if (error) throw error;
+          alert('Password reset email sent. Check your inbox.');
+          setMode('signin');
+          return;
+        }
+        const fn = mode === 'signin' ? 'signInWithPassword' : 'signUp';
+        const { data, error } = await sb.auth[fn]({ email, password });
+        if (error) throw error;
+        if (mode === 'signup' && !data.session) {
+          // Email confirmation enabled in Supabase — no session yet.
+          alert('Check your email and click the confirmation link to finish creating your account.');
+          setMode('signin');
+          return;
+        }
+        onSignIn(
+          { email: data.user?.email || email, name: email.split('@')[0], plan: 'Studio' },
+          data.session
+        );
       } catch (err) {
         alert(err.message || 'Sign-in failed');
       } finally { setBusy(false); }
     };
 
     const oauth = async (provider) => {
-      if (window.GEAR_DB?.enabled && window.supabase) {
-        const sb = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey);
-        // Always come back to the production domain after OAuth — keeps the
-        // session cookie + storage scoped to one origin even when someone
-        // arrived via a Vercel preview URL. Local dev is still allowed to
-        // round-trip on its own origin so OAuth can be tested without
-        // deploying.
-        const host = window.location.hostname;
-        const isLocal = host === 'localhost' || host === '127.0.0.1';
-        const redirectTo = isLocal
-          ? (window.location.origin + window.location.pathname)
-          : 'https://www.gearapp.io/';
-        const { error } = await sb.auth.signInWithOAuth({
-          provider,
-          options: { redirectTo },
-        });
-        if (error) alert(`${provider} sign-in failed: ${error.message}`);
-      } else {
-        // Demo mode — fake the sign-in.
-        onSignIn({ email: `you@${provider}.com`, name: 'Filmmaker', plan: 'Studio', provider });
+      if (!window.GEAR_DB?.enabled || !window.supabase) {
+        alert('Authentication is unavailable right now. Please try again in a moment.');
+        return;
       }
+      const sb = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey);
+      // Always come back to the production domain after OAuth — keeps the
+      // session cookie + storage scoped to one origin even when someone
+      // arrived via a Vercel preview URL. Local dev still round-trips on
+      // its own origin so OAuth can be tested without deploying.
+      const host = window.location.hostname;
+      const isLocal = host === 'localhost' || host === '127.0.0.1';
+      const redirectTo = isLocal
+        ? (window.location.origin + window.location.pathname)
+        : 'https://www.gearapp.io/';
+      const { error } = await sb.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo },
+      });
+      if (error) alert(`${provider} sign-in failed: ${error.message}`);
     };
 
     if (isMobile) return <MobileLanding />;
@@ -143,7 +153,7 @@
         <div style={{ width: 480, background: '#fff', color: T.ink, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 56px' }}>
           <div style={{ ...S.label, marginBottom: 8 }}>{mode === 'signin' ? 'Welcome back' : 'Get started'}</div>
           <div style={{ fontFamily: S.mono, fontSize: 30, fontWeight: 600, letterSpacing: '-0.02em', marginBottom: 28 }}>
-            {mode === 'signin' ? 'Sign in to the Gear App' : 'Create your account'}
+            {mode === 'signin' ? 'Sign in to the Gear App' : mode === 'signup' ? 'Create your account' : 'Reset your password'}
           </div>
 
           {/* OAuth */}
@@ -173,23 +183,33 @@
               <label style={S.label}>Email</label>
               <input type="email" required style={S.input} value={email} onChange={e => setEmail(e.target.value)} placeholder="you@studio.com" autoFocus />
             </div>
-            <div style={S.field}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <label style={S.label}>Password</label>
-                {mode === 'signin' && <a href="#" style={{ ...S.label, color: T.orange, textDecoration: 'none' }}>Forgot?</a>}
+            {mode !== 'reset' && (
+              <div style={S.field}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <label style={S.label}>Password</label>
+                  {mode === 'signin' && (
+                    <a href="#" onClick={(e) => { e.preventDefault(); setMode('reset'); }} style={{ ...S.label, color: T.orange, textDecoration: 'none' }}>Forgot?</a>
+                  )}
+                </div>
+                <input type="password" required style={S.input} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
               </div>
-              <input type="password" required style={S.input} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
-            </div>
+            )}
             <button type="submit" disabled={busy} style={{ ...S.btnP, padding: 12, marginTop: 8, opacity: busy ? 0.6 : 1 }}>
-              {busy ? '...' : (mode === 'signin' ? 'Sign in' : 'Create account')}
+              {busy ? '...' : (mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create account' : 'Send reset email')}
             </button>
           </form>
 
           <div style={{ marginTop: 24, fontSize: 12, color: T.textMute, textAlign: 'center' }}>
-            {mode === 'signin' ? "New to Gear? " : 'Already have an account? '}
-            <a href="#" onClick={(e) => { e.preventDefault(); setMode(mode === 'signin' ? 'signup' : 'signin'); }} style={{ color: T.ink, fontWeight: 600 }}>
-              {mode === 'signin' ? 'Create account' : 'Sign in'}
-            </a>
+            {mode === 'reset' ? (
+              <a href="#" onClick={(e) => { e.preventDefault(); setMode('signin'); }} style={{ color: T.ink, fontWeight: 600 }}>← Back to sign in</a>
+            ) : (
+              <React.Fragment>
+                {mode === 'signin' ? "New to Gear? " : 'Already have an account? '}
+                <a href="#" onClick={(e) => { e.preventDefault(); setMode(mode === 'signin' ? 'signup' : 'signin'); }} style={{ color: T.ink, fontWeight: 600 }}>
+                  {mode === 'signin' ? 'Create account' : 'Sign in'}
+                </a>
+              </React.Fragment>
+            )}
           </div>
         </div>
       </div>
@@ -197,6 +217,51 @@
   }
 
   const oauthBtn = { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '11px 14px', background: '#fff', color: T.ink, border: `1px solid ${T.paperEdge}`, borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: S.sans, transition: 'background .12s' };
+
+  // ─── Password recovery form ─────────────────────────────────
+  // Shown when Supabase fires PASSWORD_RECOVERY (user clicked the reset
+  // email and now has a one-time recovery session). They set a new password
+  // and we hand control back to the App.
+  function RecoveryForm({ onComplete }) {
+    const [password, setPassword] = useState('');
+    const [confirm, setConfirm] = useState('');
+    const [busy, setBusy] = useState(false);
+    const submit = async (e) => {
+      e.preventDefault();
+      if (password.length < 8) { alert('Use at least 8 characters.'); return; }
+      if (password !== confirm) { alert('Passwords do not match.'); return; }
+      setBusy(true);
+      try {
+        if (!window.GEAR_DB?.enabled || !window.supabase) throw new Error('Authentication is unavailable.');
+        const sb = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey);
+        const { error } = await sb.auth.updateUser({ password });
+        if (error) throw error;
+        alert('Password updated. You are now signed in.');
+        if (onComplete) onComplete();
+      } catch (err) {
+        alert(err.message || 'Update failed');
+      } finally { setBusy(false); }
+    };
+    return (
+      <div style={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: T.ink, color: '#fff' }}>
+        <form onSubmit={submit} style={{ width: 380, padding: 32, background: '#fff', color: T.ink, borderRadius: 8 }}>
+          <div style={{ ...S.label, marginBottom: 6 }}>Reset password</div>
+          <div style={{ fontFamily: S.mono, fontSize: 22, fontWeight: 600, letterSpacing: '-0.01em', marginBottom: 20 }}>Set a new password</div>
+          <div style={S.field}>
+            <label style={S.label}>New password</label>
+            <input type="password" required style={S.input} value={password} onChange={e => setPassword(e.target.value)} placeholder="At least 8 characters" autoFocus />
+          </div>
+          <div style={{ ...S.field, marginTop: 12 }}>
+            <label style={S.label}>Confirm password</label>
+            <input type="password" required style={S.input} value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="Type it again" />
+          </div>
+          <button type="submit" disabled={busy} style={{ ...S.btnP, padding: 12, marginTop: 20, width: '100%', opacity: busy ? 0.6 : 1 }}>
+            {busy ? 'Saving…' : 'Update password'}
+          </button>
+        </form>
+      </div>
+    );
+  }
 
   // ─── Account page ───────────────────────────────────────────
   function AccountPage({ user, onBack, onSignOut, onUpdate }) {
@@ -380,5 +445,5 @@
     );
   }
 
-  window.STUDIO_AUTH = { LoginPage, AccountPage, MobileLanding, useIsMobile };
+  window.STUDIO_AUTH = { LoginPage, AccountPage, MobileLanding, useIsMobile, RecoveryForm };
 })();
