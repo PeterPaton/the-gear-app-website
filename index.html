@@ -4,7 +4,8 @@
 <meta charset="UTF-8" />
 <title>Gear — Studio</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="icon" href="app-icon.jpg" type="image/jpeg" />
+<link rel="icon" href="app-icon.svg" type="image/svg+xml" />
+<link rel="alternate icon" href="app-icon.jpg" type="image/jpeg" />
 <link rel="apple-touch-icon" href="app-icon.jpg" />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
 <style>
@@ -727,6 +728,12 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
       </div>
     );
   }
+
+  // ── Phone takeover ──
+  // The studio UI is desktop-only. Anyone on a phone gets the brand landing
+  // with a "use it on your laptop" pointer, signed in or not.
+  const isMobileViewport = window.STUDIO_AUTH.useIsMobile();
+  if (isMobileViewport) return <window.STUDIO_AUTH.MobileLanding />;
 
   // ── Auth gate ──
   if (!user) return <window.STUDIO_AUTH.LoginPage onSignIn={signIn} />;

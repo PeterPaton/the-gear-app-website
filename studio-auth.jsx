@@ -17,6 +17,47 @@
     return m;
   }
 
+  // ─── Mobile landing page ─────────────────────────────────────────
+  // App UI isn't optimised for phones. Show the brand image + a "use on
+  // laptop" note instead of forcing the desktop layout to wrap awkwardly.
+  // Single combined background (gradient + photo) so we don't depend on an
+  // absolutely-positioned overlay div that some mobile browsers paint over.
+  function MobileLanding() {
+    return (
+      <div style={{
+        width: '100vw',
+        minHeight: '100vh',
+        background: 'linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.2) 35%, rgba(0,0,0,0.9) 100%), #0c0c0c url(login-bg.jpg) center center / cover no-repeat',
+        backgroundAttachment: 'fixed',
+        color: '#fff',
+        display: 'flex',
+        flexDirection: 'column',
+        padding: '32px 24px',
+        boxSizing: 'border-box',
+        overflow: 'hidden',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 40 }}>
+          <img src="app-icon.jpg" alt="Gear" style={{ width: 32, height: 32, borderRadius: 7 }} />
+          <div style={{ fontFamily: S.mono, fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em' }}>THE GEAR APP</div>
+        </div>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+          <div style={{ fontFamily: S.sans, fontSize: 'clamp(36px, 10vw, 54px)', fontWeight: 700, letterSpacing: '-0.025em', lineHeight: 1.05, marginBottom: 14 }}>
+            All your gear,<br />in one place.
+          </div>
+          <div style={{ fontSize: 15, lineHeight: 1.5, color: 'rgba(255,255,255,0.75)', marginBottom: 24, maxWidth: 480 }}>
+            Organise your equipment, track your inventory and prep for every shoot.
+          </div>
+          <div style={{ padding: '14px 16px', background: 'rgba(255,255,255,0.08)', WebkitBackdropFilter: 'blur(12px)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: T.orange, flexShrink: 0 }} />
+            <div style={{ fontFamily: S.mono, fontSize: 12, color: 'rgba(255,255,255,0.9)', lineHeight: 1.4 }}>
+              Start using the app for free on your laptop
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // ─── Login page ─────────────────────────────────────────────
   function LoginPage({ onSignIn }) {
     const isMobile = useIsMobile();
@@ -67,39 +108,7 @@
       }
     };
 
-    // ── Mobile landing page ──
-    // App UI isn't optimised for phones. Show the brand image + a "use on
-    // laptop" note instead of forcing the login flow to wrap awkwardly.
-    if (isMobile) {
-      return (
-        <div style={{
-          width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden',
-          background: `#0c0c0c url(login-bg.jpg) center center / cover no-repeat`,
-          color: '#fff', display: 'flex', flexDirection: 'column',
-        }}>
-          {/* Dimming overlay so text stays readable over the photo. */}
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.25) 35%, rgba(0,0,0,0.85) 100%)' }} />
-          <div style={{ position: 'relative', padding: '28px 24px 0', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <img src="app-icon.jpg" alt="Gear" style={{ width: 32, height: 32, borderRadius: 7 }} />
-            <div style={{ fontFamily: S.mono, fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em' }}>THE GEAR APP</div>
-          </div>
-          <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '0 24px 28px' }}>
-            <div style={{ fontFamily: S.sans, fontSize: 'clamp(36px, 11vw, 56px)', fontWeight: 700, letterSpacing: '-0.025em', lineHeight: 1.02, marginBottom: 14 }}>
-              All your gear,<br />in one place.
-            </div>
-            <div style={{ fontSize: 15, lineHeight: 1.5, color: 'rgba(255,255,255,0.7)', marginBottom: 24, maxWidth: 480 }}>
-              Organise your equipment, track your inventory and prep for every shoot.
-            </div>
-            <div style={{ padding: '14px 16px', background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: T.orange, flexShrink: 0 }} />
-              <div style={{ fontFamily: S.mono, fontSize: 12, letterSpacing: '0.04em', color: 'rgba(255,255,255,0.9)', lineHeight: 1.4 }}>
-                Start using the app for free on your laptop
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    }
+    if (isMobile) return <MobileLanding />;
 
     return (
       <div style={{ width: '100vw', height: '100vh', display: 'flex', background: T.ink, color: '#fff', overflow: 'hidden' }}>
@@ -365,5 +374,5 @@
     );
   }
 
-  window.STUDIO_AUTH = { LoginPage, AccountPage };
+  window.STUDIO_AUTH = { LoginPage, AccountPage, MobileLanding, useIsMobile };
 })();
