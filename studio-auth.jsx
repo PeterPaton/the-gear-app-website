@@ -93,13 +93,19 @@
     const oauth = async (provider) => {
       if (window.GEAR_DB?.enabled && window.supabase) {
         const sb = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey);
+        // Always come back to the production domain after OAuth — keeps the
+        // session cookie + storage scoped to one origin even when someone
+        // arrived via a Vercel preview URL. Local dev is still allowed to
+        // round-trip on its own origin so OAuth can be tested without
+        // deploying.
+        const host = window.location.hostname;
+        const isLocal = host === 'localhost' || host === '127.0.0.1';
+        const redirectTo = isLocal
+          ? (window.location.origin + window.location.pathname)
+          : 'https://www.gearapp.io/';
         const { error } = await sb.auth.signInWithOAuth({
           provider,
-          options: {
-            // Send the user back to this exact page after auth — App's auth
-            // listener picks up the session from the URL hash on return.
-            redirectTo: window.location.origin + window.location.pathname,
-          },
+          options: { redirectTo },
         });
         if (error) alert(`${provider} sign-in failed: ${error.message}`);
       } else {
