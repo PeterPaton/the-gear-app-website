@@ -4,6 +4,8 @@
 <meta charset="UTF-8" />
 <title>Gear — Studio</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" href="app-icon.jpg" type="image/jpeg" />
+<link rel="apple-touch-icon" href="app-icon.jpg" />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
 <style>
   html, body, #root { margin: 0; padding: 0; height: 100%; width: 100%; }
@@ -927,45 +929,49 @@ function ProjectDetailView({ project, projectItems = [], catalog, onBack, onExpo
       <div style={{ background: T.ink, color: '#fff', padding: '32px 40px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 24 }}>
           <div>
-            {editMode && onChangeStatus ? (
-              <select
-                value={project.status}
-                onChange={(e) => onChangeStatus(e.target.value)}
-                style={{
-                  fontFamily: S.mono, fontSize: 11, color: T.orange,
-                  letterSpacing: '0.12em', textTransform: 'uppercase',
-                  marginBottom: 10, background: 'rgba(255,87,12,0.12)',
-                  border: '1px solid rgba(255,87,12,0.45)', borderRadius: 4,
-                  outline: 'none', padding: '4px 26px 4px 10px', cursor: 'pointer',
-                  appearance: 'none', WebkitAppearance: 'none',
-                  backgroundImage: "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%23FF570C' d='M0 0h10L5 6z'/></svg>\")",
-                  backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center',
-                }}>
-                <option value="planning" style={{ color: T.ink }}>● Planning</option>
-                <option value="active" style={{ color: T.ink }}>● Active</option>
-                <option value="wrapped" style={{ color: T.ink }}>● Wrapped</option>
-              </select>
-            ) : (
-              <div style={{ fontFamily: S.mono, fontSize: 11, color: T.orange, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 10 }}>● {project.status}</div>
-            )}
-            {editMode && onRename ? (
-              <input
-                defaultValue={project.name}
-                key={project.id + ':' + project.name}
-                onBlur={(e) => {
-                  const v = (e.target.value || '').trim();
-                  if (v && v !== project.name) onRename(v);
-                  if (!v) e.target.value = project.name;
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') e.target.blur();
-                  if (e.key === 'Escape') { e.target.value = project.name; e.target.blur(); }
-                }}
-                style={{ fontFamily: S.mono, fontSize: 48, fontWeight: 400, letterSpacing: '-0.03em', lineHeight: 0.95, marginBottom: 14, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 4, outline: 'none', color: '#fff', padding: '4px 10px', minWidth: 260, maxWidth: '100%' }}
-              />
-            ) : (
-              <div style={{ fontFamily: S.mono, fontSize: 48, fontWeight: 400, letterSpacing: '-0.03em', lineHeight: 0.95, marginBottom: 14 }}>{project.name}</div>
-            )}
+            <div style={{ marginBottom: 10 }}>
+              {editMode && onChangeStatus ? (
+                <select
+                  value={project.status}
+                  onChange={(e) => onChangeStatus(e.target.value)}
+                  style={{
+                    fontFamily: S.mono, fontSize: 11, color: T.orange,
+                    letterSpacing: '0.12em', textTransform: 'uppercase',
+                    background: 'rgba(255,87,12,0.12)',
+                    border: '1px solid rgba(255,87,12,0.45)', borderRadius: 4,
+                    outline: 'none', padding: '4px 26px 4px 10px', cursor: 'pointer',
+                    appearance: 'none', WebkitAppearance: 'none',
+                    backgroundImage: "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%23FF570C' d='M0 0h10L5 6z'/></svg>\")",
+                    backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center',
+                  }}>
+                  <option value="planning" style={{ color: T.ink }}>● Planning</option>
+                  <option value="active" style={{ color: T.ink }}>● Active</option>
+                  <option value="wrapped" style={{ color: T.ink }}>● Wrapped</option>
+                </select>
+              ) : (
+                <span style={{ fontFamily: S.mono, fontSize: 11, color: T.orange, letterSpacing: '0.12em', textTransform: 'uppercase' }}>● {project.status}</span>
+              )}
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              {editMode && onRename ? (
+                <input
+                  defaultValue={project.name}
+                  key={project.id + ':' + project.name}
+                  onBlur={(e) => {
+                    const v = (e.target.value || '').trim();
+                    if (v && v !== project.name) onRename(v);
+                    if (!v) e.target.value = project.name;
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') e.target.blur();
+                    if (e.key === 'Escape') { e.target.value = project.name; e.target.blur(); }
+                  }}
+                  style={{ fontFamily: S.mono, fontSize: 48, fontWeight: 400, letterSpacing: '-0.03em', lineHeight: 0.95, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 4, outline: 'none', color: '#fff', padding: '4px 10px', minWidth: 260, maxWidth: '100%' }}
+                />
+              ) : (
+                <div style={{ fontFamily: S.mono, fontSize: 48, fontWeight: 400, letterSpacing: '-0.03em', lineHeight: 0.95 }}>{project.name}</div>
+              )}
+            </div>
             <div style={{ display: 'flex', gap: 24, fontSize: 11, fontFamily: S.mono, color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
               {project.client && <span><span style={{ color: 'rgba(255,255,255,0.35)' }}>Client </span>{project.client}</span>}
               {project.shoot && <span><span style={{ color: 'rgba(255,255,255,0.35)' }}>Shoot </span>{project.shoot}</span>}
