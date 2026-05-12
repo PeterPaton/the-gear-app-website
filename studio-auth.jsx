@@ -1,11 +1,25 @@
 // Gear · Login & Account pages.
 (function () {
-  const { useState } = React;
+  const { useState, useEffect } = React;
   const S = window.STUDIO_STYLES;
   const T = S.T;
 
+  // Track viewport width for the mobile landing page. The breakpoint is the
+  // same one CSS frameworks call "md" (768px) — comfortable for the existing
+  // two-column login UI, anything below it gets the phone takeover screen.
+  function useIsMobile(breakpoint = 820) {
+    const [m, setM] = useState(() => typeof window !== 'undefined' && window.innerWidth < breakpoint);
+    useEffect(() => {
+      const onResize = () => setM(window.innerWidth < breakpoint);
+      window.addEventListener('resize', onResize);
+      return () => window.removeEventListener('resize', onResize);
+    }, [breakpoint]);
+    return m;
+  }
+
   // ─── Login page ─────────────────────────────────────────────
   function LoginPage({ onSignIn }) {
+    const isMobile = useIsMobile();
     const [mode, setMode] = useState('signin'); // signin | signup
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -53,23 +67,58 @@
       }
     };
 
+    // ── Mobile landing page ──
+    // App UI isn't optimised for phones. Show the brand image + a "use on
+    // laptop" note instead of forcing the login flow to wrap awkwardly.
+    if (isMobile) {
+      return (
+        <div style={{
+          width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden',
+          background: `#0c0c0c url(login-bg.jpg) center center / cover no-repeat`,
+          color: '#fff', display: 'flex', flexDirection: 'column',
+        }}>
+          {/* Dimming overlay so text stays readable over the photo. */}
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.25) 35%, rgba(0,0,0,0.85) 100%)' }} />
+          <div style={{ position: 'relative', padding: '28px 24px 0', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <img src="app-icon.jpg" alt="Gear" style={{ width: 32, height: 32, borderRadius: 7 }} />
+            <div style={{ fontFamily: S.mono, fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em' }}>THE GEAR APP</div>
+          </div>
+          <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '0 24px 28px' }}>
+            <div style={{ fontFamily: S.sans, fontSize: 'clamp(36px, 11vw, 56px)', fontWeight: 700, letterSpacing: '-0.025em', lineHeight: 1.02, marginBottom: 14 }}>
+              All your gear,<br />in one place.
+            </div>
+            <div style={{ fontSize: 15, lineHeight: 1.5, color: 'rgba(255,255,255,0.7)', marginBottom: 24, maxWidth: 480 }}>
+              Organise your equipment, track your inventory and prep for every shoot.
+            </div>
+            <div style={{ padding: '14px 16px', background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: T.orange, flexShrink: 0 }} />
+              <div style={{ fontFamily: S.mono, fontSize: 12, letterSpacing: '0.04em', color: 'rgba(255,255,255,0.9)', lineHeight: 1.4 }}>
+                Start using the app for free on your laptop
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div style={{ width: '100vw', height: '100vh', display: 'flex', background: T.ink, color: '#fff', overflow: 'hidden' }}>
-        {/* Left — brand panel */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '40px 48px', background: T.ink, borderRight: '1px solid rgba(255,255,255,0.06)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        {/* Left — brand panel, with the subtle dot grid behind the hero copy. */}
+        <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '40px 56px', background: T.ink, borderRight: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)', backgroundSize: '22px 22px', pointerEvents: 'none' }} />
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 12 }}>
             <img src="app-icon.jpg" alt="Gear" style={{ width: 36, height: 36, borderRadius: 8 }} />
             <div style={{ fontFamily: S.mono, fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em' }}>THE GEAR APP</div>
           </div>
-          <div>
-            <div style={{ fontFamily: S.mono, fontSize: 64, fontWeight: 400, letterSpacing: '-0.03em', lineHeight: 0.95, marginBottom: 24, maxWidth: 560 }}>
-              All your gear,<br/>in one place.
+          <div style={{ position: 'relative' }}>
+            <div style={{ fontFamily: S.sans, fontSize: 'clamp(56px, 7vw, 96px)', fontWeight: 700, letterSpacing: '-0.035em', lineHeight: 1.0, marginBottom: 22, maxWidth: 800 }}>
+              All your gear,<br />in one place.
             </div>
-            <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.55)', maxWidth: 460, lineHeight: 1.55 }}>
-              Organise your equipment, track your inventory and prep for every shoot. 
+            <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.55)', maxWidth: 520, lineHeight: 1.55 }}>
+              Organise your equipment, track your inventory and prep for every shoot.
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 28, fontSize: 11, fontFamily: S.mono, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          <div style={{ position: 'relative', display: 'flex', gap: 28, fontSize: 11, fontFamily: S.mono, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
             <span>v2.4</span>
             <span>· iOS · macOS · Web</span>
           </div>
