@@ -525,6 +525,22 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
       window.GEAR_DB.saveProject(proj, session).catch(err => console.warn('[App] saveProject:', err.message));
     }
   };
+  const changeProjectStatus = (id, status) => {
+    const proj = projects.find(p => p.id === id);
+    if (!proj || !status || proj.status === status) return;
+    const updated = { ...proj, status };
+    setProjects(ps => ps.map(p => p.id === id ? updated : p));
+    if (window.GEAR_DB?.enabled && session) {
+      window.GEAR_DB.saveProject(updated, session).catch(err => console.warn('[App] changeProjectStatus:', err.message));
+    }
+    pushUndo(`Set status to ${proj.status}`, () => {
+      setProjects(ps => ps.map(p => p.id === id ? proj : p));
+      if (window.GEAR_DB?.enabled && session) {
+        window.GEAR_DB.saveProject(proj, session).catch(err => console.warn('[App] changeProjectStatus undo:', err.message));
+      }
+    });
+  };
+
   const renameProject = (id, name) => {
     const trimmed = String(name || '').trim();
     if (!trimmed) return;
@@ -821,6 +837,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
             onExport={() => setModalExport(openProject)}
             onChangeQty={(id, d) => changeQty(id, d, openProject.id)}
             onRename={(name) => renameProject(openProject.id, name)}
+            onChangeStatus={(s) => changeProjectStatus(openProject.id, s)}
           />
         )}
       </div>
@@ -874,7 +891,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
 }
 
 // Project detail view — full-screen kit list for one project.
-function ProjectDetailView({ project, projectItems = [], catalog, onBack, onExport, onChangeQty, onRename }) {
+function ProjectDetailView({ project, projectItems = [], catalog, onBack, onExport, onChangeQty, onRename, onChangeStatus }) {
   const T = window.GEAR.tokens;
   const S = window.STUDIO_STYLES;
   const R = window.GEAR_ROW;
@@ -910,7 +927,27 @@ function ProjectDetailView({ project, projectItems = [], catalog, onBack, onExpo
       <div style={{ background: T.ink, color: '#fff', padding: '32px 40px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 24 }}>
           <div>
-            <div style={{ fontFamily: S.mono, fontSize: 11, color: T.orange, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 10 }}>● {project.status}</div>
+            {editMode && onChangeStatus ? (
+              <select
+                value={project.status}
+                onChange={(e) => onChangeStatus(e.target.value)}
+                style={{
+                  fontFamily: S.mono, fontSize: 11, color: T.orange,
+                  letterSpacing: '0.12em', textTransform: 'uppercase',
+                  marginBottom: 10, background: 'rgba(255,87,12,0.12)',
+                  border: '1px solid rgba(255,87,12,0.45)', borderRadius: 4,
+                  outline: 'none', padding: '4px 26px 4px 10px', cursor: 'pointer',
+                  appearance: 'none', WebkitAppearance: 'none',
+                  backgroundImage: "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%23FF570C' d='M0 0h10L5 6z'/></svg>\")",
+                  backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center',
+                }}>
+                <option value="planning" style={{ color: T.ink }}>● Planning</option>
+                <option value="active" style={{ color: T.ink }}>● Active</option>
+                <option value="wrapped" style={{ color: T.ink }}>● Wrapped</option>
+              </select>
+            ) : (
+              <div style={{ fontFamily: S.mono, fontSize: 11, color: T.orange, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 10 }}>● {project.status}</div>
+            )}
             {editMode && onRename ? (
               <input
                 defaultValue={project.name}
