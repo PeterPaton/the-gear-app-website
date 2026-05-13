@@ -32,7 +32,18 @@
       return order;
     }, [catalog]);
 
-    const inventoryIds = useMemo(() => new Set((items || []).map(it => it.id)), [items]);
+    // Set of catalog/equipment UUIDs already represented in the user's
+    // inventory. Each inventory row stores a `equipment_id` linking back to
+    // the catalog; older rows (pre-refactor) put the catalog id directly in
+    // `id`, so we accept either as a match.
+    const inventoryIds = useMemo(() => {
+      const s = new Set();
+      (items || []).forEach(it => {
+        if (it.equipment_id) s.add(it.equipment_id);
+        else if (it.id) s.add(it.id);
+      });
+      return s;
+    }, [items]);
 
     const cats = useMemo(() => {
       const seen = new Set(['All']);
