@@ -91,7 +91,14 @@
       <div style={cartRoot(hoverCart, width)}
            onDragOver={(e) => { e.preventDefault(); setHoverCart(true); }}
            onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setHoverCart(false); }}
-           onDrop={(e) => { e.preventDefault(); if (draggedId) onDrop(draggedId); setHoverCart(false); setDraggedId(null); }}>
+           onDrop={(e) => {
+             e.preventDefault();
+             if (draggedGroupId && onDropGroup) onDropGroup(draggedGroupId);
+             else if (draggedId) onDrop(draggedId);
+             setHoverCart(false);
+             setDraggedId(null);
+             if (setDraggedGroupId) setDraggedGroupId(null);
+           }}>
         {ResizeHandle}
         <div style={cartHead}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
