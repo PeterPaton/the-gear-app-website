@@ -89,11 +89,30 @@
         <div style={cartHead}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ ...S.label, color: 'rgba(255,255,255,0.5)', marginBottom: 4 }}>Active project</div>
-              <select value={activeProjectId} onChange={e => onSelectProject(e.target.value)}
-                      style={{ background: 'transparent', color: '#fff', border: 'none', fontSize: 20, fontWeight: 600, padding: 0, cursor: 'pointer', outline: 'none', width: '100%', fontFamily: S.mono, letterSpacing: '-0.01em', appearance: 'none' }}>
-                {projects.map(p => <option key={p.id} value={p.id} style={{ color: T.ink, fontFamily: 'inherit' }}>{p.name}</option>)}
-              </select>
+              <div style={{ ...S.label, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Active project</div>
+              <div style={{ position: 'relative' }}>
+                <select value={activeProjectId} onChange={e => onSelectProject(e.target.value)}
+                        style={{
+                          background: 'rgba(255,255,255,0.06)',
+                          color: '#fff',
+                          border: '1px solid rgba(255,255,255,0.15)',
+                          borderRadius: 6,
+                          fontSize: 18,
+                          fontWeight: 600,
+                          padding: '8px 34px 8px 12px',
+                          cursor: 'pointer',
+                          outline: 'none',
+                          width: '100%',
+                          fontFamily: S.mono,
+                          letterSpacing: '-0.01em',
+                          appearance: 'none',
+                          WebkitAppearance: 'none',
+                          MozAppearance: 'none',
+                        }}>
+                  {projects.map(p => <option key={p.id} value={p.id} style={{ color: T.ink, fontFamily: 'inherit' }}>{p.name}</option>)}
+                </select>
+                <span aria-hidden="true" style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'rgba(255,255,255,0.7)', fontSize: 14, lineHeight: 1 }}>▾</span>
+              </div>
               <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', fontFamily: S.mono, marginTop: 4, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                 {active.shoot} · {active.location}
               </div>
