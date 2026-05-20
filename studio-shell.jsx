@@ -5,7 +5,7 @@
   const T = S.T;
 
   // ─── Right cart panel ───────────────────────────────────────────────
-  function CartPanel({ projects, activeProjectId, projectItems = [], onSelectProject, items, hoverCart, setHoverCart, draggedId, setDraggedId, onDrop, onChangeQty, onRemove, onExport, onOpenProject, onNewProject, collapsed, setCollapsed, width = 400, setWidth }) {
+  function CartPanel({ projects, activeProjectId, projectItems = [], onSelectProject, items, hoverCart, setHoverCart, draggedId, setDraggedId, draggedGroupId, setDraggedGroupId, onDrop, onDropGroup, onChangeQty, onRemove, onExport, onOpenProject, onNewProject, collapsed, setCollapsed, width = 400, setWidth }) {
     const active = projects.find(p => p.id === activeProjectId);
     // Drag the left edge to resize. Clamped to a sane minimum and capped at a
     // quarter of the viewport so the cart never crowds the main workspace.
@@ -66,7 +66,14 @@
         <div style={cartCollapsed(hoverCart)}
              onDragOver={(e) => { e.preventDefault(); setHoverCart(true); }}
              onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setHoverCart(false); }}
-             onDrop={(e) => { e.preventDefault(); if (draggedId) onDrop(draggedId); setHoverCart(false); setDraggedId(null); }}>
+             onDrop={(e) => {
+               e.preventDefault();
+               if (draggedGroupId && onDropGroup) onDropGroup(draggedGroupId);
+               else if (draggedId) onDrop(draggedId);
+               setHoverCart(false);
+               setDraggedId(null);
+               if (setDraggedGroupId) setDraggedGroupId(null);
+             }}>
           <button onClick={() => setCollapsed(false)} style={cartCollapseBtn} title="Expand full list">‹</button>
           <div style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', fontFamily: S.mono, fontSize: 11, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.85)', cursor: 'pointer' }} onClick={() => setCollapsed(false)}>
             {active.name}

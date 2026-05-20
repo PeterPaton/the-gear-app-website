@@ -11,7 +11,8 @@
     onEditItem, onAddToCart, onChangeInvQty,
     groups = [], onCombineIntoGroup, onRenameGroup, onDeleteGroup, onMoveItemToGroup,
     onAddItem, onOpenDatabase, onExportInventory,
-    draggedId, setDraggedId, hoverCart, setHoverCart,
+    draggedId, setDraggedId, draggedGroupId, setDraggedGroupId,
+    hoverCart, setHoverCart,
   }) {
     const activeProject = projects.find(p => p.id === activeProjectId);
     const [query, setQuery] = useState('');
@@ -223,9 +224,21 @@
              style={{ marginBottom: 8, background: '#fff', borderRadius: 6, border: `1px solid ${T.paperEdge}`, overflow: 'hidden', outline: isCardDropTarget ? `3px solid ${T.orange}` : 'none', outlineOffset: -2, transition: 'outline-color .12s' }}>
           {/* Header — clicking the bar (anywhere except the rename input)
               toggles collapse. The chevron button still works as a discrete
-              control; both call stopPropagation so we don't double-toggle. */}
+              control; both call stopPropagation so we don't double-toggle.
+              The bar is also a drag source: dragging a group header to the
+              cart panel adds every item in that group to the active project. */}
           <div onClick={() => { if (group) toggleGroupCollapse(group.id); }}
-               style={{ padding: '10px 14px 10px 18px', background: '#f6f3ee', borderBottom: collapsed ? 'none' : `1px solid ${T.paperEdge}`, display: 'flex', alignItems: 'center', gap: 10, cursor: group ? 'pointer' : 'default', userSelect: 'none' }}>
+               draggable={group ? !editMode : false}
+               onDragStart={(e) => {
+                 if (!group || editMode) return;
+                 setDraggedGroupId && setDraggedGroupId(group.id);
+                 e.dataTransfer.effectAllowed = 'copy';
+               }}
+               onDragEnd={() => {
+                 setDraggedGroupId && setDraggedGroupId(null);
+                 setHoverCart && setHoverCart(false);
+               }}
+               style={{ padding: '10px 14px 10px 18px', background: '#f6f3ee', borderBottom: collapsed ? 'none' : `1px solid ${T.paperEdge}`, display: 'flex', alignItems: 'center', gap: 10, cursor: group ? (editMode ? 'pointer' : 'grab') : 'default', userSelect: 'none', opacity: draggedGroupId === (group && group.id) ? 0.5 : 1 }}>
             {(() => {
               if (!group) return <span style={{ flex: 1, fontFamily: S.mono, fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.ink }}>{label}</span>;
               // Names are only renamable when (a) the group was just created
