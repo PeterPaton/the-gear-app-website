@@ -232,7 +232,15 @@
                onDragStart={(e) => {
                  if (!group || editMode) return;
                  setDraggedGroupId && setDraggedGroupId(group.id);
-                 e.dataTransfer.effectAllowed = 'copy';
+                 // Clear any single-item drag state so the cart's onDrop
+                 // routes through the group path, not the per-item path.
+                 setDraggedId && setDraggedId(null);
+                 try {
+                   e.dataTransfer.effectAllowed = 'copy';
+                   // Firefox + some Chromium configs refuse to fire the drop
+                   // event when dataTransfer is otherwise empty.
+                   e.dataTransfer.setData('text/plain', 'group:' + group.id);
+                 } catch (err) { /* dataTransfer can throw if called too late */ }
                }}
                onDragEnd={() => {
                  setDraggedGroupId && setDraggedGroupId(null);
