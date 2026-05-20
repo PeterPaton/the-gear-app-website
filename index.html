@@ -493,21 +493,28 @@ function App() {
 
   // ── Mutations ────────────────────────────────────────────────
   
-  const addToProject = (equipmentId) => {
+  const addToProject = (rawId) => {
     if (!activeProjectId) return;
-    // Find the full equipment object — prefer catalog (database/Supabase),
-    // fall back to the user's inventory so drags from the inventory page also work.
-    const equipment = catalog.find(it => it.id === equipmentId || it.UUID === equipmentId)
-                   || items.find(it => it.id === equipmentId || it.UUID === equipmentId);
-    if (!equipment) return;
+    // Identify whether the drag came from the Database (catalog row) or the
+    // Inventory (a user_inventory row). project_items.equipment_id is a FK
+    // back to equipment.UUID, so we have to send the catalog id — not the
+    // inventory row's id, which is a different UUID.
+    const fromCatalog = catalog.find(it => it.id === rawId || it.UUID === rawId);
+    const fromInventory = fromCatalog ? null : items.find(it => it.id === rawId || it.UUID === rawId);
+    const source = fromCatalog || fromInventory;
+    if (!source) return;
+    const equipmentId = fromCatalog
+      ? fromCatalog.id
+      : (fromInventory && fromInventory.equipment_id ? fromInventory.equipment_id : null);
 
-    // Snapshot existing row from local state — lets us pick a single-query DB
-    // path (UPDATE for already-in-project, INSERT otherwise) instead of the
-    // SELECT-then-INSERT/UPDATE that addProjectItem used to do.
+    // Dedupe key — when the dragged item maps onto a catalog row, multiple
+    // drops collapse into one qty++ row. Custom inventory items with no
+    // catalog link stay as separate rows.
     const current = projectItems[activeProjectId] || [];
-    const existing = current.find(it => it.equipment_id === equipmentId);
-    // Generate the row id client-side so the optimistic row already has the
-    // final UUID — no temp→real key swap, so React doesn't remount the row.
+    const existing = equipmentId ? current.find(it => it.equipment_id === equipmentId) : null;
+
+    // Client-mint the new row's id so the optimistic row already has its
+    // final id — no temp→real key swap.
     const newId = (typeof crypto !== 'undefined' && crypto.randomUUID)
       ? crypto.randomUUID()
       : ('local-' + Date.now() + '-' + Math.random().toString(36).slice(2));
@@ -515,19 +522,19 @@ function App() {
     // Optimistic local update.
     setProjectItems(prev => {
       const cur = prev[activeProjectId] || [];
-      const ex = cur.find(it => it.equipment_id === equipmentId);
+      const ex = equipmentId ? cur.find(it => it.equipment_id === equipmentId) : null;
       if (ex) {
         return { ...prev, [activeProjectId]: cur.map(it =>
-          it.equipment_id === equipmentId ? { ...it, qty: it.qty + 1 } : it
+          it.id === ex.id ? { ...it, qty: it.qty + 1 } : it
         )};
       }
       return { ...prev, [activeProjectId]: [...cur, {
         id: newId,
         project_id: activeProjectId,
         equipment_id: equipmentId,
-        name: equipment.name,
-        image_url: equipment.image_url,
-        category: equipment.category,
+        name: source.name,
+        image_url: source.image_url,
+        category: source.category,
         qty: 1,
       }]};
     });
@@ -535,16 +542,18 @@ function App() {
     // Persist to Supabase — single roundtrip per case.
     if (window.GEAR_DB?.enabled && session) {
       if (existing && existing.id) {
-        // Already in project: just bump the qty on the known row.
         window.GEAR_DB.updateProjectItemQty(existing.id, existing.qty + 1, session);
       } else {
-        // New row: INSERT directly with the client-generated id. We don't roll
-        // back the optimistic row on a null response — Supabase often returns
-        // data:null from insert().select().single() even on a successful write
-        // (RLS post-write SELECT rules), and removing the row only to have a
-        // subsequent loadProjectItems re-fetch put it back was the cause of
-        // the appear → disappear → re-appear flicker.
-        window.GEAR_DB.addProjectItem(activeProjectId, equipment, session, newId)
+        // Build a synthetic "equipment" payload pointing at the canonical
+        // catalog id (or null for custom items, which requires the
+        // project_items.equipment_id column to be nullable in your schema).
+        const equipmentPayload = {
+          id: equipmentId,
+          name: source.name,
+          image_url: source.image_url,
+          category: source.category,
+        };
+        window.GEAR_DB.addProjectItem(activeProjectId, equipmentPayload, session, newId)
           .catch(err => console.warn('[App] addProjectItem failed:', err?.message || err));
       }
     }
