@@ -138,9 +138,12 @@ function App() {
     itemsLoadedFor.current = null;
     // Hold the overlay for a minimum duration so the user actually sees it
     // (Supabase signOut on a warm cache can finish in <50ms).
-    const minMs = 700;
+    const minMs = 900;
     const elapsed = Date.now() - start;
     if (elapsed < minMs) await new Promise(r => setTimeout(r, minMs - elapsed));
+    setSigningOut('fadeout');
+    // Let the fade-out animation play before unmounting the overlay.
+    await new Promise(r => setTimeout(r, 400));
     setSigningOut(false);
   };
   const updateUser = (patch) => { const next = { ...user, ...patch }; localStorage.setItem('gear.user', JSON.stringify(next)); setUser(next); };
@@ -830,7 +833,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
   // Supabase signOut is still in flight). ──
   if (signingOut) {
     return (
-      <div style={{ position: 'fixed', inset: 0, background: '#191919', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, zIndex: 9999, animation: 'gearFadeIn .25s ease-out' }}>
+      <div style={{ position: 'fixed', inset: 0, background: '#191919', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, zIndex: 9999, animation: signingOut === 'fadeout' ? 'gearFadeOut .4s ease-in forwards' : 'gearFadeIn .25s ease-out' }}>
         <div style={{ position: 'relative', width: 64, height: 64 }}>
           {/* Spinning ring around the app icon */}
           <div style={{ position: 'absolute', inset: 0, border: '2px solid rgba(255,255,255,0.1)', borderTopColor: '#FF570C', borderRadius: '50%', animation: 'gearSpin 0.9s linear infinite' }} />
@@ -840,6 +843,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
         <style>{`
           @keyframes gearSpin { to { transform: rotate(360deg); } }
           @keyframes gearFadeIn { from { opacity: 0; } to { opacity: 1; } }
+          @keyframes gearFadeOut { from { opacity: 1; } to { opacity: 0; } }
         `}</style>
       </div>
     );
