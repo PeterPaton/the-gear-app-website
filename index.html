@@ -177,7 +177,7 @@ function App() {
   const updateUser = (patch) => { const next = { ...user, ...patch }; window.GEAR_AUTH.storage().setItem('gear.user', JSON.stringify(next)); setUser(next); };
 
   // ── OAuth callback handler ──────────────────────────────────────
-  // After Google/Apple/GitHub sign-in, the user lands back here with a session
+  // After Google/Apple sign-in, the user lands back here with a session
   // in the URL hash. The Supabase client picks it up automatically; we listen
   // for the auth state change and persist a profile + session into our state.
   useEffect(() => {
