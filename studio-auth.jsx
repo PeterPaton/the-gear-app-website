@@ -64,7 +64,13 @@
     const [mode, setMode] = useState('signin'); // signin | signup
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [remember, setRemember] = useState(() => window.GEAR_AUTH.remember());
     const [busy, setBusy] = useState(false);
+    // Auth clients store the session where "Keep me signed in" says to.
+    const authClient = () => {
+      window.GEAR_AUTH.setRemember(remember);
+      return window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey, { auth: { storage: window.GEAR_AUTH.storage() } });
+    };
 
     const submit = async (e) => {
       e.preventDefault();
@@ -73,7 +79,7 @@
         if (!window.GEAR_DB?.enabled || !window.supabase) {
           throw new Error('Authentication is unavailable right now. Please try again in a moment.');
         }
-        const sb = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey);
+        const sb = authClient();
         if (mode === 'reset') {
           const host = window.location.hostname;
           const isLocal = host === 'localhost' || host === '127.0.0.1';
@@ -107,7 +113,7 @@
         alert('Authentication is unavailable right now. Please try again in a moment.');
         return;
       }
-      const sb = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey);
+      const sb = authClient();
       // Always come back to the production domain after OAuth — keeps the
       // session cookie + storage scoped to one origin even when someone
       // arrived via a Vercel preview URL. Local dev still round-trips on
@@ -197,6 +203,12 @@
                 <input type="password" required style={S.input} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
               </div>
             )}
+            {mode !== 'reset' && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: T.ink, cursor: 'pointer', userSelect: 'none' }}>
+                <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} style={{ width: 15, height: 15, accentColor: T.orange, margin: 0, cursor: 'pointer' }} />
+                Keep me signed in
+              </label>
+            )}
             <button type="submit" disabled={busy} style={{ ...S.btnP, padding: 12, marginTop: 8, opacity: busy ? 0.6 : 1 }}>
               {busy ? '...' : (mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create account' : 'Send reset email')}
             </button>
@@ -236,7 +248,7 @@
       setBusy(true);
       try {
         if (!window.GEAR_DB?.enabled || !window.supabase) throw new Error('Authentication is unavailable.');
-        const sb = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey);
+        const sb = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey, { auth: { storage: window.GEAR_AUTH.storage() } });
         const { error } = await sb.auth.updateUser({ password });
         if (error) throw error;
         alert('Password updated. You are now signed in.');

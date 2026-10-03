@@ -103,14 +103,15 @@ function App() {
 
   // ── Auth ─────────────────────────────────────────────────────
   const [user, setUser] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('gear.user') || 'null'); } catch { return null; }
+    try { return JSON.parse(window.GEAR_AUTH.storage().getItem('gear.user') || 'null'); } catch { return null; }
   });
   const [session, setSession] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('gear.session') || 'null'); } catch { return null; }
+    try { return JSON.parse(window.GEAR_AUTH.storage().getItem('gear.session') || 'null'); } catch { return null; }
   });
   const signIn = (u, sess) => {
-    localStorage.setItem('gear.user', JSON.stringify(u));
-    if (sess) localStorage.setItem('gear.session', JSON.stringify(sess));
+    const store = window.GEAR_AUTH.storage();
+    store.setItem('gear.user', JSON.stringify(u));
+    if (sess) store.setItem('gear.session', JSON.stringify(sess));
     setUser(u);
     setSession(sess || null);
   };
@@ -126,12 +127,11 @@ function App() {
     // will pick the stale token back up on refresh and re-sign-in the user.
     if (window.supabase && window.SUPABASE_CONFIG?.url && window.SUPABASE_CONFIG?.anonKey) {
       try {
-        const sb = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey);
+        const sb = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey, { auth: { storage: window.GEAR_AUTH.storage() } });
         await sb.auth.signOut();
       } catch (e) { /* fall through and clear local state anyway */ }
     }
-    localStorage.removeItem('gear.user');
-    localStorage.removeItem('gear.session');
+    [localStorage, sessionStorage].forEach(s => { s.removeItem('gear.user'); s.removeItem('gear.session'); });
     setUser(null);
     setSession(null);
     // Drop cached project state so the next sign-in gets a fresh load and
@@ -154,7 +154,7 @@ function App() {
     await new Promise(r => setTimeout(r, 400));
     setSigningOut(false);
   };
-  const updateUser = (patch) => { const next = { ...user, ...patch }; localStorage.setItem('gear.user', JSON.stringify(next)); setUser(next); };
+  const updateUser = (patch) => { const next = { ...user, ...patch }; window.GEAR_AUTH.storage().setItem('gear.user', JSON.stringify(next)); setUser(next); };
 
   // ── OAuth callback handler ──────────────────────────────────────
   // After Google/Apple/GitHub sign-in, the user lands back here with a session
@@ -166,7 +166,7 @@ function App() {
     const key = (window.SUPABASE_CONFIG?.anonKey) || '';
     if (!url || !key) return;
     const sb = window.supabase.createClient(url, key, {
-      auth: { detectSessionInUrl: true, persistSession: true, autoRefreshToken: true },
+      auth: { detectSessionInUrl: true, persistSession: true, autoRefreshToken: true, storage: window.GEAR_AUTH.storage() },
     });
     const adoptSession = (sess) => {
       if (!sess?.user) return;
@@ -194,8 +194,7 @@ function App() {
       if (event === 'SIGNED_OUT') {
         // Just clear local state — don't call signOut() here or it would
         // re-call sb.auth.signOut() and risk a loop.
-        localStorage.removeItem('gear.user');
-        localStorage.removeItem('gear.session');
+        [localStorage, sessionStorage].forEach(s => { s.removeItem('gear.user'); s.removeItem('gear.session'); });
         setUser(null);
         setSession(null);
       }

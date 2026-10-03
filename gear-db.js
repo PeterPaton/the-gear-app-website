@@ -39,6 +39,27 @@ function __readStoredConfig() {
   return null;
 }
 
+// "Keep me signed in". Remembered logins (the default) live in localStorage
+// and survive closing the browser; otherwise the app's and Supabase's session
+// copies go in sessionStorage and end with the browser session.
+window.GEAR_AUTH = {
+  remember() {
+    try { return localStorage.getItem('gear.remember') !== '0'; } catch (e) { return true; }
+  },
+  setRemember(on) {
+    try {
+      localStorage.setItem('gear.remember', on ? '1' : '0');
+      if (!on) {
+        // Drop any remembered login so it can't outlive this browser session.
+        Object.keys(localStorage)
+          .filter(k => k === 'gear.user' || k === 'gear.session' || k.startsWith('sb-'))
+          .forEach(k => localStorage.removeItem(k));
+      }
+    } catch (e) {}
+  },
+  storage() { return this.remember() ? window.localStorage : window.sessionStorage; },
+};
+
 const __stored = __readStoredConfig();
 window.SUPABASE_CONFIG = __stored || {
   url: '',
