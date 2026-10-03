@@ -1071,7 +1071,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
   if (recoveryMode) return <window.STUDIO_AUTH.RecoveryForm onComplete={() => setRecoveryMode(false)} />;
 
   // ── Auth gate ──
-  if (!user) return <window.STUDIO_AUTH.LoginPage onSignIn={signIn} />;
+  if (!user) return <window.STUDIO_AUTH.LoginPage onSignIn={signIn} catalog={catalog} />;
 
   return (
     <div style={{ width: '100vw', height: '100vh', display: 'flex', overflow: 'hidden', background: '#f6f3ee' }}>
@@ -1160,7 +1160,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
             )}
             {window.STUDIO_GUIDE && page === 'guide' && (
               <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-                <window.STUDIO_GUIDE onNavigate={setPage} catalog={billingCatalog} />
+                <window.STUDIO_GUIDE onNavigate={setPage} catalog={billingCatalog} items={catalog} />
               </div>
             )}
             {window.STUDIO_DATABASE && (

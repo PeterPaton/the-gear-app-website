@@ -59,7 +59,7 @@
   }
 
   // ─── Login page ─────────────────────────────────────────────
-  function LoginPage({ onSignIn }) {
+  function LoginPage({ onSignIn, catalog = [] }) {
     const isMobile = useIsMobile();
     const [mode, setMode] = useState('signin'); // signin | signup
     const [email, setEmail] = useState('');
@@ -137,7 +137,7 @@
     if (showGuide && window.STUDIO_GUIDE) {
       return (
         <div style={{ width: '100vw', height: '100vh', display: 'flex', overflow: 'hidden' }}>
-          <window.STUDIO_GUIDE catalog={plans} closeLabel="← Back to sign in" onClose={() => setShowGuide(false)} />
+          <window.STUDIO_GUIDE catalog={plans} items={catalog} closeLabel="← Back to sign in" onClose={() => setShowGuide(false)} onCreateAccount={() => { setShowGuide(false); setMode('signup'); }} />
         </div>
       );
     }
@@ -161,6 +161,12 @@
             <button onClick={() => setShowGuide(true)} style={{ marginTop: 26, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)', color: '#fff', borderRadius: 4, padding: '10px 16px', cursor: 'pointer', fontFamily: S.mono, fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
               See how it works →
             </button>
+            {/* A random mix of real gear from the database, bleeding to the panel edges. */}
+            {window.STUDIO_GUIDE_MARQUEE && (
+              <div style={{ margin: '34px -56px 0' }}>
+                <window.STUDIO_GUIDE_MARQUEE items={catalog} dark count={28} />
+              </div>
+            )}
           </div>
           <div style={{ position: 'relative', display: 'flex', gap: 28, fontSize: 11, fontFamily: S.mono, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
             <span>v2.4</span>
