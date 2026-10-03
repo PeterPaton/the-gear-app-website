@@ -39,6 +39,27 @@ function __readStoredConfig() {
   return null;
 }
 
+// "Keep me signed in". Remembered logins (the default) live in localStorage
+// and survive closing the browser; otherwise the app's and Supabase's session
+// copies go in sessionStorage and end with the browser session.
+window.GEAR_AUTH = {
+  remember() {
+    try { return localStorage.getItem('gear.remember') !== '0'; } catch (e) { return true; }
+  },
+  setRemember(on) {
+    try {
+      localStorage.setItem('gear.remember', on ? '1' : '0');
+      if (!on) {
+        // Drop any remembered login so it can't outlive this browser session.
+        Object.keys(localStorage)
+          .filter(k => k === 'gear.user' || k === 'gear.session' || k.startsWith('sb-'))
+          .forEach(k => localStorage.removeItem(k));
+      }
+    } catch (e) {}
+  },
+  storage() { return this.remember() ? window.localStorage : window.sessionStorage; },
+};
+
 const __stored = __readStoredConfig();
 window.SUPABASE_CONFIG = __stored || {
   url: '',
@@ -126,7 +147,9 @@ window.SUPABASE_CONFIG = __stored || {
         .upsert({ ...projectRow, user_id: session.user.id })
         .select()
         .single();
-      if (error) console.warn('[GEAR_DB] saveProject:', error.message);
+      // Throw so callers can react — e.g. a plan-limit rejection from the
+      // enforce_plan_limits trigger ("plan_limit:projects:5").
+      if (error) throw new Error(error.message);
       return data || project;
     },
 
@@ -177,7 +200,7 @@ window.SUPABASE_CONFIG = __stored || {
         .upsert(payload)
         .select()
         .single();
-      if (error) console.warn('[GEAR_DB] saveInventoryItem:', error.message);
+      if (error) throw new Error(error.message); // includes plan-limit rejections
       return data || item;
     },
 

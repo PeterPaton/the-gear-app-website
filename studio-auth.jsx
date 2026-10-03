@@ -64,7 +64,13 @@
     const [mode, setMode] = useState('signin'); // signin | signup
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [remember, setRemember] = useState(() => window.GEAR_AUTH.remember());
     const [busy, setBusy] = useState(false);
+    // Auth clients store the session where "Keep me signed in" says to.
+    const authClient = () => {
+      window.GEAR_AUTH.setRemember(remember);
+      return window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey, { auth: { storage: window.GEAR_AUTH.storage() } });
+    };
 
     const submit = async (e) => {
       e.preventDefault();
@@ -73,7 +79,7 @@
         if (!window.GEAR_DB?.enabled || !window.supabase) {
           throw new Error('Authentication is unavailable right now. Please try again in a moment.');
         }
-        const sb = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey);
+        const sb = authClient();
         if (mode === 'reset') {
           const host = window.location.hostname;
           const isLocal = host === 'localhost' || host === '127.0.0.1';
@@ -94,7 +100,7 @@
           return;
         }
         onSignIn(
-          { email: data.user?.email || email, name: email.split('@')[0], plan: 'Studio' },
+          { email: data.user?.email || email, name: email.split('@')[0] },
           data.session
         );
       } catch (err) {
@@ -107,7 +113,7 @@
         alert('Authentication is unavailable right now. Please try again in a moment.');
         return;
       }
-      const sb = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey);
+      const sb = authClient();
       // Always come back to the production domain after OAuth — keeps the
       // session cookie + storage scoped to one origin even when someone
       // arrived via a Vercel preview URL. Local dev still round-trips on
@@ -152,9 +158,12 @@
         {/* Right — form */}
         <div style={{ width: 480, background: '#fff', color: T.ink, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 56px' }}>
           <div style={{ ...S.label, marginBottom: 8 }}>{mode === 'signin' ? 'Welcome back' : 'Get started'}</div>
-          <div style={{ fontFamily: S.mono, fontSize: 30, fontWeight: 600, letterSpacing: '-0.02em', marginBottom: 28 }}>
+          <div style={{ fontFamily: S.mono, fontSize: 30, fontWeight: 600, letterSpacing: '-0.02em', marginBottom: mode === 'signup' ? 8 : 28 }}>
             {mode === 'signin' ? 'Sign in to the Gear App' : mode === 'signup' ? 'Create your account' : 'Reset your password'}
           </div>
+          {mode === 'signup' && (
+            <div style={{ fontSize: 13, color: T.textMute, marginBottom: 24 }}>Start on the Free plan. No card needed; upgrade to Pro any time.</div>
+          )}
 
           {/* OAuth */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
@@ -193,6 +202,12 @@
                 </div>
                 <input type="password" required style={S.input} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
               </div>
+            )}
+            {mode !== 'reset' && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: T.ink, cursor: 'pointer', userSelect: 'none' }}>
+                <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} style={{ width: 15, height: 15, accentColor: T.orange, margin: 0, cursor: 'pointer' }} />
+                Keep me signed in
+              </label>
             )}
             <button type="submit" disabled={busy} style={{ ...S.btnP, padding: 12, marginTop: 8, opacity: busy ? 0.6 : 1 }}>
               {busy ? '...' : (mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create account' : 'Send reset email')}
@@ -233,7 +248,7 @@
       setBusy(true);
       try {
         if (!window.GEAR_DB?.enabled || !window.supabase) throw new Error('Authentication is unavailable.');
-        const sb = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey);
+        const sb = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey, { auth: { storage: window.GEAR_AUTH.storage() } });
         const { error } = await sb.auth.updateUser({ password });
         if (error) throw error;
         alert('Password updated. You are now signed in.');
@@ -264,8 +279,15 @@
   }
 
   // ─── Account page ───────────────────────────────────────────
-  function AccountPage({ user, onBack, onSignOut, onUpdate }) {
+  function AccountPage({ user, session, billing, billingCatalog, billingBusy, billingError, onRefreshBilling, onUpgrade, onBuyCredits, onManageBilling, onBack, onSignOut, onUpdate }) {
     const [section, setSection] = useState('profile');
+    const [history, setHistory] = useState([]);
+    // Fresh plan, usage and credit history whenever Billing is opened.
+    React.useEffect(() => {
+      if (section !== 'billing' || !session) return;
+      if (onRefreshBilling) onRefreshBilling();
+      window.GEAR_BILLING.loadHistory(session).then(setHistory).catch(err => console.warn('[Account] credit history:', err.message));
+    }, [section]);
     const [name, setName] = useState(user.name);
     const [email, setEmail] = useState(user.email);
     const [studio, setStudio] = useState(user.studio || '');
@@ -294,7 +316,7 @@
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: S.mono, fontSize: 32, fontWeight: 600, letterSpacing: '-0.02em', marginBottom: 4 }}>{user.name}</div>
             <div style={{ fontSize: 13, color: T.textMute, marginBottom: 8 }}>{user.email}</div>
-            <span style={S.pill('#FFE4D6', '#B33A06')}>{user.plan || 'Studio'} plan</span>
+            {billing && <span style={S.pill('#FFE4D6', '#B33A06')}>{billing.plan_name} plan</span>}
           </div>
         </div>
 
@@ -333,31 +355,17 @@
                 <Row label="Theme" value="Paper (light)" />
               </div>
             )}
-            {section === 'billing' && (
-              <React.Fragment>
-                <div style={card}>
-                  <div style={cardHead}>Plan</div>
-                  <div style={{ padding: 20 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                      <div>
-                        <div style={{ fontFamily: S.mono, fontSize: 22, fontWeight: 600 }}>Studio</div>
-                        <div style={{ fontSize: 12, color: T.textMute }}>$24 / month · billed monthly</div>
-                      </div>
-                      <button style={S.btnG}>Change plan</button>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, paddingTop: 14, borderTop: `1px solid ${T.paperEdge}`, fontFamily: S.mono, fontSize: 11 }}>
-                      <Stat label="Items" value="∞" />
-                      <Stat label="Projects" value="∞" />
-                      <Stat label="Crew seats" value="5 of 10" />
-                    </div>
-                  </div>
-                </div>
-                <div style={{ ...card, marginTop: 16 }}>
-                  <div style={cardHead}>Payment method</div>
-                  <Row label="Card on file" value="Visa ending 4242" />
-                  <Row label="Next charge" value="Dec 1, 2025" />
-                </div>
-              </React.Fragment>
+            {section === 'billing' && window.STUDIO_BILLING && (
+              <window.STUDIO_BILLING.BillingPanel
+                status={billing}
+                catalog={billingCatalog || window.GEAR_BILLING.FALLBACK_CATALOG}
+                history={history}
+                busy={billingBusy}
+                error={billingError}
+                onUpgrade={onUpgrade}
+                onBuyCredits={onBuyCredits}
+                onManage={onManageBilling}
+              />
             )}
             {section === 'integrations' && (
               <div style={card}>
@@ -417,15 +425,6 @@
           <div style={{ fontSize: 13 }}>{value}</div>
         </div>
         {action && <button style={S.btnG}>{action}</button>}
-      </div>
-    );
-  }
-
-  function Stat({ label, value }) {
-    return (
-      <div>
-        <div style={{ fontSize: 9, color: T.textMute, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 4 }}>{label}</div>
-        <div style={{ fontSize: 18, fontWeight: 600 }}>{value}</div>
       </div>
     );
   }

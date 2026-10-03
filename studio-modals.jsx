@@ -167,7 +167,9 @@
     );
   }
 
-  function ExportPDFModal({ project, items = [], mode = 'project', groups = [], onClose }) {
+  // `branding` (Free plan) stamps The Gear App on the sheet; Pro exports are
+  // clean and show the studio name, if one is set, in its place.
+  function ExportPDFModal({ project, items = [], mode = 'project', groups = [], branding = true, studioName, onUpgrade, onClose }) {
     const [showPhotos, setShowPhotos] = useState(true);
     const [density, setDensity] = useState('comfortable'); // 'tight' | 'comfortable'
     // Subheaders default on — for projects this groups by category (Camera /
@@ -337,7 +339,9 @@
                 <div style={{ fontFamily: S.mono, fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1 }}>{project.name}</div>
                 <div style={{ fontSize: 12, color: T.textMute, marginTop: 6 }}>{[project.client, project.shoot, project.location].filter(Boolean).join(' · ')}</div>
               </div>
-              <div style={{ fontFamily: S.mono, fontSize: 14, fontWeight: 700 }}>THE GEAR APP</div>
+              {branding
+                ? <div style={{ fontFamily: S.mono, fontSize: 14, fontWeight: 700 }}>THE GEAR APP</div>
+                : studioName ? <div style={{ fontFamily: S.mono, fontSize: 14, fontWeight: 700, textTransform: 'uppercase' }}>{studioName}</div> : null}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 0, marginBottom: 20, fontSize: 11, fontFamily: S.mono }}>
               <div><div style={{ color: T.textMute, textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 9 }}>Items</div><div style={{ fontSize: 18, marginTop: 4 }}>{totalQty}</div></div>
@@ -386,7 +390,18 @@
                 })()}
               </table>
             )}
+            {branding && (
+              <div style={{ marginTop: 22, paddingTop: 10, borderTop: '1px solid #f0ebe2', display: 'flex', justifyContent: 'space-between', fontFamily: S.mono, fontSize: 9, color: T.textMute, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                <span>Made with The Gear App</span>
+                <span>gearapp.io</span>
+              </div>
+            )}
         </div>
+        {branding && onUpgrade && (
+          <div style={{ fontSize: 11, color: T.textMute, fontFamily: S.mono, marginTop: 10 }}>
+            Free exports carry Gear branding. <a href="#" onClick={(e) => { e.preventDefault(); onUpgrade(); }} style={{ color: T.orange, fontWeight: 600 }}>Go Pro for clean exports</a>
+          </div>
+        )}
       </ModalShell>
     );
   }

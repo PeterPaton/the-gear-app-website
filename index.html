@@ -53,10 +53,12 @@
 
 <script src="studio-row.js"></script>
 <script src="gear-compat.js"></script>
+<script src="gear-billing.js"></script>
 <script type="text/babel" src="studio-modals.jsx"></script>
 <script type="text/babel" src="studio-shell.jsx"></script>
 <script type="text/babel" src="studio-inventory.jsx"></script>
 <script type="text/babel" src="studio-database.jsx"></script>
+<script type="text/babel" src="studio-billing.jsx"></script>
 <script type="text/babel" src="studio-suggest.jsx"></script>
 <script type="text/babel" src="studio-projects.jsx"></script>
 <script type="text/babel" src="studio-auth.jsx"></script>
@@ -101,14 +103,15 @@ function App() {
 
   // ── Auth ─────────────────────────────────────────────────────
   const [user, setUser] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('gear.user') || 'null'); } catch { return null; }
+    try { return JSON.parse(window.GEAR_AUTH.storage().getItem('gear.user') || 'null'); } catch { return null; }
   });
   const [session, setSession] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('gear.session') || 'null'); } catch { return null; }
+    try { return JSON.parse(window.GEAR_AUTH.storage().getItem('gear.session') || 'null'); } catch { return null; }
   });
   const signIn = (u, sess) => {
-    localStorage.setItem('gear.user', JSON.stringify(u));
-    if (sess) localStorage.setItem('gear.session', JSON.stringify(sess));
+    const store = window.GEAR_AUTH.storage();
+    store.setItem('gear.user', JSON.stringify(u));
+    if (sess) store.setItem('gear.session', JSON.stringify(sess));
     setUser(u);
     setSession(sess || null);
   };
@@ -124,12 +127,11 @@ function App() {
     // will pick the stale token back up on refresh and re-sign-in the user.
     if (window.supabase && window.SUPABASE_CONFIG?.url && window.SUPABASE_CONFIG?.anonKey) {
       try {
-        const sb = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey);
+        const sb = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey, { auth: { storage: window.GEAR_AUTH.storage() } });
         await sb.auth.signOut();
       } catch (e) { /* fall through and clear local state anyway */ }
     }
-    localStorage.removeItem('gear.user');
-    localStorage.removeItem('gear.session');
+    [localStorage, sessionStorage].forEach(s => { s.removeItem('gear.user'); s.removeItem('gear.session'); });
     setUser(null);
     setSession(null);
     // Drop cached project state so the next sign-in gets a fresh load and
@@ -139,6 +141,7 @@ function App() {
     setActiveProjectId(null);
     setOpenProjectId(null);
     setGroups([]);
+    setBilling(null);
     groupsLoadedFor.current = null;
     itemsLoadedFor.current = null;
     // Hold the overlay for a minimum duration so the user actually sees it
@@ -151,7 +154,7 @@ function App() {
     await new Promise(r => setTimeout(r, 400));
     setSigningOut(false);
   };
-  const updateUser = (patch) => { const next = { ...user, ...patch }; localStorage.setItem('gear.user', JSON.stringify(next)); setUser(next); };
+  const updateUser = (patch) => { const next = { ...user, ...patch }; window.GEAR_AUTH.storage().setItem('gear.user', JSON.stringify(next)); setUser(next); };
 
   // ── OAuth callback handler ──────────────────────────────────────
   // After Google/Apple/GitHub sign-in, the user lands back here with a session
@@ -163,7 +166,7 @@ function App() {
     const key = (window.SUPABASE_CONFIG?.anonKey) || '';
     if (!url || !key) return;
     const sb = window.supabase.createClient(url, key, {
-      auth: { detectSessionInUrl: true, persistSession: true, autoRefreshToken: true },
+      auth: { detectSessionInUrl: true, persistSession: true, autoRefreshToken: true, storage: window.GEAR_AUTH.storage() },
     });
     const adoptSession = (sess) => {
       if (!sess?.user) return;
@@ -171,7 +174,6 @@ function App() {
       const profile = {
         email: u.email,
         name: u.user_metadata?.full_name || u.user_metadata?.name || (u.email || '').split('@')[0] || 'Filmmaker',
-        plan: 'Studio',
         provider: u.app_metadata?.provider,
       };
       signIn(profile, sess);
@@ -192,8 +194,7 @@ function App() {
       if (event === 'SIGNED_OUT') {
         // Just clear local state — don't call signOut() here or it would
         // re-call sb.auth.signOut() and risk a loop.
-        localStorage.removeItem('gear.user');
-        localStorage.removeItem('gear.session');
+        [localStorage, sessionStorage].forEach(s => { s.removeItem('gear.user'); s.removeItem('gear.session'); });
         setUser(null);
         setSession(null);
       }
@@ -448,6 +449,117 @@ function App() {
     });
   }, [user, session]);
 
+  // ── Plan & credits ────────────────────────────────────────────
+  // The database decides what each plan allows (see gear-billing.js); this
+  // mirrors it so the UI can show limits and open the upgrade screen before
+  // a write would be rejected.
+  const [billing, setBilling] = useState(null);
+  const [billingCatalog, setBillingCatalog] = useState(window.GEAR_BILLING.FALLBACK_CATALOG);
+  const [paywall, setPaywall] = useState(null);          // { reason } while the upgrade screen is open
+  const [billingBusy, setBillingBusy] = useState(null);  // product id or 'portal' while heading to Stripe
+  const [billingError, setBillingError] = useState('');
+  const [billingNotice, setBillingNotice] = useState(null); // { text, done } after returning from Stripe
+
+  useEffect(() => {
+    window.GEAR_BILLING.loadCatalog().then(setBillingCatalog).catch(() => {});
+  }, [tweaks.supabaseUrl, tweaks.supabaseAnonKey]);
+
+  const refreshBilling = React.useCallback(() => {
+    if (!session?.access_token || !window.GEAR_DB?.enabled) return Promise.resolve(null);
+    return window.GEAR_BILLING.loadStatus(session)
+      .then(st => { setBilling(st); return st; })
+      .catch(err => { console.warn('[App] loadBilling:', err.message); return null; });
+  }, [session?.access_token]);
+  useEffect(() => { refreshBilling(); }, [session?.user?.id]);
+
+  // Back from Stripe Checkout: tidy the URL, then wait for the webhook to
+  // apply the purchase (usually a second or two) and confirm it.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const outcome = params.get('billing');
+    if (!outcome || !session?.access_token) return;
+    const product = params.get('product');
+    params.delete('billing');
+    params.delete('product');
+    window.history.replaceState(null, '', window.location.pathname + (params.toString() ? '?' + params : '') + window.location.hash);
+    if (outcome !== 'success') {
+      setBillingNotice({ text: 'Checkout cancelled. Nothing was charged.', done: true });
+      return;
+    }
+    let pending = null;
+    try {
+      pending = JSON.parse(sessionStorage.getItem('gear.billing.pending') || 'null');
+      sessionStorage.removeItem('gear.billing.pending');
+    } catch (e) {}
+    setBillingNotice({ text: 'Payment received. Updating your account…', done: false });
+    let tries = 0;
+    const poll = async () => {
+      const st = await refreshBilling();
+      const applied = st && (product === 'pro'
+        ? st.plan === 'pro'
+        : st.bonus_credits > ((pending && pending.bonus) || 0));
+      if (applied) {
+        setBillingNotice({ text: product === 'pro' ? 'You’re on Pro. Thanks for upgrading!' : 'Credits added. Thanks!', done: true });
+      } else if (++tries < 15) {
+        setTimeout(poll, 2000);
+      } else {
+        setBillingNotice({ text: 'Payment received. Your account will update shortly; refresh if it doesn’t.', done: true });
+      }
+    };
+    poll();
+  }, [session?.user?.id]);
+  useEffect(() => {
+    if (!billingNotice || !billingNotice.done) return;
+    const t = setTimeout(() => setBillingNotice(null), 7000);
+    return () => clearTimeout(t);
+  }, [billingNotice]);
+  // Pressing Back on Stripe's page can restore this page from the browser's
+  // cache with a checkout button still "Opening…"; reset it.
+  useEffect(() => {
+    const onShow = (e) => { if (e.persisted) setBillingBusy(null); };
+    window.addEventListener('pageshow', onShow);
+    return () => window.removeEventListener('pageshow', onShow);
+  }, []);
+
+  const openUpgrade = (reason) => { setBillingError(''); setPaywall({ reason: reason || 'upgrade' }); };
+  const startCheckout = async (product) => {
+    if (!session) return;
+    setBillingError('');
+    setBillingBusy(product);
+    try {
+      await window.GEAR_BILLING.checkout(session, product, billing);
+    } catch (err) {
+      setBillingBusy(null);
+      if (err.code === 'already-subscribed') { openBillingPortal(); return; }
+      setBillingError(err.code === 'billing-not-configured'
+        ? 'Payments aren’t switched on yet. Please try again soon.'
+        : err.message);
+    }
+  };
+  const openBillingPortal = async () => {
+    if (!session) return;
+    setBillingError('');
+    setBillingBusy('portal');
+    try {
+      await window.GEAR_BILLING.openPortal(session);
+    } catch (err) {
+      setBillingBusy(null);
+      setBillingError(err.message);
+    }
+  };
+  // Opens the upgrade screen instead when the plan's limit is reached.
+  const canAddProject = () => {
+    if (!window.GEAR_BILLING.atLimit(billing, 'projects', projects.length)) return true;
+    openUpgrade('projects');
+    return false;
+  };
+  const canAddInventoryItem = () => {
+    if (!window.GEAR_BILLING.atLimit(billing, 'inventory', items.length)) return true;
+    openUpgrade('inventory');
+    return false;
+  };
+  const openNewProject = () => { if (canAddProject()) setModalNewProject(true); };
+
   // Auto-select the first project when none is active so + / drag-to-cart
   // work immediately after sign-in instead of silently no-op'ing.
   useEffect(() => {
@@ -598,7 +710,14 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
     setProjects(ps => [proj, ...ps]);
     setActiveProjectId(proj.id);
     if (window.GEAR_DB?.enabled && session) {
-      window.GEAR_DB.saveProject(proj, session).catch(err => console.warn('[App] saveProject:', err.message));
+      window.GEAR_DB.saveProject(proj, session).catch(err => {
+        if (!window.GEAR_BILLING.planLimitFromError(err)) { console.warn('[App] saveProject:', err.message); return; }
+        // Rejected by the plan's project limit: take the optimistic row back out.
+        setProjects(ps => ps.filter(p => p.id !== proj.id));
+        setActiveProjectId(id => (id === proj.id ? null : id));
+        openUpgrade('projects');
+        refreshBilling();
+      });
     }
   };
 
@@ -652,14 +771,17 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
     }
   };
 
-  // Create a fresh project from a suggested kit, then fill it.
+  // Create a fresh project from a suggested kit, then fill it. Returns false
+  // when the plan's project limit stops it (the upgrade screen opens instead).
   const createProjectFromKit = (name, kit) => {
+    if (!canAddProject()) return false;
     const proj = {
       id: 'p' + Date.now(), name: name || 'Suggested Kit',
       client: '', shoot: 'TBD', location: '', status: 'planning', items: [],
     };
     createProject(proj);
     addKitToProject(kit, proj.id);
+    return true;
   };
   const changeProjectStatus = (id, status) => {
     const proj = projects.find(p => p.id === id);
@@ -736,7 +858,9 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
       return;
     }
 
-    // New item. If the supplied id is a catalog UUID, treat it as
+    // New item — subject to the plan's inventory limit.
+    if (!canAddInventoryItem()) return;
+    // If the supplied id is a catalog UUID, treat it as
     // equipment_id and mint a fresh per-row inventory id so multiple users
     // can each own a copy of the same catalog row without PK collisions.
     let id = item.id;
@@ -750,7 +874,12 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
     const next = { ...item, id, equipment_id };
     setItems(its => [next, ...its]);
     if (window.GEAR_DB?.enabled && session) {
-      window.GEAR_DB.saveInventoryItem(next, session).catch(err => console.warn('[App] saveInventoryItem:', err.message));
+      window.GEAR_DB.saveInventoryItem(next, session).catch(err => {
+        if (!window.GEAR_BILLING.planLimitFromError(err)) { console.warn('[App] saveInventoryItem:', err.message); return; }
+        setItems(its => its.filter(i => i.id !== next.id));
+        openUpgrade('inventory');
+        refreshBilling();
+      });
     }
   };
 
@@ -941,6 +1070,8 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
         items={items} projects={projects}
         collapsed={collapsed} setCollapsed={setCollapsed}
         user={user}
+        planName={billing ? billing.plan_name : null}
+        onUpgrade={billing && billing.plan !== 'pro' ? () => openUpgrade() : null}
         onOpenAccount={() => setShowAccount(true)}
         onOpenProject={(id) => {
           // Recent-projects row: same project = no-op (stay in current view),
@@ -954,6 +1085,15 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
         {showAccount && (
           <window.STUDIO_AUTH.AccountPage
             user={user}
+            session={session}
+            billing={billing}
+            billingCatalog={billingCatalog}
+            billingBusy={billingBusy}
+            billingError={billingError}
+            onRefreshBilling={refreshBilling}
+            onUpgrade={() => openUpgrade()}
+            onBuyCredits={startCheckout}
+            onManageBilling={openBillingPortal}
             onBack={() => setShowAccount(false)}
             onSignOut={() => { setShowAccount(false); signOut(); }}
             onUpdate={updateUser}
@@ -976,7 +1116,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
                 onRenameGroup={renameGroup}
                 onDeleteGroup={deleteGroup}
                 onMoveItemToGroup={moveItemToGroup}
-                onAddItem={() => setModalEditItem({ category: 'Camera', qty: 1, status: 'available' })}
+                onAddItem={() => { if (canAddInventoryItem()) setModalEditItem({ category: 'Camera', qty: 1, status: 'available' }); }}
                 onOpenDatabase={() => setPage('database')}
                 onExportInventory={() => setModalExport({ name: (user && user.name) ? `${user.name}'s Inventory` : 'Inventory', client: '', shoot: '', location: '' })}
                 draggedId={draggedId} setDraggedId={setDraggedId}
@@ -993,6 +1133,9 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
                   accessToken={session?.access_token}
                   projects={projects}
                   activeProjectId={activeProjectId}
+                  billing={billing}
+                  onCreditsChange={(c) => setBilling(b => (b ? { ...b, monthly_credits: c.monthly, bonus_credits: c.bonus } : b))}
+                  onUpgrade={openUpgrade}
                   onAddKitToProject={addKitToProject}
                   onCreateProjectFromKit={createProjectFromKit}
                 />
@@ -1019,7 +1162,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
                 activeProjectId={activeProjectId}
                 onSelectProject={setActiveProjectId}
                 onOpenProject={setOpenProjectId}
-                onNewProject={() => setModalNewProject(true)}
+                onNewProject={openNewProject}
                 onDeleteProject={deleteProject}
                 onRenameProject={renameProject}
               />
@@ -1035,7 +1178,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
                 onDrop={addToProject} onDropGroup={addGroupToProject} onChangeQty={changeQty}
                 onExport={() => setModalExport(activeProject)}
                 onOpenProject={(id) => setOpenProjectId(id)}
-                onNewProject={() => setModalNewProject(true)}
+                onNewProject={openNewProject}
                 collapsed={cartCollapsed} setCollapsed={setCartCollapsed}
                 width={cartWidth} setWidth={setCartWidth}
               />
@@ -1078,8 +1221,30 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
           items={modalExport.id ? (projectItems[modalExport.id] || []) : items}
           mode={modalExport.id ? 'project' : 'inventory'}
           groups={groups}
+          branding={!billing || billing.pdf_branding}
+          studioName={user && user.studio}
+          onUpgrade={() => openUpgrade('branding')}
           onClose={() => setModalExport(null)}
         />
+      )}
+
+      {paywall && (
+        <window.STUDIO_BILLING.PricingModal
+          reason={paywall.reason}
+          status={billing}
+          catalog={billingCatalog}
+          busy={billingBusy}
+          error={billingError}
+          onCheckout={startCheckout}
+          onManage={openBillingPortal}
+          onClose={() => { setPaywall(null); setBillingError(''); }}
+        />
+      )}
+      {billingNotice && (
+        <div role="status" style={{ position: 'fixed', top: 18, left: '50%', transform: 'translateX(-50%)', background: '#191919', color: '#fff', padding: '11px 16px', borderRadius: 6, fontFamily: '"JetBrains Mono", monospace', fontSize: 12, zIndex: 300, display: 'flex', alignItems: 'center', gap: 14, boxShadow: '0 8px 24px rgba(0,0,0,0.25)' }}>
+          <span>{billingNotice.text}</span>
+          {billingNotice.done && <button onClick={() => setBillingNotice(null)} aria-label="Dismiss" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: 16, padding: 0 }}>×</button>}
+        </div>
       )}
 
       {/* Tweaks panel is hidden in production. Show only when explicitly
