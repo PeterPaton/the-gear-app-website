@@ -83,7 +83,10 @@ async function handle(stripe: Stripe, event: Stripe.Event) {
     case "invoice.paid": {
       const invoice = event.data.object;
       if (invoice.billing_reason !== "subscription_cycle") return; // first payment is handled by checkout
-      const ref = invoice.parent?.subscription_details?.subscription;
+      // Where the subscription id sits depends on the endpoint's API version:
+      // parent.subscription_details from 2025-03-31 on, top-level before that.
+      const legacy = (invoice as unknown as { subscription?: string | { id: string } | null }).subscription;
+      const ref = invoice.parent?.subscription_details?.subscription ?? legacy;
       const subscriptionId = typeof ref === "string" ? ref : ref?.id;
       if (!subscriptionId) return;
       const userId = await syncSubscription(stripe, subscriptionId);
