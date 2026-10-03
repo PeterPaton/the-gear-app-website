@@ -29,6 +29,13 @@ async function rpc(fn: string, args: Record<string, unknown>) {
   return data;
 }
 
+// Events can arrive after an account has been deleted (deleting it cancels
+// the subscription); those have nothing left to update.
+async function userExists(userId: string): Promise<boolean> {
+  const { data, error } = await admin.auth.admin.getUserById(userId);
+  return !error && !!data.user;
+}
+
 async function userForCustomer(customerId: string): Promise<string | null> {
   const { data } = await admin.from("entitlements").select("user_id").eq("stripe_customer_id", customerId).maybeSingle();
   return data?.user_id ?? null;
@@ -40,8 +47,8 @@ async function syncSubscription(stripe: Stripe, subscriptionId: string, userHint
   const sub = await stripe.subscriptions.retrieve(subscriptionId);
   const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
   const userId = userHint || sub.metadata?.user_id || await userForCustomer(customerId);
-  if (!userId) {
-    console.warn(`[stripe-webhook] no user for subscription ${sub.id}`);
+  if (!userId || !(await userExists(userId))) {
+    console.warn(`[stripe-webhook] no current user for subscription ${sub.id}`);
     return null;
   }
   const periodEnd = sub.items.data[0]?.current_period_end;
@@ -62,7 +69,7 @@ async function handle(stripe: Stripe, event: Stripe.Event) {
     case "checkout.session.async_payment_succeeded": {
       const s = event.data.object;
       const userId = s.client_reference_id || s.metadata?.user_id;
-      if (!userId) return;
+      if (!userId || !(await userExists(userId))) return;
       if (s.mode === "subscription" && s.subscription) {
         await syncSubscription(stripe, typeof s.subscription === "string" ? s.subscription : s.subscription.id, userId);
       } else if (s.mode === "payment" && s.payment_status === "paid" && s.metadata?.pack_id) {

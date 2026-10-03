@@ -157,6 +157,23 @@ function App() {
     await new Promise(r => setTimeout(r, 400));
     setSigningOut(false);
   };
+  // Permanently deletes the account (server side), clears this browser's
+  // copies of the user's data, then signs out to the login page.
+  const deleteAccount = async () => {
+    const uid = session?.user?.id;
+    const res = await fetch(`${window.SUPABASE_CONFIG.url}/functions/v1/delete-account`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${session?.access_token}`, 'apikey': window.SUPABASE_CONFIG.anonKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: 'DELETE' }),
+    }).catch(() => null);
+    const data = res ? await res.json().catch(() => null) : null;
+    if (!res || !res.ok || !data || !data.ok) throw new Error((data && data.error) || 'Couldn’t delete the account. Please try again.');
+    try {
+      Object.keys(localStorage).filter(k => uid && k.includes(uid)).forEach(k => localStorage.removeItem(k));
+    } catch (e) {}
+    setShowAccount(false);
+    await signOut();
+  };
   const updateUser = (patch) => { const next = { ...user, ...patch }; window.GEAR_AUTH.storage().setItem('gear.user', JSON.stringify(next)); setUser(next); };
 
   // ── OAuth callback handler ──────────────────────────────────────
@@ -1136,6 +1153,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
           <window.STUDIO_AUTH.AccountPage
             user={user}
             session={session}
+            onDeleteAccount={deleteAccount}
             billing={billing}
             billingCatalog={billingCatalog}
             billingBusy={billingBusy}
