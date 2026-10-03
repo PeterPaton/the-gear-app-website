@@ -213,7 +213,7 @@
     [/BP-?U\d+|BP-?\d{2,3}U\b|\bBP-U\b/i, 'BP-U'], [/LP-?E6(?:N|NH|P)?\b/i, 'LP-E6'], [/LP-?E17/i, 'LP-E17'], [/LP-?E10/i, 'LP-E10'],
     [/BP-?A\d+/i, 'BP-A'], [/BP-?9[1-9]\d|redvolt\s?bp\b/i, 'BP-9'], [/EN-?EL15/i, 'EN-EL15'], [/EN-?EL18/i, 'EN-EL18'], [/EN-?EL25/i, 'EN-EL25'],
     [/BLJ31/i, 'BLJ31'], [/BLK22/i, 'BLK22'], [/BLF19/i, 'BLF19'], [/NP-?W126/i, 'NP-W126'], [/NP-?W235/i, 'NP-W235'],
-    [/micro\s?v[- ]?(?:lock|mount)/i, 'MICRO-V'], [/(?<!micro[\s-]?)\bV[- ]?(?:mount|lock)\b/i, 'V-MOUNT'], [/gold[- ]?mount|anton\s?bauer|\bAB[- ]mount/i, 'GOLD'],
+    [/micro\s?v[- ]?(?:lock|mount)/i, 'MICRO-V'], [/(?<!micro[\s-]?)\bV[- ]?(?:mount|lock|lok)\b/i, 'V-MOUNT'], [/gold[- ]?mount|anton\s?bauer|\bAB[- ]mount/i, 'GOLD'],
     [/\bB[- ]?mount\b/i, 'B-MOUNT'], [/\bTB50\b/i, 'TB50'],
   ];
   const MEDIA_SCAN = [
@@ -270,7 +270,7 @@
     }
     // Power.
     const batt = scanAll(BATTERY_SCAN, name);
-    if (batt.length && !/charger/i.test(name) && /plate|adapter\s?plate|battery\s?mount/i.test(name)) {
+    if (batt.length && !/charger/i.test(name) && /plate|adapter\s?plate|battery\s?mount|camera\s?mount|battery\s?slide/i.test(name)) {
       return { role: 'battery-plate', battery: batt, locks: bodyFamilies(name), source: 'name' };
     }
     if (/charger/i.test(name)) return { role: 'charger', battery: batt, source: 'name' };

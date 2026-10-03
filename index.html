@@ -1127,6 +1127,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
             {window.STUDIO_SUGGEST && (
               <div style={{ flex: 1, display: page === 'suggest' ? 'flex' : 'none', overflow: 'hidden' }}>
                 <window.STUDIO_SUGGEST
+                  userId={session?.user?.id}
                   catalog={catalog}
                   supabaseUrl={tweaks.supabaseUrl}
                   anonKey={tweaks.supabaseAnonKey}
