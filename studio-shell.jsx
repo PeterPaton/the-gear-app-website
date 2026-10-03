@@ -88,7 +88,7 @@
     }
 
     return (
-      <div style={cartRoot(hoverCart, width)}
+      <div data-tour="project-panel" style={cartRoot(hoverCart, width)}
            onDragOver={(e) => { e.preventDefault(); setHoverCart(true); }}
            onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setHoverCart(false); }}
            onDrop={(e) => {
@@ -194,10 +194,11 @@
         </div>
         {!collapsed && <div style={{ ...S.label, color: 'rgba(255,255,255,0.4)', padding: '18px 16px 6px' }}>Workspace</div>}
         <NavItem icon="▣" label="Inventory" count={items.length} active={page === 'inventory'} onClick={() => setPage('inventory')} collapsed={collapsed} />
-        <NavItem icon="✧" label="Suggest" active={page === 'suggest'} onClick={() => setPage('suggest')} collapsed={collapsed} />
+        <NavItem tour="nav-suggest" icon="✧" label="Suggest" active={page === 'suggest'} onClick={() => setPage('suggest')} collapsed={collapsed} />
+        <NavItem tour="nav-discover" icon="◎" label="Discover" active={page === 'discover'} onClick={() => setPage('discover')} collapsed={collapsed} />
         <NavItem icon="◈" label="Database" active={page === 'database'} onClick={() => setPage('database')} collapsed={collapsed} />
         <NavItem icon="◧" label="Projects" count={projects.length} active={page === 'projects'} onClick={() => setPage('projects')} collapsed={collapsed} />
-        <NavItem icon="?" label="Guide" active={page === 'guide'} onClick={() => setPage('guide')} collapsed={collapsed} />
+        <NavItem tour="nav-guide" icon="?" label="Guide" active={page === 'guide'} onClick={() => setPage('guide')} collapsed={collapsed} />
         {!collapsed && <div style={{ ...S.label, color: 'rgba(255,255,255,0.4)', padding: '18px 16px 6px' }}>Recent projects</div>}
         {!collapsed && projects.slice(0, 3).map(p => (
           <div key={p.id} style={{ ...recentRow, cursor: 'pointer' }} onClick={() => onOpenProject && onOpenProject(p.id)}>
@@ -231,9 +232,9 @@
     );
   }
 
-  function NavItem({ icon, label, count, active, onClick, collapsed }) {
+  function NavItem({ icon, label, count, active, onClick, collapsed, tour }) {
     return (
-      <div onClick={onClick} style={navItem(active, collapsed)}
+      <div data-tour={tour} onClick={onClick} style={navItem(active, collapsed)}
            onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
            onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = 'transparent'; }}>
         <span style={{ width: 16, fontSize: 14, opacity: 0.85, textAlign: 'center', flexShrink: 0 }}>{icon}</span>

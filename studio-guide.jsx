@@ -10,45 +10,55 @@
   const S = window.STUDIO_STYLES;
   const T = S.T;
 
-  // The "+" grid used behind the phone landing page.
-  const DOT_BG = 'linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.15) 40%, rgba(0,0,0,0.75) 100%), #0c0c0c url(login-bg.jpg) center center / cover no-repeat';
+  // Grey dot grid on black, as on the home page.
+  const DOTS = { backgroundColor: T.ink, backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px)', backgroundSize: '22px 22px' };
 
   // ── Scrolling strip of random catalog items ────────────────────────────
-  // Real gear only (cameras, lenses, lights, support, audio, monitors) with a
-  // picture; a fresh random mix on every visit. Items whose image fails are
-  // dropped. Pauses on hover; stands still for people who prefer less motion.
+  // Real gear only (cameras, lenses, lights, support, audio, monitors), a
+  // fresh random mix on every visit. Photos are loaded first and the strip is
+  // built once from the ones that loaded, so it never changes size while it
+  // moves. Purely decorative: no hover or click, and it stands still for
+  // people who prefer less motion.
   const SHOWCASE_ROLES = new Set(['body', 'lens', 'light', 'gimbal', 'monitor', 'mic-xlr', 'mic', 'tripod', 'xlr-input']);
 
-  function ItemMarquee({ items = [], count = 32, dark = false, speed = 55 }) {
-    const [broken, setBroken] = useState(() => new Set());
-    const picks = useMemo(() => {
+  function ItemMarquee({ items = [], count = 32, dark = false }) {
+    const [shown, setShown] = useState(null);
+    useEffect(() => {
+      if (shown || items.length < 50) return;
       const C = window.GEAR_COMPAT;
       const pool = items.filter(it => it.image_url && (!C || SHOWCASE_ROLES.has(C.specOf(it).role)));
       for (let i = pool.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [pool[i], pool[j]] = [pool[j], pool[i]];
       }
-      return pool.slice(0, count);
-    }, [items.length, count]);
-    const shown = picks.filter(it => !broken.has(it.id));
-    if (shown.length < 8) return null;
+      const candidates = pool.slice(0, Math.round(count * 1.5));
+      let cancelled = false;
+      const loaded = [];
+      let pending = candidates.length;
+      const finish = () => { if (!cancelled && loaded.length >= 8) setShown(loaded.slice(0, count)); };
+      const timer = setTimeout(() => { pending = 0; finish(); }, 6000);
+      candidates.forEach(it => {
+        const img = new Image();
+        img.onload = () => { if (img.naturalWidth >= 60) loaded.push(it); if (--pending === 0) { clearTimeout(timer); finish(); } };
+        img.onerror = () => { if (--pending === 0) { clearTimeout(timer); finish(); } };
+        img.src = it.image_url;
+      });
+      return () => { cancelled = true; clearTimeout(timer); };
+    }, [items.length]);
+    if (!shown) return <div style={{ height: 150 }} />;
     const tile = 112;
+    const seconds = Math.round(shown.length * (tile + 12) / 45);
     return (
-      <div className="gear-marquee" style={{ overflow: 'hidden', width: '100%', maskImage: 'linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent)', WebkitMaskImage: 'linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent)' }}>
+      <div aria-hidden="true" style={{ overflow: 'hidden', width: '100%', pointerEvents: 'none', userSelect: 'none', maskImage: 'linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent)', WebkitMaskImage: 'linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent)' }}>
         <style>{`
-          @keyframes gearMarquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-          .gear-marquee-track { animation: gearMarquee ${Math.round(shown.length * 140 / speed * 10) / 10}s linear infinite; }
-          .gear-marquee:hover .gear-marquee-track { animation-play-state: paused; }
-          @media (prefers-reduced-motion: reduce) { .gear-marquee-track { animation: none; } }
+          @keyframes gearMarquee { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(-50%, 0, 0); } }
+          @media (prefers-reduced-motion: reduce) { .gear-marquee-track { animation: none !important; } }
         `}</style>
-        <div className="gear-marquee-track" style={{ display: 'flex', gap: 12, width: 'max-content', padding: '4px 0' }}>
+        <div className="gear-marquee-track" style={{ display: 'flex', width: 'max-content', padding: '4px 0', animation: `gearMarquee ${seconds}s linear infinite`, willChange: 'transform' }}>
           {[0, 1].map(copy => shown.map(it => (
-            <div key={copy + it.id} aria-hidden={copy === 1} title={it.name} style={{ width: tile, flexShrink: 0 }}>
+            <div key={copy + it.id} style={{ width: tile, flexShrink: 0, marginRight: 12 }}>
               <div style={{ width: tile, height: tile, background: '#fff', borderRadius: 8, border: dark ? '1px solid rgba(255,255,255,0.08)' : `1px solid ${T.paperEdge}`, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 10, boxSizing: 'border-box' }}>
-                <img src={it.image_url} alt={copy === 0 ? it.name : ''} loading="lazy"
-                  onError={() => setBroken(prev => new Set(prev).add(it.id))}
-                  onLoad={e => { if (e.currentTarget.naturalWidth < 60) setBroken(prev => new Set(prev).add(it.id)); }}
-                  style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                <img src={it.image_url} alt="" draggable="false" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
               </div>
               <div style={{ marginTop: 6, fontSize: 10, lineHeight: 1.3, fontFamily: S.mono, color: dark ? 'rgba(255,255,255,0.55)' : T.textMute, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', height: 26 }}>
                 {it.name}
@@ -66,6 +76,7 @@
     { icon: '◈', page: 'database', title: 'Search the database', text: 'Filter cameras, lenses, lighting, audio and support by category, then add items to your inventory or straight into a project.' },
     { icon: '◧', page: 'projects', title: 'Sort your items into projects', text: 'Prep for each shoot by dragging items, or whole groups, into a project. Adjust quantities and track its status from planning to wrapped.' },
     { icon: '✧', page: 'suggest', title: 'Let AI build the kit', text: 'Describe the shoot and get a kit list that works together. Mounts, batteries, media, monitoring and gimbal payload are checked for you. Then ask for changes in plain English.' },
+    { icon: '◎', page: 'discover', title: 'Discover new gear', text: 'Hand-picked new releases from across the industry, explained: what’s new, the key specs and what it costs.' },
     { icon: '⤓', page: 'projects', title: 'Export your kit list', text: 'Download a clean PDF pull list to share with crew, rental houses or insurers.' },
   ];
 
@@ -160,7 +171,7 @@
     return (
       <div style={{ flex: 1, overflowY: 'auto', background: '#f6f3ee' }}>
         {/* Hero */}
-        <div style={{ position: 'relative', background: DOT_BG, color: '#fff', padding: '56px 0 40px', textAlign: 'center', overflow: 'hidden' }}>
+        <div style={{ position: 'relative', ...DOTS, color: '#fff', padding: '56px 0 40px', textAlign: 'center', overflow: 'hidden' }}>
           {onClose && (
             <button onClick={onClose} style={{ position: 'absolute', top: 18, right: 22, zIndex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: 4, padding: '7px 12px', cursor: 'pointer', fontFamily: S.mono, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
               {closeLabel || 'Close'}
@@ -196,7 +207,7 @@
               </div>
             ))}
             {free && pro && (
-              <div style={{ background: DOT_BG, color: '#fff', borderRadius: 6, padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ ...DOTS, color: '#fff', borderRadius: 6, padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(255,87,12,0.18)', color: T.orange, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17 }}>✦</div>
                 <div style={{ fontWeight: 700, fontSize: 15 }}>Free to start</div>
                 <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)', lineHeight: 1.55 }}>

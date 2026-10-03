@@ -100,7 +100,7 @@
           <button style={R.editToggleBtn(editMode)} onClick={() => setEditMode(e => !e)}>
             {editMode ? '✕ Done' : '✎ Edit'}
           </button>
-          <button style={S.btnP} onClick={onNewProject}>+ New Project</button>
+          <button data-tour="new-project" style={S.btnP} onClick={onNewProject}>+ New Project</button>
         </div>
 
         <div style={{ display: 'flex', gap: 6, padding: '12px 28px', borderBottom: `1px solid ${T.paperEdge}`, background: '#faf7f2', flexShrink: 0 }}>
