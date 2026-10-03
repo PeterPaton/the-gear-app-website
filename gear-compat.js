@@ -646,28 +646,28 @@
   // ── Candidate pool for the AI ────────────────────────────────────────────
   // The catalog is thousands of rows; send the model a relevant, spec-tagged
   // slice instead. Each line: ref|name|role|tags.
-  function buildCandidatePool(prompt, catalog, cap = 700) {
+  function buildCandidatePool(prompt, catalog, cap = 320) {
     const words = briefWords(prompt);
     const score = it => wordScore(it.name, words);
     const roles = {};
     catalog.forEach(it => { const s = specOf(it); (roles[s.role] || (roles[s.role] = [])).push(it); });
     const take = (role, n, filter) => (roles[role] || []).filter(it => !filter || filter(specOf(it))).map(it => [it, score(it)]).sort((a, b) => b[1] - a[1]).slice(0, n).map(x => x[0]);
     const wantsFixed = /ptz|stream|live|camcorder|conference|webinar|document/i.test(prompt);
-    const bodies = take('body', 120, s => wantsFixed || !s.fixed);
+    const bodies = take('body', 50, s => wantsFixed || !s.fixed);
     const mountsInPlay = new Set(bodies.flatMap(b => specOf(b).mounts || []));
     const lensesByMount = {};
     (roles.lens || []).forEach(it => { const m = specOf(it).mount; if (m && (mountsInPlay.has(m) || m === 'EF' || m === 'PL')) (lensesByMount[m] || (lensesByMount[m] = [])).push(it); });
-    const lenses = Object.values(lensesByMount).flatMap(list => list.map(it => [it, score(it)]).sort((a, b) => b[1] - a[1]).slice(0, 28).map(x => x[0]));
+    const lenses = Object.values(lensesByMount).flatMap(list => list.map(it => [it, score(it)]).sort((a, b) => b[1] - a[1]).slice(0, 12).map(x => x[0]));
     const battTypes = new Set(bodies.flatMap(b => specOf(b).battery || []));
     const mediaTypes = new Set(bodies.flatMap(b => specOf(b).media || []));
     const picked = [
       ...bodies, ...lenses,
-      ...take('adapter', 30), ...take('battery', 50, s => s.battery.some(t => battTypes.has(t) || ['V-MOUNT', 'NP-F'].includes(t))),
-      ...take('battery-plate', 10), ...take('media', 40, s => s.media.some(t => mediaTypes.has(t))),
-      ...take('gimbal', 15), ...take('monitor', 25), ...take('converter', 8),
-      ...take('mic-xlr', 15), ...take('mic', 15), ...take('xlr-input', 12),
-      ...take('light', 45), ...take('tripod', 15),
-      ...catalog.map(it => [it, score(it)]).filter(x => x[1] >= 4).sort((a, b) => b[1] - a[1]).slice(0, 60).map(x => x[0]),
+      ...take('adapter', 12), ...take('battery', 20, s => s.battery.some(t => battTypes.has(t) || ['V-MOUNT', 'NP-F'].includes(t))),
+      ...take('battery-plate', 5), ...take('media', 16, s => s.media.some(t => mediaTypes.has(t))),
+      ...take('gimbal', 8), ...take('monitor', 10), ...take('converter', 4),
+      ...take('mic-xlr', 8), ...take('mic', 8), ...take('xlr-input', 6),
+      ...take('light', 20), ...take('tripod', 8),
+      ...catalog.map(it => [it, score(it)]).filter(x => x[1] >= 4).sort((a, b) => b[1] - a[1]).slice(0, 30).map(x => x[0]),
     ];
     const seen = new Set(), pool = [];
     for (const it of picked) {

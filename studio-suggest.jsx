@@ -230,6 +230,7 @@
       if (!q) { setError('Describe what you’re shooting first.'); return; }
       if (!catalog.length) { setError('No equipment catalog is loaded yet.'); return; }
       setError('');
+      setPrompt('');
       setResult(null);
       setHistory([]);
       setBusyMode('generate');
@@ -238,7 +239,7 @@
         const kit = await runAI('generate', q);
         setResult({ ...kit, brief: q, id: newKitId() });
       } catch (e) {
-        if (!handleFailure(e)) return;
+        if (!handleFailure(e)) { setPrompt(q); return; }
         const why = {
           'no-key': 'The AI service has no API key yet',
           'not-deployed': 'The AI service isn’t deployed yet',
@@ -248,7 +249,7 @@
         setStage('Assembling offline…');
         const local = C.assembleKit(q, catalog);
         if (local.items.length) setResult({ ...local, id: newKitId(), brief: q, engine: 'offline', notice: why + ' — this kit was assembled offline. No credit was used.' });
-        else setError('Could not build a kit list: ' + why);
+        else { setError('Could not build a kit list: ' + why); setPrompt(q); }
       } finally {
         setStage('');
         setBusyMode(null);
@@ -419,7 +420,7 @@
           {busyMode === 'generate' && <Progress stage={stage} />}
 
           {result && check && busyMode !== 'generate' && (
-            <div style={{ marginTop: 18 }}>
+            <div style={{ marginTop: 28, paddingTop: 24, borderTop: `2px solid ${T.ink}` }}>
               {/* Header */}
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: 240 }}>
@@ -503,7 +504,7 @@
                 </div>
 
                 {/* Notes and alternatives, tabbed on the right */}
-                <SidePanel notes={result.notes || []} alternatives={alternatives} onSwap={swapItem} onAdd={addFix} />
+                <SidePanel notes={result.notes || []} alternatives={alternatives} onSwap={swapItem} />
                 </div>
 
                 <div style={{ marginTop: 22, display: 'flex', gap: 12, justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -552,7 +553,6 @@
   }
 
   const ALT_ROLES = ['body', 'lens', 'gimbal', 'monitor', 'light', 'mic-xlr', 'mic', 'tripod'];
-  const ALT_LABEL = { body: 'Camera', lens: 'Lens', gimbal: 'Gimbal', monitor: 'Monitor', light: 'Light', 'mic-xlr': 'Microphone', mic: 'Microphone', tripod: 'Tripod' };
 
   // For each key item, up to 3 catalog items in the same role (and the same
   // lens mount for bodies and lenses), ranked by shared words in the name.
@@ -571,21 +571,21 @@
       const mounts = spec.role === 'body' ? new Set(spec.mounts || []) : null;
       const w = words(full.name);
       const options = (byRole[spec.role] || [])
-        .filter(it => !kitIds.has(it.id) && it.name !== full.name)
+        .filter(it => it.image_url && !kitIds.has(it.id) && it.name !== full.name)
         .filter(it => {
           const s2 = C.specOf(it);
           if (mount) return s2.mount === mount;
           if (mounts && mounts.size) return (s2.mounts || []).some(m => mounts.has(m));
           return true;
         })
-        .map(it => { let sc = 0; words(it.name).forEach(x => { if (w.has(x)) sc++; }); return [it, sc + (it.image_url ? 0.5 : 0)]; })
+        .map(it => { let sc = 0; words(it.name).forEach(x => { if (w.has(x)) sc++; }); return [it, sc]; })
         .sort((a, b) => b[1] - a[1]).slice(0, 3).map(x => x[0]);
-      if (options.length) out.push({ for: k, label: ALT_LABEL[spec.role], options });
+      if (options.length) out.push({ for: k, options });
     });
     return out.slice(0, 8);
   }
 
-  function SidePanel({ notes, alternatives, onSwap, onAdd }) {
+  function SidePanel({ notes, alternatives, onSwap }) {
     const [tab, setTab] = useState(notes.length ? 'notes' : 'alts');
     const tabs = [['notes', `Notes · ${notes.length}`], ['alts', `Alternatives · ${alternatives.length}`]];
     return (
@@ -605,16 +605,21 @@
             ? notes.map((n, i) => <div key={i} style={{ fontSize: 12, color: T.ink, lineHeight: 1.5, padding: '8px 0', borderTop: i ? '1px solid #f0ebe2' : 'none' }}>{n}</div>)
             : <div style={{ fontSize: 12, color: T.textMute }}>No notes for this kit.</div>)}
           {tab === 'alts' && (alternatives.length ? alternatives.map((a, i) => (
-            <div key={a.for.id} style={{ padding: '8px 0', borderTop: i ? '1px solid #f0ebe2' : 'none' }}>
-              <div style={{ fontFamily: S.mono, fontSize: 10, color: T.textMute, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{a.label} · instead of</div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: T.ink, margin: '2px 0 6px' }}>{truncate(a.for.name, 48)}</div>
-              {a.options.map(o => (
-                <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                  <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: T.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={o.name}>{o.name}</span>
-                  <button onClick={() => onSwap(a.for.id, o)} title="Replace in kit" style={{ background: T.paperLight, border: `1px solid ${T.paperEdge}`, padding: '2px 7px', fontSize: 10, fontFamily: S.mono, cursor: 'pointer', color: T.ink }}>Swap</button>
-                  <button onClick={() => onAdd(o, 'Alternative to ' + a.for.name)} title="Add alongside" style={{ background: T.paperLight, border: `1px solid ${T.paperEdge}`, padding: '2px 7px', fontSize: 10, fontFamily: S.mono, cursor: 'pointer', color: T.ink }}>+</button>
-                </div>
-              ))}
+            <div key={a.for.id} style={{ marginTop: i ? 14 : 0 }}>
+              <div style={{ fontSize: 11, color: T.textMute, marginBottom: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={a.for.name}>
+                Instead of <span style={{ color: T.ink, fontWeight: 600 }}>{a.for.name}</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                {a.options.map(o => (
+                  <button key={o.id} onClick={() => onSwap(a.for.id, o)} title={`Swap in ${o.name}`}
+                    style={{ background: '#fff', border: `1px solid ${T.paperEdge}`, padding: 6, cursor: 'pointer', textAlign: 'left', minWidth: 0 }}>
+                    <div style={{ height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <img src={o.image_url} alt="" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                    </div>
+                    <div style={{ marginTop: 4, fontSize: 10, lineHeight: 1.3, color: T.ink, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', height: 26 }}>{o.name}</div>
+                  </button>
+                ))}
+              </div>
             </div>
           )) : <div style={{ fontSize: 12, color: T.textMute }}>No alternatives found in the database.</div>)}
         </div>
