@@ -418,9 +418,7 @@
               {outOfCredits && <button onClick={() => onUpgrade && onUpgrade('credits')} style={{ ...S.btnP, flexShrink: 0 }}>Get more credits</button>}
             </div>
           )}
-          {busyMode === 'generate' && (
-            <div style={{ marginTop: 24, textAlign: 'center', color: T.textMute, fontFamily: S.mono, fontSize: 13 }}>{stage}</div>
-          )}
+          {busyMode === 'generate' && <Progress stage={stage} />}
 
           {result && check && busyMode !== 'generate' && (
             <div style={{ marginTop: 18 }}>
@@ -468,7 +466,7 @@
                   </button>
                 </div>
                 {busyMode === 'refine' ? (
-                  <div style={{ marginTop: 8, fontSize: 11, color: T.textMute, fontFamily: S.mono }}>{stage}</div>
+                  <Progress stage={stage} compact />
                 ) : (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8, alignItems: 'center' }}>
                     {result.lastChange && (
@@ -623,6 +621,41 @@
             ))}
             {tags && <div style={{ fontSize: 10, fontFamily: S.mono, color: T.textMute, opacity: 0.8 }}>{tags}</div>}
           </div>
+        )}
+      </div>
+    );
+  }
+
+  // Spinner, step list and timer while the AI works (usually 20–60s).
+  const STEPS = ['Choosing gear', 'Checking compatibility', 'Fixing issues'];
+  function Progress({ stage, compact }) {
+    const [seconds, setSeconds] = useState(0);
+    useEffect(() => {
+      const t = setInterval(() => setSeconds(x => x + 1), 1000);
+      return () => clearInterval(t);
+    }, []);
+    const offline = /offline/i.test(stage);
+    const step = /^Fixing/.test(stage) ? 2 : /^Checking/.test(stage) ? 1 : 0;
+    const spinner = <span style={{ width: compact ? 12 : 16, height: compact ? 12 : 16, border: `2px solid ${T.paperEdge}`, borderTopColor: T.orange, borderRadius: '50%', display: 'inline-block', animation: 'gearSuggestSpin .8s linear infinite', flexShrink: 0 }} />;
+    return (
+      <div role="status" aria-live="polite" style={compact
+        ? { marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: T.textMute, fontFamily: S.mono }
+        : { marginTop: 18, background: '#fff', border: `1px solid ${T.paperEdge}`, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+        <style>{'@keyframes gearSuggestSpin { to { transform: rotate(360deg); } }'}</style>
+        {spinner}
+        {compact || offline ? (
+          <span style={{ fontFamily: S.mono, fontSize: compact ? 11 : 13, color: compact ? T.textMute : T.ink }}>{stage} {seconds}s</span>
+        ) : (
+          <React.Fragment>
+            <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', flex: 1 }}>
+              {STEPS.map((label, i) => (
+                <span key={label} style={{ fontFamily: S.mono, fontSize: 12, color: i < step ? T.ok : i === step ? T.ink : T.textMute, fontWeight: i === step ? 600 : 400 }}>
+                  {i < step ? '✓' : i === step ? '●' : '○'} {label}{i === 2 ? ' (if needed)' : ''}
+                </span>
+              ))}
+            </div>
+            <span style={{ fontFamily: S.mono, fontSize: 11, color: T.textMute }}>{seconds}s · usually under a minute</span>
+          </React.Fragment>
         )}
       </div>
     );

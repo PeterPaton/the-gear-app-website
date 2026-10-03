@@ -197,6 +197,7 @@
         <NavItem icon="✧" label="Suggest" active={page === 'suggest'} onClick={() => setPage('suggest')} collapsed={collapsed} />
         <NavItem icon="◈" label="Database" active={page === 'database'} onClick={() => setPage('database')} collapsed={collapsed} />
         <NavItem icon="◧" label="Projects" count={projects.length} active={page === 'projects'} onClick={() => setPage('projects')} collapsed={collapsed} />
+        <NavItem icon="?" label="Guide" active={page === 'guide'} onClick={() => setPage('guide')} collapsed={collapsed} />
         {!collapsed && <div style={{ ...S.label, color: 'rgba(255,255,255,0.4)', padding: '18px 16px 6px' }}>Recent projects</div>}
         {!collapsed && projects.slice(0, 3).map(p => (
           <div key={p.id} style={{ ...recentRow, cursor: 'pointer' }} onClick={() => onOpenProject && onOpenProject(p.id)}>
