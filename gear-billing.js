@@ -10,7 +10,7 @@
   // Shown until the price list loads from Supabase (and if it can't).
   const FALLBACK_CATALOG = {
     plans: {
-      free: { id: 'free', name: 'Free', monthly_credits: 3, max_projects: 5, max_inventory_items: 18, pdf_branding: true, price_pence: null, currency: 'gbp' },
+      free: { id: 'free', name: 'Free', monthly_credits: 3, max_projects: 2, max_inventory_items: 18, pdf_branding: true, price_pence: null, currency: 'gbp' },
       pro: { id: 'pro', name: 'Pro', monthly_credits: 40, max_projects: null, max_inventory_items: null, pdf_branding: false, price_pence: 1200, currency: 'gbp' },
     },
     packs: [{ id: 'credits_20', name: '20 Suggest credits', credits: 20, price_pence: 500, currency: 'gbp' }],
