@@ -49,10 +49,12 @@
 <script src="gear-db.js"></script>
 
 <script src="studio-row.js"></script>
+<script src="gear-compat.js"></script>
 <script type="text/babel" src="studio-modals.jsx"></script>
 <script type="text/babel" src="studio-shell.jsx"></script>
 <script type="text/babel" src="studio-inventory.jsx"></script>
 <script type="text/babel" src="studio-database.jsx"></script>
+<script type="text/babel" src="studio-suggest.jsx"></script>
 <script type="text/babel" src="studio-projects.jsx"></script>
 <script type="text/babel" src="studio-auth.jsx"></script>
 <script type="text/babel" src="tweaks-panel.jsx"></script>
@@ -400,7 +402,7 @@ function App() {
     })();
     return () => { cancelled = true; };
   }, [tweaks.supabaseUrl, tweaks.supabaseAnonKey, tweaks.tableName, loadTick]);
-  const [page, setPage] = useState('inventory'); // inventory | database | projects
+  const [page, setPage] = useState('inventory'); // inventory | suggest | database | projects
 
   useEffect(() => {
     if (!activeProjectId || !session || !window.GEAR_DB?.enabled) return;
@@ -595,6 +597,66 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
     if (window.GEAR_DB?.enabled && session) {
       window.GEAR_DB.saveProject(proj, session).catch(err => console.warn('[App] saveProject:', err.message));
     }
+  };
+
+  // ── Suggestions → project ──────────────────────────────────────────────
+  // Adds a generated kit list (an array of { id, qty } where id is a catalog
+  // UUID) into a project in one batch. Mirrors addToProject's dedupe-by-
+  // equipment_id rule, but applies the requested quantity in a single pass so
+  // we make at most one Supabase write per line item.
+  const addKitToProject = (kit, projectId = activeProjectId) => {
+    if (!projectId || !Array.isArray(kit) || !kit.length) return;
+    const mint = () => (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : ('local-' + Date.now() + '-' + Math.random().toString(36).slice(2));
+
+    let nextLocal = (projectItems[projectId] || []).slice();
+    const ops = [];
+    kit.forEach(({ id, qty }) => {
+      const n = Math.max(1, Math.min(99, parseInt(qty, 10) || 1));
+      const source = catalog.find(it => it.id === id || it.UUID === id);
+      if (!source) return;
+      const equipmentId = source.id;
+      const existing = nextLocal.find(it => it.equipment_id === equipmentId);
+      if (existing) {
+        const newQty = existing.qty + n;
+        nextLocal = nextLocal.map(it => it.id === existing.id ? { ...it, qty: newQty } : it);
+        ops.push({ kind: 'update', id: existing.id, qty: newQty });
+      } else {
+        const newId = mint();
+        nextLocal = [...nextLocal, {
+          id: newId, project_id: projectId, equipment_id: equipmentId,
+          name: source.name, image_url: source.image_url, category: source.category, qty: n,
+        }];
+        ops.push({ kind: 'insert', newId, equipmentId, source, qty: n });
+      }
+    });
+
+    setProjectItems(prev => ({ ...prev, [projectId]: nextLocal }));
+
+    if (window.GEAR_DB?.enabled && session) {
+      ops.forEach(op => {
+        if (op.kind === 'update') {
+          window.GEAR_DB.updateProjectItemQty(op.id, op.qty, session)
+            .catch(err => console.warn('[App] addKitToProject update:', err?.message || err));
+        } else {
+          const payload = { id: op.equipmentId, name: op.source.name, image_url: op.source.image_url, category: op.source.category };
+          window.GEAR_DB.addProjectItem(projectId, payload, session, op.newId)
+            .then(() => { if (op.qty > 1) return window.GEAR_DB.updateProjectItemQty(op.newId, op.qty, session); })
+            .catch(err => console.warn('[App] addKitToProject insert:', err?.message || err));
+        }
+      });
+    }
+  };
+
+  // Create a fresh project from a suggested kit, then fill it.
+  const createProjectFromKit = (name, kit) => {
+    const proj = {
+      id: 'p' + Date.now(), name: name || 'Suggested Kit',
+      client: '', shoot: 'TBD', location: '', status: 'planning', items: [],
+    };
+    createProject(proj);
+    addKitToProject(kit, proj.id);
   };
   const changeProjectStatus = (id, status) => {
     const proj = projects.find(p => p.id === id);
@@ -919,6 +981,20 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
                 hoverCart={hoverCart} setHoverCart={setHoverCart}
               />
             </div>
+            {window.STUDIO_SUGGEST && (
+              <div style={{ flex: 1, display: page === 'suggest' ? 'flex' : 'none', overflow: 'hidden' }}>
+                <window.STUDIO_SUGGEST
+                  catalog={catalog}
+                  supabaseUrl={tweaks.supabaseUrl}
+                  anonKey={tweaks.supabaseAnonKey}
+                  accessToken={session?.access_token}
+                  projects={projects}
+                  activeProjectId={activeProjectId}
+                  onAddKitToProject={addKitToProject}
+                  onCreateProjectFromKit={createProjectFromKit}
+                />
+              </div>
+            )}
             {window.STUDIO_DATABASE && (
               <div style={{ flex: 1, display: page === 'database' ? 'flex' : 'none', overflow: 'hidden' }}>
                 <window.STUDIO_DATABASE
