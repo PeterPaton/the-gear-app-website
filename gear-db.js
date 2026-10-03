@@ -122,6 +122,19 @@ window.SUPABASE_CONFIG = __stored || {
       return all;
     },
 
+    // ── Discover (public editorial picks, edited in Supabase) ─────────────
+    async loadDiscover() {
+      if (!isEnabled()) return [];
+      const { data, error } = await makeClient(null)
+        .from('discover_items')
+        .select('*')
+        .eq('published', true)
+        .order('sort', { ascending: true })
+        .order('announced', { ascending: false });
+      if (error) throw new Error(error.message);
+      return data || [];
+    },
+
     // ── Projects (user-scoped, requires session) ─────────────────────────
     async loadProjects(session) {
       if (!isEnabled() || !session) return window.GEAR_PROJECTS;

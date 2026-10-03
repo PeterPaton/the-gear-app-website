@@ -59,7 +59,7 @@
   }
 
   // ─── Login page ─────────────────────────────────────────────
-  function LoginPage({ onSignIn }) {
+  function LoginPage({ onSignIn, catalog = [] }) {
     const isMobile = useIsMobile();
     const [mode, setMode] = useState('signin'); // signin | signup
     const [email, setEmail] = useState('');
@@ -137,7 +137,7 @@
     if (showGuide && window.STUDIO_GUIDE) {
       return (
         <div style={{ width: '100vw', height: '100vh', display: 'flex', overflow: 'hidden' }}>
-          <window.STUDIO_GUIDE catalog={plans} closeLabel="← Back to sign in" onClose={() => setShowGuide(false)} />
+          <window.STUDIO_GUIDE catalog={plans} items={catalog} closeLabel="← Back to sign in" onClose={() => setShowGuide(false)} onCreateAccount={() => { setShowGuide(false); setMode('signup'); }} />
         </div>
       );
     }
@@ -161,6 +161,12 @@
             <button onClick={() => setShowGuide(true)} style={{ marginTop: 26, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)', color: '#fff', borderRadius: 4, padding: '10px 16px', cursor: 'pointer', fontFamily: S.mono, fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
               See how it works →
             </button>
+            {/* A random mix of real gear from the database, bleeding to the panel edges. */}
+            {window.STUDIO_GUIDE_MARQUEE && (
+              <div style={{ margin: '34px -56px 0' }}>
+                <window.STUDIO_GUIDE_MARQUEE items={catalog} dark count={28} />
+              </div>
+            )}
           </div>
           <div style={{ position: 'relative', display: 'flex', gap: 28, fontSize: 11, fontFamily: S.mono, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
             <span>v2.4</span>
@@ -292,9 +298,10 @@
   }
 
   // ─── Account page ───────────────────────────────────────────
-  function AccountPage({ user, session, billing, billingCatalog, billingBusy, billingError, onRefreshBilling, onUpgrade, onBuyCredits, onManageBilling, onBack, onSignOut, onUpdate }) {
+  function AccountPage({ user, session, onDeleteAccount, billing, billingCatalog, billingBusy, billingError, onRefreshBilling, onUpgrade, onBuyCredits, onManageBilling, onBack, onSignOut, onUpdate }) {
     const [section, setSection] = useState('profile');
     const [history, setHistory] = useState([]);
+    const [deleting, setDeleting] = useState(false); // confirmation dialog open
     // Fresh plan, usage and credit history whenever Billing is opened.
     React.useEffect(() => {
       if (section !== 'billing' || !session) return;
@@ -416,11 +423,52 @@
                       <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 2, color: '#B33A06' }}>Delete account</div>
                       <div style={{ fontSize: 12, color: T.textMute }}>Permanently delete your data. Cannot be undone.</div>
                     </div>
-                    <button style={{ ...S.btnG, color: '#B33A06', borderColor: '#f3d9d0' }}>Delete</button>
+                    <button style={{ ...S.btnG, color: '#B33A06', borderColor: '#f3d9d0' }} onClick={() => setDeleting(true)}>Delete</button>
                   </div>
                 </div>
               </React.Fragment>
             )}
+          </div>
+        </div>
+        {deleting && <DeleteAccountDialog billing={billing} onConfirm={onDeleteAccount} onClose={() => setDeleting(false)} />}
+      </div>
+    );
+  }
+
+  // Type-to-confirm dialog for permanently deleting the account.
+  function DeleteAccountDialog({ billing, onConfirm, onClose }) {
+    const [text, setText] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState('');
+    const ready = text.trim() === 'DELETE' && !busy;
+    const subscribed = billing && billing.plan === 'pro' && billing.subscription_status;
+    const submit = async () => {
+      if (!ready) return;
+      setBusy(true);
+      setError('');
+      try { await onConfirm(); } catch (e) { setError(e.message || String(e)); setBusy(false); }
+    };
+    return (
+      <div style={{ ...S.modalOverlay, zIndex: 300 }} onClick={busy ? undefined : onClose}>
+        <div style={{ ...S.modal, width: 480 }} onClick={e => e.stopPropagation()} role="dialog" aria-label="Delete account">
+          <div style={{ padding: '24px 26px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ fontFamily: S.mono, fontSize: 20, fontWeight: 700, color: '#B33A06' }}>Delete your account?</div>
+            <div style={{ fontSize: 13, color: T.ink, lineHeight: 1.6 }}>
+              This permanently deletes your inventory, groups, projects, kit lists, Suggest credits and history. It can’t be undone.
+              {subscribed && <span> Your Pro subscription is cancelled immediately and you won’t be charged again.</span>}
+            </div>
+            <div style={S.field}>
+              <label style={S.label}>Type DELETE to confirm</label>
+              <input style={S.input} value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') submit(); }} autoFocus disabled={busy} placeholder="DELETE" />
+            </div>
+            {error && <div style={{ background: '#fde6dd', color: T.err, border: `1px solid ${T.err}`, borderRadius: 4, padding: '9px 12px', fontSize: 12, fontFamily: S.mono }}>{error}</div>}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button style={S.btnG} onClick={onClose} disabled={busy}>Cancel</button>
+              <button onClick={submit} disabled={!ready}
+                style={{ ...S.btnP, background: '#B33A06', opacity: ready ? 1 : 0.45, cursor: ready ? 'pointer' : 'not-allowed' }}>
+                {busy ? 'Deleting…' : 'Delete account'}
+              </button>
+            </div>
           </div>
         </div>
       </div>

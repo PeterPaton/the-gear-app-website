@@ -171,7 +171,7 @@
                         {inInv ? (
                           <span style={{ fontFamily: S.mono, fontSize: 10, color: '#1f8a5b', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, padding: '6px 12px', display: 'inline-block' }}>✓ In Inventory</span>
                         ) : (
-                          <button onClick={(e) => { e.stopPropagation(); onAddToInventory(it); }} style={{ background: T.orange, color: '#fff', border: 'none', padding: '6px 12px', fontSize: 10, fontFamily: S.mono, fontWeight: 600, cursor: 'pointer', letterSpacing: '0.06em', borderRadius: 3, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>+ Add to Inventory</button>
+                          <button data-tour="add-to-inventory" onClick={(e) => { e.stopPropagation(); onAddToInventory(it); }} style={{ background: T.orange, color: '#fff', border: 'none', padding: '6px 12px', fontSize: 10, fontFamily: S.mono, fontWeight: 600, cursor: 'pointer', letterSpacing: '0.06em', borderRadius: 3, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>+ Add to Inventory</button>
                         )}
                       </td>
                     </tr>
