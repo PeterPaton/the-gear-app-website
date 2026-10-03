@@ -486,6 +486,11 @@
                 {/* Compatibility panel */}
                 <CompatPanel check={check} catalog={catalog} kitIds={new Set(result.items.map(i => i.id))} onAdd={addFix} />
 
+                {/* Disclaimer */}
+                <div style={{ marginTop: 8, padding: '8px 10px', background: T.paperLight, border: `1px solid ${T.paperEdge}`, fontSize: 11, color: T.textMute, lineHeight: 1.5 }}>
+                  Suggested kits are AI-generated and may contain mistakes. Always check every item, quantity and connection yourself, and test the kit before a shoot or rental. You’re responsible for the gear you send out.
+                </div>
+
                 {result.notes && result.notes.length > 0 && (
                   <Dropdown title={`Notes for the crew · ${result.notes.length}`} style={{ marginTop: 8 }}>
                     {result.notes.map((n, i) => <div key={i} style={{ fontSize: 12, color: T.ink, lineHeight: 1.5, marginTop: i ? 4 : 0 }}>• {n}</div>)}
