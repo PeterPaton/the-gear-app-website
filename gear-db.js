@@ -126,7 +126,9 @@ window.SUPABASE_CONFIG = __stored || {
         .upsert({ ...projectRow, user_id: session.user.id })
         .select()
         .single();
-      if (error) console.warn('[GEAR_DB] saveProject:', error.message);
+      // Throw so callers can react — e.g. a plan-limit rejection from the
+      // enforce_plan_limits trigger ("plan_limit:projects:5").
+      if (error) throw new Error(error.message);
       return data || project;
     },
 
@@ -177,7 +179,7 @@ window.SUPABASE_CONFIG = __stored || {
         .upsert(payload)
         .select()
         .single();
-      if (error) console.warn('[GEAR_DB] saveInventoryItem:', error.message);
+      if (error) throw new Error(error.message); // includes plan-limit rejections
       return data || item;
     },
 

@@ -94,7 +94,7 @@
           return;
         }
         onSignIn(
-          { email: data.user?.email || email, name: email.split('@')[0], plan: 'Studio' },
+          { email: data.user?.email || email, name: email.split('@')[0] },
           data.session
         );
       } catch (err) {
@@ -152,9 +152,12 @@
         {/* Right — form */}
         <div style={{ width: 480, background: '#fff', color: T.ink, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 56px' }}>
           <div style={{ ...S.label, marginBottom: 8 }}>{mode === 'signin' ? 'Welcome back' : 'Get started'}</div>
-          <div style={{ fontFamily: S.mono, fontSize: 30, fontWeight: 600, letterSpacing: '-0.02em', marginBottom: 28 }}>
+          <div style={{ fontFamily: S.mono, fontSize: 30, fontWeight: 600, letterSpacing: '-0.02em', marginBottom: mode === 'signup' ? 8 : 28 }}>
             {mode === 'signin' ? 'Sign in to the Gear App' : mode === 'signup' ? 'Create your account' : 'Reset your password'}
           </div>
+          {mode === 'signup' && (
+            <div style={{ fontSize: 13, color: T.textMute, marginBottom: 24 }}>Start on the Free plan. No card needed; upgrade to Pro any time.</div>
+          )}
 
           {/* OAuth */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
@@ -264,8 +267,15 @@
   }
 
   // ─── Account page ───────────────────────────────────────────
-  function AccountPage({ user, onBack, onSignOut, onUpdate }) {
+  function AccountPage({ user, session, billing, billingCatalog, billingBusy, billingError, onRefreshBilling, onUpgrade, onBuyCredits, onManageBilling, onBack, onSignOut, onUpdate }) {
     const [section, setSection] = useState('profile');
+    const [history, setHistory] = useState([]);
+    // Fresh plan, usage and credit history whenever Billing is opened.
+    React.useEffect(() => {
+      if (section !== 'billing' || !session) return;
+      if (onRefreshBilling) onRefreshBilling();
+      window.GEAR_BILLING.loadHistory(session).then(setHistory).catch(err => console.warn('[Account] credit history:', err.message));
+    }, [section]);
     const [name, setName] = useState(user.name);
     const [email, setEmail] = useState(user.email);
     const [studio, setStudio] = useState(user.studio || '');
@@ -294,7 +304,7 @@
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: S.mono, fontSize: 32, fontWeight: 600, letterSpacing: '-0.02em', marginBottom: 4 }}>{user.name}</div>
             <div style={{ fontSize: 13, color: T.textMute, marginBottom: 8 }}>{user.email}</div>
-            <span style={S.pill('#FFE4D6', '#B33A06')}>{user.plan || 'Studio'} plan</span>
+            {billing && <span style={S.pill('#FFE4D6', '#B33A06')}>{billing.plan_name} plan</span>}
           </div>
         </div>
 
@@ -333,31 +343,17 @@
                 <Row label="Theme" value="Paper (light)" />
               </div>
             )}
-            {section === 'billing' && (
-              <React.Fragment>
-                <div style={card}>
-                  <div style={cardHead}>Plan</div>
-                  <div style={{ padding: 20 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                      <div>
-                        <div style={{ fontFamily: S.mono, fontSize: 22, fontWeight: 600 }}>Studio</div>
-                        <div style={{ fontSize: 12, color: T.textMute }}>$24 / month · billed monthly</div>
-                      </div>
-                      <button style={S.btnG}>Change plan</button>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, paddingTop: 14, borderTop: `1px solid ${T.paperEdge}`, fontFamily: S.mono, fontSize: 11 }}>
-                      <Stat label="Items" value="∞" />
-                      <Stat label="Projects" value="∞" />
-                      <Stat label="Crew seats" value="5 of 10" />
-                    </div>
-                  </div>
-                </div>
-                <div style={{ ...card, marginTop: 16 }}>
-                  <div style={cardHead}>Payment method</div>
-                  <Row label="Card on file" value="Visa ending 4242" />
-                  <Row label="Next charge" value="Dec 1, 2025" />
-                </div>
-              </React.Fragment>
+            {section === 'billing' && window.STUDIO_BILLING && (
+              <window.STUDIO_BILLING.BillingPanel
+                status={billing}
+                catalog={billingCatalog || window.GEAR_BILLING.FALLBACK_CATALOG}
+                history={history}
+                busy={billingBusy}
+                error={billingError}
+                onUpgrade={onUpgrade}
+                onBuyCredits={onBuyCredits}
+                onManage={onManageBilling}
+              />
             )}
             {section === 'integrations' && (
               <div style={card}>
@@ -417,15 +413,6 @@
           <div style={{ fontSize: 13 }}>{value}</div>
         </div>
         {action && <button style={S.btnG}>{action}</button>}
-      </div>
-    );
-  }
-
-  function Stat({ label, value }) {
-    return (
-      <div>
-        <div style={{ fontSize: 9, color: T.textMute, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 4 }}>{label}</div>
-        <div style={{ fontSize: 18, fontWeight: 600 }}>{value}</div>
       </div>
     );
   }

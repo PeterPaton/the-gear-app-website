@@ -181,7 +181,7 @@
   }
 
   // ─── Left sidebar nav ───────────────────────────────────────────────
-  function Sidebar({ page, setPage, items, projects, collapsed, setCollapsed, user, onOpenAccount, onOpenProject }) {
+  function Sidebar({ page, setPage, items, projects, collapsed, setCollapsed, user, planName, onUpgrade, onOpenAccount, onOpenProject }) {
     return (
       <div style={sideRoot(collapsed)}>
         <div style={brand}>
@@ -205,6 +205,13 @@
           </div>
         ))}
         <div style={{ flex: 1 }}></div>
+        {onUpgrade && !collapsed && (
+          <div style={{ padding: '0 14px 14px' }}>
+            <button onClick={onUpgrade} style={{ width: '100%', background: 'rgba(255,87,12,0.14)', border: `1px solid ${T.orange}`, color: '#fff', padding: '9px 10px', borderRadius: 4, cursor: 'pointer', fontFamily: S.mono, fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+              ✦ Upgrade to Pro
+            </button>
+          </div>
+        )}
         <div style={{ ...userBar(collapsed), cursor: 'pointer', transition: 'background .12s' }}
              onClick={onOpenAccount}
              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
@@ -214,7 +221,7 @@
           {!collapsed && (
             <div style={{ minWidth: 0, flex: 1 }}>
               <div style={{ fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.name || 'Account'}</div>
-              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', fontFamily: S.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{user?.plan || 'Studio'} plan</div>
+              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', fontFamily: S.mono, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{planName ? `${planName} plan` : 'Account'}</div>
             </div>
           )}
           {!collapsed && <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>›</span>}
