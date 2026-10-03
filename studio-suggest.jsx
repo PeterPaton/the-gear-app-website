@@ -69,6 +69,7 @@
     const [saved, setSaved] = useState([]); // recent kits: [{ id, savedAt, result }], newest first
     const [showHistory, setShowHistory] = useState(false);
     const [toast, setToast] = useState('');
+    const typed = useTypewriter(EXAMPLES, !prompt);
     const toastTimer = useRef(null);
     const loadedFor = useRef(undefined);
 
@@ -284,6 +285,7 @@
     // ── List editing ─────────────────────────────────────────────────────
     const bumpQty = (id, delta) => setResult(r => ({ ...r, items: r.items.map(it => it.id === id ? { ...it, qty: Math.max(1, Math.min(99, it.qty + delta)) } : it) }));
     const removeItem = (id) => setResult(r => ({ ...r, items: r.items.filter(i => i.id !== id) }));
+    const swapItem = (oldId, it) => setResult(r => ({ ...r, items: r.items.map(x => x.id === oldId ? { ...x, id: it.id, name: it.name, reason: `Swapped in for ${x.name}` } : x) }));
     const addFix = (it, reason, qty = 1) => setResult(r => r.items.some(x => x.id === it.id) ? r : ({ ...r, items: [...r.items, { id: it.id, name: it.name, qty, reason }] }));
 
     const grouped = useMemo(() => {
@@ -299,6 +301,9 @@
       });
       return [...m.entries()].sort((a, b) => a[1].rank - b[1].rank).map(([category, g]) => ({ category, items: g.items }));
     }, [result, catById]);
+
+    // Other options from the catalog for the key items in the kit.
+    const alternatives = useMemo(() => result ? findAlternatives(result.items, catById, catalog) : [], [result, catById, catalog]);
 
     const totalUnits = result ? result.items.reduce((s, it) => s + it.qty, 0) : 0;
     const blocking = check ? check.counts.conflict + check.issues.filter(i => i.level === 'need').length : 0;
@@ -337,15 +342,14 @@
     // ── Render ───────────────────────────────────────────────────────────
     return (
       <div style={{ flex: 1, overflowY: 'auto', background: '#f6f3ee' }}>
-        <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 28px 80px' }}>
+        <div style={{ maxWidth: 1180, margin: '0 auto', padding: '32px 28px 80px' }}>
 
           <div style={{ marginBottom: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
             <div>
               <div style={S.label}>Suggestions</div>
               <h1 style={{ fontFamily: S.mono, fontSize: 26, fontWeight: 700, margin: '6px 0 4px', letterSpacing: '-0.02em' }}>Build a kit list</h1>
               <div style={{ fontSize: 13, color: T.textMute, maxWidth: 600, lineHeight: 1.5 }}>
-                Describe the shoot and I’ll assemble a kit from the equipment database. Every item is checked against the camera:
-                mounts and adapters, sensor coverage, batteries, media, monitor connections, gimbal payload and XLR audio.
+                Describe the shoot and I’ll assemble a kit from the equipment database.
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -386,22 +390,16 @@
 
           {/* Brief */}
           <div style={{ background: '#fff', border: `1px solid ${T.paperEdge}`, padding: 16 }}>
+            <style>{`.suggest-brief::placeholder { color: #b3aba1; opacity: 1; }`}</style>
             <textarea
               value={prompt}
               onChange={e => setPrompt(e.target.value)}
               onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !working) generate(); }}
-              placeholder="e.g. Two-camera wedding on Sony bodies — outdoor ceremony on a gimbal, indoor reception, needs solid audio…"
+              placeholder={typed}
+              className="suggest-brief"
               rows={3}
               style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', border: `1px solid ${T.paperEdge}`, padding: '11px 12px', fontSize: 14, fontFamily: S.sans, color: T.ink, lineHeight: 1.5, background: '#fff' }}
             />
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
-              {EXAMPLES.map(ex => (
-                <button key={ex} onClick={() => setPrompt(ex)} disabled={working} title="Use this brief"
-                  style={{ background: T.paperLight, color: T.ink, border: `1px solid ${T.paperEdge}`, padding: '5px 10px', fontSize: 11, fontFamily: S.sans, cursor: 'pointer', lineHeight: 1.3 }}>
-                  {ex}
-                </button>
-              ))}
-            </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 14, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 11, color: T.textMute, fontFamily: S.mono }}>
                 {catalog.length ? `${catalog.length.toLocaleString()} items in catalog` : 'Catalog loading…'} · ⌘↵ to generate
@@ -486,19 +484,11 @@
                 {/* Compatibility panel */}
                 <CompatPanel check={check} catalog={catalog} kitIds={new Set(result.items.map(i => i.id))} onAdd={addFix} />
 
-                {/* Disclaimer */}
-                <div style={{ marginTop: 8, padding: '8px 10px', background: T.paperLight, border: `1px solid ${T.paperEdge}`, fontSize: 11, color: T.textMute, lineHeight: 1.5 }}>
-                  Suggested kits are AI-generated and may contain mistakes. Always check every item, quantity and connection yourself, and test the kit before a shoot or rental. You’re responsible for the gear you send out.
-                </div>
 
-                {result.notes && result.notes.length > 0 && (
-                  <Dropdown title={`Notes for the crew · ${result.notes.length}`} style={{ marginTop: 8 }}>
-                    {result.notes.map((n, i) => <div key={i} style={{ fontSize: 12, color: T.ink, lineHeight: 1.5, marginTop: i ? 4 : 0 }}>• {n}</div>)}
-                  </Dropdown>
-                )}
 
+                <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
                 {/* Items */}
-                <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ flex: '1 1 520px', minWidth: 0, marginTop: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {grouped.map(group => (
                     <div key={group.category}>
                       <div style={{ ...S.label, marginBottom: 5 }}>{group.category} · {group.items.length}</div>
@@ -512,9 +502,18 @@
                   ))}
                 </div>
 
+                {/* Notes and alternatives, tabbed on the right */}
+                <SidePanel notes={result.notes || []} alternatives={alternatives} onSwap={swapItem} onAdd={addFix} />
+                </div>
+
                 <div style={{ marginTop: 22, display: 'flex', gap: 12, justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap' }}>
                   {blocking > 0 && <span style={{ fontSize: 11, fontFamily: S.mono, color: T.err }}>{blocking} unresolved issue{blocking === 1 ? '' : 's'}</span>}
                   {actions}
+                </div>
+
+                {/* Disclaimer */}
+                <div style={{ marginTop: 22, padding: '8px 10px', background: T.paperLight, border: `1px solid ${T.paperEdge}`, fontSize: 11, color: T.textMute, lineHeight: 1.5 }}>
+                  Suggested kits are AI-generated and may contain mistakes. Always check every item, quantity and connection yourself, and test the kit before a shoot or rental. You’re responsible for the gear you send out.
                 </div>
               </div>
             </div>
@@ -526,6 +525,99 @@
             {toast}
           </div>
         )}
+      </div>
+    );
+  }
+
+  // Types each example brief out letter by letter as the placeholder, pauses,
+  // erases it and moves on. Stops once the user types something.
+  function useTypewriter(lines, active) {
+    const [text, setText] = useState('');
+    useEffect(() => {
+      if (!active) return;
+      let line = 0, pos = 0, dir = 1, t;
+      const tick = () => {
+        const full = lines[line];
+        pos += dir;
+        setText(full.slice(0, pos));
+        let wait = dir > 0 ? 45 : 18;
+        if (dir > 0 && pos >= full.length) { dir = -1; wait = 1800; }
+        else if (dir < 0 && pos <= 0) { dir = 1; line = (line + 1) % lines.length; wait = 400; }
+        t = setTimeout(tick, wait);
+      };
+      t = setTimeout(tick, 400);
+      return () => clearTimeout(t);
+    }, [active]);
+    return active ? text : '';
+  }
+
+  const ALT_ROLES = ['body', 'lens', 'gimbal', 'monitor', 'light', 'mic-xlr', 'mic', 'tripod'];
+  const ALT_LABEL = { body: 'Camera', lens: 'Lens', gimbal: 'Gimbal', monitor: 'Monitor', light: 'Light', 'mic-xlr': 'Microphone', mic: 'Microphone', tripod: 'Tripod' };
+
+  // For each key item, up to 3 catalog items in the same role (and the same
+  // lens mount for bodies and lenses), ranked by shared words in the name.
+  function findAlternatives(kitItems, catById, catalog) {
+    const kitIds = new Set(kitItems.map(i => i.id));
+    const byRole = {};
+    catalog.forEach(it => { const role = C.specOf(it).role; if (ALT_ROLES.includes(role)) (byRole[role] || (byRole[role] = [])).push(it); });
+    const words = n => new Set(String(n).toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length > 1));
+    const out = [];
+    kitItems.forEach(k => {
+      const full = catById.get(k.id);
+      if (!full) return;
+      const spec = C.specOf(full);
+      if (!ALT_ROLES.includes(spec.role)) return;
+      const mount = spec.role === 'lens' ? spec.mount : null;
+      const mounts = spec.role === 'body' ? new Set(spec.mounts || []) : null;
+      const w = words(full.name);
+      const options = (byRole[spec.role] || [])
+        .filter(it => !kitIds.has(it.id) && it.name !== full.name)
+        .filter(it => {
+          const s2 = C.specOf(it);
+          if (mount) return s2.mount === mount;
+          if (mounts && mounts.size) return (s2.mounts || []).some(m => mounts.has(m));
+          return true;
+        })
+        .map(it => { let sc = 0; words(it.name).forEach(x => { if (w.has(x)) sc++; }); return [it, sc + (it.image_url ? 0.5 : 0)]; })
+        .sort((a, b) => b[1] - a[1]).slice(0, 3).map(x => x[0]);
+      if (options.length) out.push({ for: k, label: ALT_LABEL[spec.role], options });
+    });
+    return out.slice(0, 8);
+  }
+
+  function SidePanel({ notes, alternatives, onSwap, onAdd }) {
+    const [tab, setTab] = useState(notes.length ? 'notes' : 'alts');
+    const tabs = [['notes', `Notes · ${notes.length}`], ['alts', `Alternatives · ${alternatives.length}`]];
+    return (
+      <div style={{ flex: '0 1 320px', minWidth: 260, marginTop: 14, position: 'sticky', top: 16, background: '#fff', border: `1px solid ${T.paperEdge}` }}>
+        <div style={{ display: 'flex', borderBottom: `1px solid ${T.paperEdge}` }}>
+          {tabs.map(([id, label]) => (
+            <button key={id} onClick={() => setTab(id)}
+              style={{ flex: 1, background: tab === id ? '#fff' : T.paperLight, border: 'none', borderBottom: `2px solid ${tab === id ? T.orange : 'transparent'}`,
+                padding: '10px 8px', fontFamily: S.mono, fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
+                color: tab === id ? T.ink : T.textMute, cursor: 'pointer' }}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <div style={{ padding: '12px 14px', maxHeight: '70vh', overflowY: 'auto' }}>
+          {tab === 'notes' && (notes.length
+            ? notes.map((n, i) => <div key={i} style={{ fontSize: 12, color: T.ink, lineHeight: 1.5, padding: '8px 0', borderTop: i ? '1px solid #f0ebe2' : 'none' }}>{n}</div>)
+            : <div style={{ fontSize: 12, color: T.textMute }}>No notes for this kit.</div>)}
+          {tab === 'alts' && (alternatives.length ? alternatives.map((a, i) => (
+            <div key={a.for.id} style={{ padding: '8px 0', borderTop: i ? '1px solid #f0ebe2' : 'none' }}>
+              <div style={{ fontFamily: S.mono, fontSize: 10, color: T.textMute, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{a.label} · instead of</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: T.ink, margin: '2px 0 6px' }}>{truncate(a.for.name, 48)}</div>
+              {a.options.map(o => (
+                <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: T.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={o.name}>{o.name}</span>
+                  <button onClick={() => onSwap(a.for.id, o)} title="Replace in kit" style={{ background: T.paperLight, border: `1px solid ${T.paperEdge}`, padding: '2px 7px', fontSize: 10, fontFamily: S.mono, cursor: 'pointer', color: T.ink }}>Swap</button>
+                  <button onClick={() => onAdd(o, 'Alternative to ' + a.for.name)} title="Add alongside" style={{ background: T.paperLight, border: `1px solid ${T.paperEdge}`, padding: '2px 7px', fontSize: 10, fontFamily: S.mono, cursor: 'pointer', color: T.ink }}>+</button>
+                </div>
+              ))}
+            </div>
+          )) : <div style={{ fontSize: 12, color: T.textMute }}>No alternatives found in the database.</div>)}
+        </div>
       </div>
     );
   }

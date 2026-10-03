@@ -15,35 +15,38 @@
 
   // ── Scrolling strip of random catalog items ────────────────────────────
   // Real gear only (cameras, lenses, lights, support, audio, monitors), a
-  // fresh random mix on every visit. Photos are loaded first and the strip is
-  // built once from the ones that loaded, so it never changes size while it
-  // moves. Purely decorative: no hover or click, and it stands still for
+  // fresh random mix on every visit. To show instantly on load, the strip
+  // starts from the set picked on the previous visit (kept in localStorage)
+  // and otherwise builds as soon as the catalog arrives, without waiting for
+  // photos. Purely decorative: no hover or click, and it stands still for
   // people who prefer less motion.
   const SHOWCASE_ROLES = new Set(['body', 'lens', 'light', 'gimbal', 'monitor', 'mic-xlr', 'mic', 'tripod', 'xlr-input']);
+  const MARQUEE_KEY = 'gear.marquee';
+  let marqueeSet = null; // shared across pages so it doesn't reshuffle mid-visit
+  try { const c = JSON.parse(localStorage.getItem(MARQUEE_KEY) || 'null'); if (Array.isArray(c) && c.length >= 8) marqueeSet = c; } catch (e) {}
+  let marqueeRefreshed = false;
+
+  function pickMarquee(items, count) {
+    const C = window.GEAR_COMPAT;
+    const pool = items.filter(it => it.image_url && (!C || SHOWCASE_ROLES.has(C.specOf(it).role)));
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    return pool.slice(0, count).map(it => ({ id: it.id, name: it.name, image_url: it.image_url }));
+  }
 
   function ItemMarquee({ items = [], count = 32, dark = false }) {
-    const [shown, setShown] = useState(null);
+    const [shown, setShown] = useState(marqueeSet);
     useEffect(() => {
-      if (shown || items.length < 50) return;
-      const C = window.GEAR_COMPAT;
-      const pool = items.filter(it => it.image_url && (!C || SHOWCASE_ROLES.has(C.specOf(it).role)));
-      for (let i = pool.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [pool[i], pool[j]] = [pool[j], pool[i]];
-      }
-      const candidates = pool.slice(0, Math.round(count * 1.5));
-      let cancelled = false;
-      const loaded = [];
-      let pending = candidates.length;
-      const finish = () => { if (!cancelled && loaded.length >= 8) setShown(loaded.slice(0, count)); };
-      const timer = setTimeout(() => { pending = 0; finish(); }, 6000);
-      candidates.forEach(it => {
-        const img = new Image();
-        img.onload = () => { if (img.naturalWidth >= 60) loaded.push(it); if (--pending === 0) { clearTimeout(timer); finish(); } };
-        img.onerror = () => { if (--pending === 0) { clearTimeout(timer); finish(); } };
-        img.src = it.image_url;
-      });
-      return () => { cancelled = true; clearTimeout(timer); };
+      if (marqueeRefreshed || items.length < 50) return;
+      marqueeRefreshed = true;
+      const next = pickMarquee(items, count);
+      if (next.length < 8) return;
+      if (!marqueeSet) { marqueeSet = next; setShown(next); }
+      // Save a fresh mix for the next visit; preload its photos so they're cached.
+      try { localStorage.setItem(MARQUEE_KEY, JSON.stringify(next)); } catch (e) {}
+      next.forEach(it => { const img = new Image(); img.src = it.image_url; });
     }, [items.length]);
     if (!shown) return <div style={{ height: 150 }} />;
     const tile = 112;
@@ -58,7 +61,7 @@
           {[0, 1].map(copy => shown.map(it => (
             <div key={copy + it.id} style={{ width: tile, flexShrink: 0, marginRight: 12 }}>
               <div style={{ width: tile, height: tile, background: '#fff', borderRadius: 8, border: dark ? '1px solid rgba(255,255,255,0.08)' : `1px solid ${T.paperEdge}`, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 10, boxSizing: 'border-box' }}>
-                <img src={it.image_url} alt="" draggable="false" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                <img src={it.image_url} alt="" draggable="false" onError={e => { e.currentTarget.style.visibility = 'hidden'; }} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
               </div>
               <div style={{ marginTop: 6, fontSize: 10, lineHeight: 1.3, fontFamily: S.mono, color: dark ? 'rgba(255,255,255,0.55)' : T.textMute, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', height: 26 }}>
                 {it.name}

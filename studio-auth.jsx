@@ -170,7 +170,6 @@
           </div>
           <div style={{ position: 'relative', display: 'flex', gap: 28, fontSize: 11, fontFamily: S.mono, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
             <span>v2.4</span>
-            <span>· iOS · macOS · Web</span>
           </div>
         </div>
 
@@ -308,7 +307,6 @@
       { k: 'profile', label: 'Profile' },
       { k: 'workspace', label: 'Workspace' },
       { k: 'billing', label: 'Billing' },
-      { k: 'integrations', label: 'Integrations' },
       { k: 'security', label: 'Security' },
     ];
 
@@ -379,16 +377,6 @@
                 onManage={onManageBilling}
               />
             )}
-            {section === 'integrations' && (
-              <div style={card}>
-                <div style={cardHead}>Connected services</div>
-                <IntegrationRow name="Supabase" status={window.GEAR_DB?.enabled ? 'Connected' : 'Not connected'} on={!!window.GEAR_DB?.enabled} />
-                <IntegrationRow name="Google Drive" status="Connected" on={true} />
-                <IntegrationRow name="Dropbox" status="Not connected" on={false} />
-                <IntegrationRow name="Slack" status="Not connected" on={false} />
-                <IntegrationRow name="Frame.io" status="Not connected" on={false} />
-              </div>
-            )}
             {section === 'security' && (
               <React.Fragment>
                 <div style={card}>
@@ -396,17 +384,12 @@
                   <Row label="Last changed" value="3 months ago" action="Change" />
                   <Row label="Two-factor auth" value="Enabled · Authenticator app" action="Manage" />
                 </div>
-                <div style={{ ...card, marginTop: 16 }}>
-                  <div style={cardHead}>Sessions</div>
-                  <Row label="MacBook Pro · Chrome" value="Los Angeles · Active now" />
-                  <Row label="iPhone 15 · Gear iOS" value="Los Angeles · 2h ago" />
-                </div>
                 <div style={{ ...card, marginTop: 16, borderColor: '#f3d9d0' }}>
                   <div style={{ ...cardHead, color: '#B33A06' }}>Danger zone</div>
                   <div style={{ padding: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                       <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 2 }}>Sign out everywhere</div>
-                      <div style={{ fontSize: 12, color: T.textMute }}>Ends every active session including iOS.</div>
+                      <div style={{ fontSize: 12, color: T.textMute }}>Ends every active session.</div>
                     </div>
                     <button style={S.btnG} onClick={onSignOut}>Sign out</button>
                   </div>
@@ -478,21 +461,6 @@
           <div style={{ fontSize: 13 }}>{value}</div>
         </div>
         {action && <button style={S.btnG}>{action}</button>}
-      </div>
-    );
-  }
-
-  function IntegrationRow({ name, status, on }) {
-    return (
-      <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f0ebe2' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 6, background: T.paperLight, border: `1px solid ${T.paperEdge}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: S.mono, fontSize: 12, fontWeight: 700, color: T.ink }}>{name.charAt(0)}</div>
-          <div>
-            <div style={{ fontWeight: 500, fontSize: 13 }}>{name}</div>
-            <div style={{ fontSize: 11, color: on ? '#1F8A5B' : T.textMute, fontFamily: S.mono, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{status}</div>
-          </div>
-        </div>
-        <button style={S.btnG}>{on ? 'Manage' : 'Connect'}</button>
       </div>
     );
   }

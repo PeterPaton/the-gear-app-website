@@ -1102,12 +1102,8 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
   if (signingOut) {
     return (
       <div style={{ position: 'fixed', inset: 0, background: '#191919', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, zIndex: 9999, animation: signingOut === 'fadeout' ? 'gearFadeOut .4s ease-in forwards' : 'gearFadeIn .25s ease-out' }}>
-        <div style={{ position: 'relative', width: 64, height: 64 }}>
-          {/* Spinning ring around the app icon */}
-          <div style={{ position: 'absolute', inset: 0, border: '2px solid rgba(255,255,255,0.1)', borderTopColor: '#FF570C', borderRadius: '50%', animation: 'gearSpin 0.9s linear infinite' }} />
-          <img src="app-icon.jpg" alt="" style={{ position: 'absolute', inset: 8, width: 48, height: 48, borderRadius: 10, opacity: 0.95 }} />
-        </div>
-        <div style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)' }}>Signing out…</div>
+        <div style={{ width: 40, height: 40, border: '2px solid rgba(255,255,255,0.1)', borderTopColor: '#FF570C', borderRadius: '50%', animation: 'gearSpin 0.9s linear infinite' }} />
+        <div style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)' }}>Logging out…</div>
         <style>{`
           @keyframes gearSpin { to { transform: rotate(360deg); } }
           @keyframes gearFadeIn { from { opacity: 0; } to { opacity: 1; } }
