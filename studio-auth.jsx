@@ -65,6 +65,9 @@
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [remember, setRemember] = useState(() => window.GEAR_AUTH.remember());
+    const [showGuide, setShowGuide] = useState(false);
+    const [plans, setPlans] = useState(window.GEAR_BILLING.FALLBACK_CATALOG);
+    React.useEffect(() => { window.GEAR_BILLING.loadCatalog().then(setPlans).catch(() => {}); }, []);
     const [busy, setBusy] = useState(false);
     // Auth clients store the session where "Keep me signed in" says to.
     const authClient = () => {
@@ -131,6 +134,13 @@
     };
 
     if (isMobile) return <MobileLanding />;
+    if (showGuide && window.STUDIO_GUIDE) {
+      return (
+        <div style={{ width: '100vw', height: '100vh', display: 'flex', overflow: 'hidden' }}>
+          <window.STUDIO_GUIDE catalog={plans} closeLabel="← Back to sign in" onClose={() => setShowGuide(false)} />
+        </div>
+      );
+    }
 
     return (
       <div style={{ width: '100vw', height: '100vh', display: 'flex', background: T.ink, color: '#fff', overflow: 'hidden' }}>
@@ -148,6 +158,9 @@
             <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.55)', maxWidth: 520, lineHeight: 1.55 }}>
               Organise your equipment, track your inventory and prep for every shoot.
             </div>
+            <button onClick={() => setShowGuide(true)} style={{ marginTop: 26, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)', color: '#fff', borderRadius: 4, padding: '10px 16px', cursor: 'pointer', fontFamily: S.mono, fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              See how it works →
+            </button>
           </div>
           <div style={{ position: 'relative', display: 'flex', gap: 28, fontSize: 11, fontFamily: S.mono, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
             <span>v2.4</span>

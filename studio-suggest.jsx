@@ -18,7 +18,17 @@
 // If the AI service itself is unavailable, the engine assembles a kit offline
 // for free. Running out of credits opens the upgrade screen instead.
 (function () {
-  const { useState, useMemo, useRef } = React;
+  const { useState, useMemo, useRef, useEffect } = React;
+
+  // Saved per user in this browser: the open kit (with its undo steps), the
+  // brief being typed, and recent kits — so leaving the page, opening a
+  // project or reloading never loses a kit that cost a credit.
+  const HISTORY_LIMIT = 20;
+  const storeKey = (userId) => `gear.suggest.${userId || 'anon'}`;
+  function loadStore(userId) {
+    try { return JSON.parse(localStorage.getItem(storeKey(userId)) || 'null') || {}; } catch (e) { return {}; }
+  }
+  const newKitId = () => 'k' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const S = window.STUDIO_STYLES;
   const T = S.T;
   const C = window.GEAR_COMPAT;
@@ -47,7 +57,7 @@
     ok:          { label: 'Compatible', fg: T.ok,   bg: '#e3efe5', icon: '✓' },
   };
 
-  function SuggestPage({ catalog = [], supabaseUrl, anonKey, accessToken, projects = [], activeProjectId, billing, onCreditsChange, onUpgrade, onAddKitToProject, onCreateProjectFromKit }) {
+  function SuggestPage({ userId, catalog = [], supabaseUrl, anonKey, accessToken, projects = [], activeProjectId, billing, onCreditsChange, onUpgrade, onAddKitToProject, onCreateProjectFromKit }) {
     const [prompt, setPrompt] = useState('');
     const [stage, setStage] = useState(''); // '' when idle, otherwise a progress label
     const [busyMode, setBusyMode] = useState(null); // 'generate' | 'refine' while working
@@ -56,8 +66,48 @@
     const [result, setResult] = useState(null);
     const [history, setHistory] = useState([]); // earlier versions of the kit, for "Undo last change"
     const [change, setChange] = useState('');
+    const [saved, setSaved] = useState([]); // recent kits: [{ id, savedAt, result }], newest first
+    const [showHistory, setShowHistory] = useState(false);
     const [toast, setToast] = useState('');
     const toastTimer = useRef(null);
+    const loadedFor = useRef(undefined);
+
+    // Restore this user's Suggest state, then keep it saved as it changes.
+    useEffect(() => {
+      const st = loadStore(userId);
+      setPrompt(st.prompt || '');
+      setResult(st.current || null);
+      setHistory(st.undo || []);
+      setSaved(st.saved || []);
+      loadedFor.current = userId;
+    }, [userId]);
+    useEffect(() => {
+      if (loadedFor.current !== userId) return;
+      try {
+        localStorage.setItem(storeKey(userId), JSON.stringify({ prompt, current: result, undo: history.slice(-5), saved }));
+      } catch (e) {}
+    }, [userId, prompt, result, history, saved]);
+    // Every version of the open kit is mirrored into its history entry.
+    useEffect(() => {
+      if (!result || !result.id) return;
+      setSaved(list => {
+        const rest = list.filter(e => e.id !== result.id);
+        const existing = list.find(e => e.id === result.id);
+        const entry = { id: result.id, savedAt: existing ? existing.savedAt : Date.now(), result };
+        return [entry, ...rest].sort((a, b) => b.savedAt - a.savedAt).slice(0, HISTORY_LIMIT);
+      });
+    }, [result]);
+
+    function openSaved(entry) {
+      setResult(entry.result);
+      setHistory([]);
+      setPrompt(entry.result.brief || '');
+      setShowHistory(false);
+      setError('');
+    }
+    function deleteSaved(id) {
+      setSaved(list => list.filter(e => e.id !== id));
+    }
 
     const credits = billing ? window.GEAR_BILLING.totalCredits(billing) : null;
     const outOfCredits = credits === 0;
@@ -185,7 +235,7 @@
       setStage('Choosing gear…');
       try {
         const kit = await runAI('generate', q);
-        setResult({ ...kit, brief: q });
+        setResult({ ...kit, brief: q, id: newKitId() });
       } catch (e) {
         if (!handleFailure(e)) return;
         const why = {
@@ -196,7 +246,7 @@
         }[e.code] || ('The AI service failed: ' + (e.message || e));
         setStage('Assembling offline…');
         const local = C.assembleKit(q, catalog);
-        if (local.items.length) setResult({ ...local, brief: q, engine: 'offline', notice: why + ' — this kit was assembled offline. No credit was used.' });
+        if (local.items.length) setResult({ ...local, id: newKitId(), brief: q, engine: 'offline', notice: why + ' — this kit was assembled offline. No credit was used.' });
         else setError('Could not build a kit list: ' + why);
       } finally {
         setStage('');
@@ -215,7 +265,7 @@
       try {
         const kit = await runAI('refine', result.brief, instruction, result.items);
         setHistory(h => [...h.slice(-9), result]);
-        setResult({ ...kit, brief: result.brief, lastChange: instruction });
+        setResult({ ...kit, id: result.id, brief: result.brief, lastChange: instruction });
         setChange('');
       } catch (e) {
         if (handleFailure(e)) setError(`Couldn’t apply that change: ${e.message}. No credit was used.`);
@@ -298,8 +348,41 @@
                 mounts and adapters, sensor coverage, batteries, media, monitor connections, gimbal payload and XLR audio.
               </div>
             </div>
-            {window.STUDIO_BILLING && <window.STUDIO_BILLING.CreditBadge status={billing} onGetMore={() => onUpgrade && onUpgrade('credits')} />}
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              {saved.length > 0 && (
+                <button onClick={() => setShowHistory(v => !v)} aria-expanded={showHistory}
+                  style={{ ...S.btnG, background: '#fff', padding: '7px 12px' }}>
+                  History · {saved.length} {showHistory ? '▴' : '▾'}
+                </button>
+              )}
+              {window.STUDIO_BILLING && <window.STUDIO_BILLING.CreditBadge status={billing} onGetMore={() => onUpgrade && onUpgrade('credits')} />}
+            </div>
           </div>
+
+          {showHistory && saved.length > 0 && (
+            <div style={{ background: '#fff', border: `1px solid ${T.paperEdge}`, marginBottom: 14, maxHeight: 300, overflowY: 'auto' }}>
+              {saved.map(entry => {
+                const k = entry.result;
+                const open = result && result.id === entry.id;
+                return (
+                  <div key={entry.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', borderBottom: '1px solid #f0ebe2', background: open ? '#fff8f4' : '#fff' }}>
+                    <button onClick={() => openSaved(entry)} disabled={working} title="Open this kit (free)"
+                      style={{ flex: 1, minWidth: 0, background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer', color: T.ink }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {k.name}{open && <span style={{ color: T.orange, fontFamily: S.mono, fontSize: 10, marginLeft: 8 }}>OPEN</span>}
+                      </div>
+                      <div style={{ fontSize: 11, color: T.textMute, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.brief}</div>
+                    </button>
+                    <span style={{ fontFamily: S.mono, fontSize: 10, color: T.textMute, flexShrink: 0 }}>
+                      {k.items.length} items · {new Date(entry.savedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                    </span>
+                    <button onClick={() => deleteSaved(entry.id)} title="Remove from history"
+                      style={{ background: 'none', border: 'none', color: T.textMute, cursor: 'pointer', fontSize: 15, padding: '0 2px', flexShrink: 0 }}>×</button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Brief */}
           <div style={{ background: '#fff', border: `1px solid ${T.paperEdge}`, padding: 16 }}>
@@ -335,12 +418,10 @@
               {outOfCredits && <button onClick={() => onUpgrade && onUpgrade('credits')} style={{ ...S.btnP, flexShrink: 0 }}>Get more credits</button>}
             </div>
           )}
-          {busyMode === 'generate' && (
-            <div style={{ marginTop: 24, textAlign: 'center', color: T.textMute, fontFamily: S.mono, fontSize: 13 }}>{stage}</div>
-          )}
+          {busyMode === 'generate' && <Progress stage={stage} />}
 
           {result && check && busyMode !== 'generate' && (
-            <div style={{ marginTop: 22 }}>
+            <div style={{ marginTop: 18 }}>
               {/* Header */}
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: 240 }}>
@@ -385,7 +466,7 @@
                   </button>
                 </div>
                 {busyMode === 'refine' ? (
-                  <div style={{ marginTop: 8, fontSize: 11, color: T.textMute, fontFamily: S.mono }}>{stage}</div>
+                  <Progress stage={stage} compact />
                 ) : (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8, alignItems: 'center' }}>
                     {result.lastChange && (
@@ -406,18 +487,17 @@
                 <CompatPanel check={check} catalog={catalog} kitIds={new Set(result.items.map(i => i.id))} onAdd={addFix} />
 
                 {result.notes && result.notes.length > 0 && (
-                  <div style={{ marginTop: 12, background: '#fff', border: `1px solid ${T.paperEdge}`, padding: '10px 14px' }}>
-                    <div style={{ ...S.label, marginBottom: 6 }}>Notes for the crew</div>
+                  <Dropdown title={`Notes for the crew · ${result.notes.length}`} style={{ marginTop: 8 }}>
                     {result.notes.map((n, i) => <div key={i} style={{ fontSize: 12, color: T.ink, lineHeight: 1.5, marginTop: i ? 4 : 0 }}>• {n}</div>)}
-                  </div>
+                  </Dropdown>
                 )}
 
                 {/* Items */}
-                <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 18 }}>
+                <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {grouped.map(group => (
                     <div key={group.category}>
-                      <div style={{ ...S.label, marginBottom: 8 }}>{group.category} · {group.items.length}</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div style={{ ...S.label, marginBottom: 5 }}>{group.category} · {group.items.length}</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', border: `1px solid ${T.paperEdge}`, borderBottom: 'none' }}>
                         {group.items.map(it => (
                           <ItemRow key={it.id} it={it} full={catById.get(it.id)} res={check.items[it.id]}
                             onQty={d => bumpQty(it.id, d)} onRemove={() => removeItem(it.id)} />
@@ -449,16 +529,19 @@
   function CompatPanel({ check, catalog, kitIds, onAdd }) {
     const { counts, issues } = check;
     const clean = !issues.some(i => i.level === 'conflict' || i.level === 'need');
+    const [open, setOpen] = useState(!clean);
+    useEffect(() => { if (!clean) setOpen(true); }, [clean]);
     const headline = clean
       ? (counts.unverified ? 'No conflicts found — some items couldn’t be verified' : 'Everything in this kit works together')
       : `${counts.conflict} conflict${counts.conflict === 1 ? '' : 's'} · ${issues.filter(i => i.level === 'need').length} missing`;
     const tone = clean ? (counts.unverified ? STATUS.unverified : STATUS.ok) : STATUS.conflict;
     return (
-      <div style={{ marginTop: 16, background: '#fff', border: `1px solid ${clean ? T.paperEdge : T.err}`, padding: '12px 14px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+      <div style={{ marginTop: 12, background: '#fff', border: `1px solid ${clean ? T.paperEdge : T.err}`, padding: '9px 12px' }}>
+        <div onClick={() => issues.length && setOpen(o => !o)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', cursor: issues.length ? 'pointer' : 'default' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ ...badge(tone), width: 20, height: 20 }}>{tone.icon}</span>
-            <span style={{ fontFamily: S.mono, fontSize: 13, fontWeight: 600, color: T.ink }}>{headline}</span>
+            <span style={{ ...badge(tone), width: 18, height: 18 }}>{tone.icon}</span>
+            <span style={{ fontFamily: S.mono, fontSize: 12, fontWeight: 600, color: T.ink }}>{headline}</span>
+            {issues.length > 0 && <span style={{ fontFamily: S.mono, fontSize: 11, color: T.textMute }}>{open ? '▴' : `▾ ${issues.length} detail${issues.length === 1 ? '' : 's'}`}</span>}
           </div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {['ok', 'conditional', 'unverified'].filter(k => counts[k]).map(k => (
@@ -466,7 +549,7 @@
             ))}
           </div>
         </div>
-        {issues.length > 0 && (
+        {open && issues.length > 0 && (
           <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
             {issues.map((iss, i) => {
               const st = STATUS[iss.level] || STATUS.conditional;
@@ -496,45 +579,103 @@
     );
   }
 
+  // One line per item; reason, compatibility notes and specs in a dropdown.
   function ItemRow({ it, full, res, onQty, onRemove }) {
+    const [open, setOpen] = useState(false);
     const st = res && STATUS[res.status];
-    const spec = C.specOf(full);
-    const tags = C.describe(spec);
+    const tags = C.describe(C.specOf(full));
+    const hasDetails = !!(it.reason || (res && res.notes.length) || tags);
+    const firstNote = res && res.notes.find(n => n.status !== 'ok');
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#fff', border: `1px solid ${st && res.status === 'conflict' ? T.err : T.paperEdge}`, padding: 10 }}>
-        <div style={{ width: 46, height: 46, flexShrink: 0, background: T.paperLight, border: `1px solid ${T.paperEdge}`, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <img src={window.GEAR.itemImage(full || it)} alt=""
-            onError={e => { e.currentTarget.src = window.GEAR_PLACEHOLDER(full ? full.category : 'Camera'); }}
-            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-            {st && <span style={badge(st)} title={st.label}>{st.icon}</span>}
-            <div style={{ fontSize: 13, fontWeight: 600, color: T.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.name}</div>
+      <div style={{ background: '#fff', borderBottom: `1px solid ${T.paperEdge}`, borderLeft: `3px solid ${st && res.status === 'conflict' ? T.err : 'transparent'}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 8px' }}>
+          <div style={{ width: 30, height: 30, flexShrink: 0, background: T.paperLight, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <img src={window.GEAR.itemImage(full || it)} alt=""
+              onError={e => { e.currentTarget.src = window.GEAR_PLACEHOLDER(full ? full.category : 'Camera'); }}
+              style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
           </div>
-          {it.reason && <div style={{ fontSize: 11, color: T.textMute, marginTop: 2 }}>{it.reason}</div>}
-          {res && res.notes.length > 0 && (
-            <div style={{ marginTop: 3, display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {res.notes.map((n, i) => (
-                <div key={i} style={{ fontSize: 11, fontFamily: S.mono, color: (STATUS[n.status] || STATUS.ok).fg, lineHeight: 1.4 }}>{n.text}</div>
+          {st && <span style={badge(st)} title={st.label}>{st.icon}</span>}
+          <div onClick={() => hasDetails && setOpen(o => !o)} style={{ flex: 1, minWidth: 0, cursor: hasDetails ? 'pointer' : 'default' }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: T.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.name}</div>
+            {!open && firstNote && (
+              <div style={{ fontSize: 11, fontFamily: S.mono, color: (STATUS[firstNote.status] || STATUS.ok).fg, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{firstNote.text}</div>
+            )}
+          </div>
+          {hasDetails && (
+            <button onClick={() => setOpen(o => !o)} aria-expanded={open} title={open ? 'Hide details' : 'Show details'}
+              style={{ background: 'none', border: 'none', color: T.textMute, cursor: 'pointer', fontSize: 12, padding: '4px 6px', flexShrink: 0 }}>{open ? '▴' : '▾'}</button>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, border: `1px solid ${T.paperEdge}` }}>
+            <button onClick={() => onQty(-1)} style={stepBtn}>−</button>
+            <span style={{ minWidth: 24, textAlign: 'center', fontFamily: S.mono, fontSize: 12, fontWeight: 600 }}>{it.qty}</span>
+            <button onClick={() => onQty(+1)} style={stepBtn}>+</button>
+          </div>
+          <button onClick={onRemove} title="Remove from list"
+            style={{ background: 'transparent', border: 'none', color: T.textMute, cursor: 'pointer', fontSize: 15, padding: '2px 4px', flexShrink: 0 }}>×</button>
+        </div>
+        {open && (
+          <div style={{ padding: '0 12px 8px 58px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {it.reason && <div style={{ fontSize: 11, color: T.textMute }}>{it.reason}</div>}
+            {res && res.notes.map((n, i) => (
+              <div key={i} style={{ fontSize: 11, fontFamily: S.mono, color: (STATUS[n.status] || STATUS.ok).fg, lineHeight: 1.4 }}>{n.text}</div>
+            ))}
+            {tags && <div style={{ fontSize: 10, fontFamily: S.mono, color: T.textMute, opacity: 0.8 }}>{tags}</div>}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Spinner, step list and timer while the AI works (usually 20–60s).
+  const STEPS = ['Choosing gear', 'Checking compatibility', 'Fixing issues'];
+  function Progress({ stage, compact }) {
+    const [seconds, setSeconds] = useState(0);
+    useEffect(() => {
+      const t = setInterval(() => setSeconds(x => x + 1), 1000);
+      return () => clearInterval(t);
+    }, []);
+    const offline = /offline/i.test(stage);
+    const step = /^Fixing/.test(stage) ? 2 : /^Checking/.test(stage) ? 1 : 0;
+    const spinner = <span style={{ width: compact ? 12 : 16, height: compact ? 12 : 16, border: `2px solid ${T.paperEdge}`, borderTopColor: T.orange, borderRadius: '50%', display: 'inline-block', animation: 'gearSuggestSpin .8s linear infinite', flexShrink: 0 }} />;
+    return (
+      <div role="status" aria-live="polite" style={compact
+        ? { marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: T.textMute, fontFamily: S.mono }
+        : { marginTop: 18, background: '#fff', border: `1px solid ${T.paperEdge}`, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+        <style>{'@keyframes gearSuggestSpin { to { transform: rotate(360deg); } }'}</style>
+        {spinner}
+        {compact || offline ? (
+          <span style={{ fontFamily: S.mono, fontSize: compact ? 11 : 13, color: compact ? T.textMute : T.ink }}>{stage} {seconds}s</span>
+        ) : (
+          <React.Fragment>
+            <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', flex: 1 }}>
+              {STEPS.map((label, i) => (
+                <span key={label} style={{ fontFamily: S.mono, fontSize: 12, color: i < step ? T.ok : i === step ? T.ink : T.textMute, fontWeight: i === step ? 600 : 400 }}>
+                  {i < step ? '✓' : i === step ? '●' : '○'} {label}{i === 2 ? ' (if needed)' : ''}
+                </span>
               ))}
             </div>
-          )}
-          {tags && <div style={{ fontSize: 10, fontFamily: S.mono, color: T.textMute, marginTop: 3, opacity: 0.8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tags}</div>}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, border: `1px solid ${T.paperEdge}` }}>
-          <button onClick={() => onQty(-1)} style={stepBtn}>−</button>
-          <span style={{ minWidth: 30, textAlign: 'center', fontFamily: S.mono, fontSize: 13, fontWeight: 600 }}>{it.qty}</span>
-          <button onClick={() => onQty(+1)} style={stepBtn}>+</button>
-        </div>
-        <button onClick={onRemove} title="Remove from list"
-          style={{ background: 'transparent', border: 'none', color: T.textMute, cursor: 'pointer', fontSize: 16, padding: '4px 6px', flexShrink: 0 }}>×</button>
+            <span style={{ fontFamily: S.mono, fontSize: 11, color: T.textMute }}>{seconds}s · usually under a minute</span>
+          </React.Fragment>
+        )}
+      </div>
+    );
+  }
+
+  function Dropdown({ title, style, children }) {
+    const [open, setOpen] = useState(false);
+    return (
+      <div style={{ background: '#fff', border: `1px solid ${T.paperEdge}`, ...style }}>
+        <button onClick={() => setOpen(o => !o)} aria-expanded={open}
+          style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'none', border: 'none', padding: '9px 12px', cursor: 'pointer', ...S.label, color: T.ink }}>
+          <span>{title}</span><span>{open ? '▴' : '▾'}</span>
+        </button>
+        {open && <div style={{ padding: '0 12px 10px' }}>{children}</div>}
       </div>
     );
   }
 
   const badge = (st) => ({ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16, flexShrink: 0, background: st.bg, color: st.fg, fontSize: 10, fontWeight: 700, fontFamily: S.mono, border: `1px solid ${st.fg}` });
-  const stepBtn = { background: 'transparent', border: 'none', width: 28, height: 28, fontSize: 16, cursor: 'pointer', color: T.ink, lineHeight: 1, fontFamily: S.mono };
+  const stepBtn = { background: 'transparent', border: 'none', width: 24, height: 24, fontSize: 16, cursor: 'pointer', color: T.ink, lineHeight: 1, fontFamily: S.mono };
   function truncate(s, n) { s = String(s || ''); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
 
   window.STUDIO_SUGGEST = SuggestPage;

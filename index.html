@@ -60,6 +60,7 @@
 <script type="text/babel" src="studio-database.jsx"></script>
 <script type="text/babel" src="studio-billing.jsx"></script>
 <script type="text/babel" src="studio-suggest.jsx"></script>
+<script type="text/babel" src="studio-guide.jsx"></script>
 <script type="text/babel" src="studio-projects.jsx"></script>
 <script type="text/babel" src="studio-auth.jsx"></script>
 <script type="text/babel" src="tweaks-panel.jsx"></script>
@@ -406,7 +407,7 @@ function App() {
     })();
     return () => { cancelled = true; };
   }, [tweaks.supabaseUrl, tweaks.supabaseAnonKey, tweaks.tableName, loadTick]);
-  const [page, setPage] = useState('inventory'); // inventory | suggest | database | projects
+  const [page, setPage] = useState('inventory'); // inventory | suggest | database | projects | guide
 
   useEffect(() => {
     if (!activeProjectId || !session || !window.GEAR_DB?.enabled) return;
@@ -520,6 +521,19 @@ function App() {
     window.addEventListener('pageshow', onShow);
     return () => window.removeEventListener('pageshow', onShow);
   }, []);
+
+  // New accounts (first week) land on the guide once, the first time they sign in here.
+  useEffect(() => {
+    const u = session?.user;
+    if (!u?.id) return;
+    const key = `gear.guide.seen.${u.id}`;
+    try {
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, '1');
+    } catch (e) { return; }
+    const isNew = u.created_at && (Date.now() - new Date(u.created_at).getTime()) < 7 * 24 * 3600 * 1000;
+    if (isNew) setPage('guide');
+  }, [session?.user?.id]);
 
   const openUpgrade = (reason) => { setBillingError(''); setPaywall({ reason: reason || 'upgrade' }); };
   const startCheckout = async (product) => {
@@ -1022,6 +1036,9 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
   const activeProject = projects.find(p => p.id === activeProjectId);
   const openProject = openProjectId ? projects.find(p => p.id === openProjectId) : null;
 
+  // Hooks must run on every render, so this sits above the early returns below.
+  const isMobileViewport = window.STUDIO_AUTH.useIsMobile();
+
   // ── Sign-out loading overlay (full screen, takes priority over auth gate
   // so the login page doesn't flash for the brief moment user is null but
   // Supabase signOut is still in flight). ──
@@ -1046,7 +1063,6 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
   // ── Phone takeover ──
   // The studio UI is desktop-only. Anyone on a phone gets the brand landing
   // with a "use it on your laptop" pointer, signed in or not.
-  const isMobileViewport = window.STUDIO_AUTH.useIsMobile();
   if (isMobileViewport) return <window.STUDIO_AUTH.MobileLanding />;
 
   // ── Password recovery ──
@@ -1127,6 +1143,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
             {window.STUDIO_SUGGEST && (
               <div style={{ flex: 1, display: page === 'suggest' ? 'flex' : 'none', overflow: 'hidden' }}>
                 <window.STUDIO_SUGGEST
+                  userId={session?.user?.id}
                   catalog={catalog}
                   supabaseUrl={tweaks.supabaseUrl}
                   anonKey={tweaks.supabaseAnonKey}
@@ -1139,6 +1156,11 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
                   onAddKitToProject={addKitToProject}
                   onCreateProjectFromKit={createProjectFromKit}
                 />
+              </div>
+            )}
+            {window.STUDIO_GUIDE && page === 'guide' && (
+              <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+                <window.STUDIO_GUIDE onNavigate={setPage} catalog={billingCatalog} />
               </div>
             )}
             {window.STUDIO_DATABASE && (
