@@ -230,6 +230,7 @@
       if (!q) { setError('Describe what you’re shooting first.'); return; }
       if (!catalog.length) { setError('No equipment catalog is loaded yet.'); return; }
       setError('');
+      setPrompt('');
       setResult(null);
       setHistory([]);
       setBusyMode('generate');
@@ -238,7 +239,7 @@
         const kit = await runAI('generate', q);
         setResult({ ...kit, brief: q, id: newKitId() });
       } catch (e) {
-        if (!handleFailure(e)) return;
+        if (!handleFailure(e)) { setPrompt(q); return; }
         const why = {
           'no-key': 'The AI service has no API key yet',
           'not-deployed': 'The AI service isn’t deployed yet',
@@ -248,7 +249,7 @@
         setStage('Assembling offline…');
         const local = C.assembleKit(q, catalog);
         if (local.items.length) setResult({ ...local, id: newKitId(), brief: q, engine: 'offline', notice: why + ' — this kit was assembled offline. No credit was used.' });
-        else setError('Could not build a kit list: ' + why);
+        else { setError('Could not build a kit list: ' + why); setPrompt(q); }
       } finally {
         setStage('');
         setBusyMode(null);
@@ -419,7 +420,7 @@
           {busyMode === 'generate' && <Progress stage={stage} />}
 
           {result && check && busyMode !== 'generate' && (
-            <div style={{ marginTop: 18 }}>
+            <div style={{ marginTop: 28, paddingTop: 24, borderTop: `2px solid ${T.ink}` }}>
               {/* Header */}
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: 240 }}>
