@@ -71,15 +71,16 @@
   }
 
   // ── Content ────────────────────────────────────────────────────────────
+  // In sidebar order, so the guide mirrors the app's navigation.
   const FEATURES = [
     { icon: '▣', page: 'inventory', title: 'Build your inventory', text: 'Add gear from a database of thousands of items or create your own. Track quantities and status, and group kit that travels together.' },
-    { icon: '◈', page: 'database', title: 'Search the database', text: 'Filter cameras, lenses, lighting, audio and support by category, then add items to your inventory or straight into a project.' },
-    { icon: '◧', page: 'projects', title: 'Sort your items into projects', text: 'Prep for each shoot by dragging items, or whole groups, into a project. Adjust quantities and track its status from planning to wrapped.' },
     { icon: '✧', page: 'suggest', title: 'Let AI build the kit', text: 'Describe the shoot and get a kit list that works together. Mounts, batteries, media, monitoring and gimbal payload are checked for you. Then ask for changes in plain English.' },
     { icon: '◎', page: 'discover', title: 'Discover new gear', text: 'Hand-picked new releases from across the industry, explained: what’s new, the key specs and what it costs.' },
-    { icon: '⤓', page: 'projects', title: 'Export your kit list', text: 'Download a clean PDF pull list to share with crew, rental houses or insurers.' },
+    { icon: '◈', page: 'database', title: 'Search the database', text: 'Filter cameras, lenses, lighting, audio and support by category, then add items to your inventory or straight into a project.' },
+    { icon: '◧', page: 'projects', title: 'Sort your items into projects', text: 'Prep for each shoot by dragging items, or whole groups, into a project. Adjust quantities, track its status and export a PDF pull list.' },
   ];
 
+  // In sidebar order; the project view and PDF export follow Projects.
   const WALKTHROUGH = [
     {
       img: 'guide/inventory.webp', page: 'inventory', label: 'Inventory', title: 'Your kit, organised',
@@ -89,6 +90,25 @@
         'Drag one item onto another to make a group, like an A-Cam package or a sound bag.',
         'Track how many you own and whether each is available, checked out or in for repair.',
         'Drag items, or a whole group, into the active project on the right.',
+      ],
+    },
+    {
+      img: 'guide/suggest.webp', page: 'suggest', label: 'Suggest', title: 'Let AI build the kit',
+      text: 'Describe the shoot in plain English and get a kit list in under a minute.',
+      points: [
+        'Every item is checked against the camera: lens mounts and adapters, sensor coverage, batteries, media, monitor connections, gimbal payload and XLR audio.',
+        'Anything missing comes with one-click fixes from the database.',
+        'Ask for changes, like “swap to a lighter camera for the gimbal”, and undo them.',
+        'History keeps every kit, and you can save one as a new project.',
+      ],
+    },
+    {
+      img: 'guide/discover.webp', page: 'discover', label: 'Discover', title: 'What’s new in gear',
+      text: 'A hand-picked feed of new releases from across the industry, kept up to date.',
+      points: [
+        'Each pick explains what’s new, with key specs, price and the date it was announced.',
+        'Open a pick for the full write-up and a link to the original announcement.',
+        'Add picks that are already in the database straight to your inventory.',
       ],
     },
     {
@@ -115,16 +135,6 @@
       points: [
         'Adjust quantities and the project’s status in edit mode.',
         'Jump to recent projects from the sidebar.',
-      ],
-    },
-    {
-      img: 'guide/suggest.webp', page: 'suggest', label: 'Suggest', title: 'Let AI build the kit',
-      text: 'Describe the shoot in plain English and get a kit list in under a minute.',
-      points: [
-        'Every item is checked against the camera: lens mounts and adapters, sensor coverage, batteries, media, monitor connections, gimbal payload and XLR audio.',
-        'Anything missing comes with one-click fixes from the database.',
-        'Ask for changes, like “swap to a lighter camera for the gimbal”, and undo them.',
-        'History keeps every kit, and you can save one as a new project.',
       ],
     },
     {
