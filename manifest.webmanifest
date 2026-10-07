@@ -1,0 +1,14 @@
+{
+  "name": "The Gear App",
+  "short_name": "Gear",
+  "description": "Organise your equipment, track your inventory and prep for every shoot.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#191919",
+  "theme_color": "#191919",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

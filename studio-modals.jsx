@@ -69,7 +69,7 @@
             </div>
             <div style={S.field}>
               <label style={S.label}>Status</label>
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {statuses.map(s => {
                   const active = form.status === s.k;
                   const c = window.GEAR.statusColor[s.k];
@@ -92,7 +92,7 @@
           </div>
 
           {/* Footer */}
-          <div style={{ padding: '16px 28px', borderTop: `1px solid ${T.paperEdge}`, background: '#faf7f2', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ padding: '16px 28px', borderTop: `1px solid ${T.paperEdge}`, background: '#faf7f2', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
             <div style={{ fontFamily: S.mono, fontSize: 9, color: T.textMute, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
               Slip #{Date.now().toString().slice(-6)}
             </div>
@@ -332,7 +332,10 @@
             the whole table onto a later page; with the current `avoid: 'tr'`
             mode the wrapper height matches the content and the border lays
             out cleanly across pages. */}
-        <div ref={sheetRef} style={{ background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 4, padding: '32px 36px' }}>
+        {/* minWidth keeps the sheet at its desktop width on a phone (the
+            preview scrolls sideways), so the PDF comes out the same. */}
+        <div style={{ overflowX: 'auto' }}>
+        <div ref={sheetRef} style={{ background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 4, padding: '32px 36px', minWidth: 680 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, paddingBottom: 16, borderBottom: `2px solid ${T.ink}` }}>
               <div>
                 <div style={{ fontFamily: S.mono, fontSize: 10, color: T.textMute, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>Full list</div>
@@ -396,6 +399,7 @@
                 <span>gearapp.io</span>
               </div>
             )}
+        </div>
         </div>
         {branding && onUpgrade && (
           <div style={{ fontSize: 11, color: T.textMute, fontFamily: S.mono, marginTop: 10 }}>

@@ -31,7 +31,8 @@
     );
   }
 
-  function DiscoverPage({ catalog = [], items = [], onAddToInventory }) {
+  // `compact` is the phone layout: tighter margins and a shorter lead image.
+  function DiscoverPage({ catalog = [], items = [], onAddToInventory, compact }) {
     const [picks, setPicks] = useState(null);
     const [error, setError] = useState('');
     const [open, setOpen] = useState(null);
@@ -57,7 +58,7 @@
 
     return (
       <div style={{ flex: 1, overflowY: 'auto', background: '#f6f3ee' }}>
-        <div style={{ maxWidth: 1040, margin: '0 auto', padding: '32px 28px 80px' }}>
+        <div style={{ maxWidth: 1040, margin: '0 auto', padding: compact ? '18px 14px 32px' : '32px 28px 80px' }}>
           <div style={S.label}>Discover</div>
           <h1 style={{ fontFamily: S.mono, fontSize: 26, fontWeight: 700, margin: '6px 0 4px', letterSpacing: '-0.02em' }}>New to the industry</h1>
           <div style={{ fontSize: 13, color: T.textMute, lineHeight: 1.5 }}>
@@ -70,7 +71,7 @@
 
           {featured && (
             <div onClick={() => setOpen(featured)} style={{ marginTop: 24, display: 'flex', flexWrap: 'wrap', background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 8, overflow: 'hidden', cursor: 'pointer' }}>
-              <div style={{ flex: '1 1 380px', minWidth: 0 }}><PickImage pick={featured} height={320} /></div>
+              <div style={{ flex: '1 1 380px', minWidth: 0 }}><PickImage pick={featured} height={compact ? 220 : 320} /></div>
               <div style={{ flex: '1 1 360px', padding: '26px 28px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {kindChip(featured)}
                 <div style={{ fontFamily: S.mono, fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.15 }}>{featured.title}</div>
@@ -88,7 +89,7 @@
           )}
 
           {rest.length > 0 && (
-            <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
+            <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: 16 }}>
               {rest.map(p => (
                 <div key={p.id} onClick={() => setOpen(p)} style={{ background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 8, overflow: 'hidden', cursor: 'pointer', display: 'flex', flexDirection: 'column' }}>
                   <PickImage pick={p} height={190} />

@@ -4,58 +4,20 @@
   const S = window.STUDIO_STYLES;
   const T = S.T;
 
-  // Track viewport width for the mobile landing page. The breakpoint is the
-  // same one CSS frameworks call "md" (768px) — comfortable for the existing
-  // two-column login UI, anything below it gets the phone takeover screen.
-  function useIsMobile(breakpoint = 820) {
-    const [m, setM] = useState(() => typeof window !== 'undefined' && window.innerWidth < breakpoint);
+  // Phones get the phone layout (studio-mobile.jsx) and the phone sign-in
+  // screen. Narrow windows count, and so do touch screens held sideways
+  // (wide but short), which a width test alone would hand the desktop UI.
+  // index.html uses the same media query for its phone-only CSS.
+  const PHONE_QUERY = '(max-width: 819px), (pointer: coarse) and (max-height: 500px)';
+  function useIsMobile() {
+    const [m, setM] = useState(() => typeof window !== 'undefined' && window.matchMedia(PHONE_QUERY).matches);
     useEffect(() => {
-      const onResize = () => setM(window.innerWidth < breakpoint);
-      window.addEventListener('resize', onResize);
-      return () => window.removeEventListener('resize', onResize);
-    }, [breakpoint]);
+      const mq = window.matchMedia(PHONE_QUERY);
+      const onChange = () => setM(mq.matches);
+      mq.addEventListener('change', onChange);
+      return () => mq.removeEventListener('change', onChange);
+    }, []);
     return m;
-  }
-
-  // ─── Mobile landing page ─────────────────────────────────────────
-  // App UI isn't optimised for phones. Show the brand image + a "use on
-  // laptop" note instead of forcing the desktop layout to wrap awkwardly.
-  // Single combined background (gradient + photo) so we don't depend on an
-  // absolutely-positioned overlay div that some mobile browsers paint over.
-  function MobileLanding() {
-    return (
-      <div style={{
-        width: '100vw',
-        minHeight: '100vh',
-        background: 'linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.2) 35%, rgba(0,0,0,0.9) 100%), #0c0c0c url(login-bg.jpg) center center / cover no-repeat',
-        backgroundAttachment: 'fixed',
-        color: '#fff',
-        display: 'flex',
-        flexDirection: 'column',
-        padding: '32px 24px',
-        boxSizing: 'border-box',
-        overflow: 'hidden',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 40 }}>
-          <img src="app-icon.jpg" alt="Gear" style={{ width: 32, height: 32, borderRadius: 7 }} />
-          <div style={{ fontFamily: S.mono, fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em' }}>THE GEAR APP</div>
-        </div>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-          <div style={{ fontFamily: S.sans, fontSize: 'clamp(36px, 10vw, 54px)', fontWeight: 700, letterSpacing: '-0.025em', lineHeight: 1.05, marginBottom: 14 }}>
-            All your gear,<br />in one place.
-          </div>
-          <div style={{ fontSize: 15, lineHeight: 1.5, color: 'rgba(255,255,255,0.75)', marginBottom: 24, maxWidth: 480 }}>
-            Organise your equipment, track your inventory and prep for every shoot.
-          </div>
-          <div style={{ padding: '14px 16px', background: 'rgba(255,255,255,0.08)', WebkitBackdropFilter: 'blur(12px)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: T.orange, flexShrink: 0 }} />
-            <div style={{ fontFamily: S.mono, fontSize: 12, color: 'rgba(255,255,255,0.9)', lineHeight: 1.4 }}>
-              Start using the app for free on your laptop
-            </div>
-          </div>
-        </div>
-      </div>
-    );
   }
 
   // ─── Login page ─────────────────────────────────────────────
@@ -133,11 +95,101 @@
       if (error) alert(`${provider} sign-in failed: ${error.message}`);
     };
 
-    if (isMobile) return <MobileLanding />;
     if (showGuide && window.STUDIO_GUIDE) {
       return (
         <div style={{ width: '100vw', height: '100vh', display: 'flex', overflow: 'hidden' }}>
           <window.STUDIO_GUIDE catalog={plans} items={catalog} closeLabel="← Back to sign in" onClose={() => setShowGuide(false)} onCreateAccount={() => { setShowGuide(false); setMode('signup'); }} />
+        </div>
+      );
+    }
+
+    const form = (
+      <React.Fragment>
+        <div style={{ ...S.label, marginBottom: 8 }}>{mode === 'signin' ? 'Welcome back' : 'Get started'}</div>
+        <div style={{ fontFamily: S.mono, fontSize: isMobile ? 24 : 30, fontWeight: 600, letterSpacing: '-0.02em', marginBottom: mode === 'signup' ? 8 : 28 }}>
+          {mode === 'signin' ? 'Sign in to the Gear App' : mode === 'signup' ? 'Create your account' : 'Reset your password'}
+        </div>
+        {mode === 'signup' && (
+          <div style={{ fontSize: 13, color: T.textMute, marginBottom: 24 }}>Start on the Free plan. No card needed; upgrade to Pro any time.</div>
+        )}
+
+        {/* OAuth */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+          <button onClick={() => oauth('google')} style={oauthBtn}>
+            <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 16 19 13 24 13c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2c-2 1.4-4.5 2.4-7.2 2.4-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.3-4.1 5.7l6.2 5.2C41 35.5 44 30.2 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>
+            Continue with Google
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '12px 0 20px', color: T.textMute, fontFamily: S.mono, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+          <div style={{ flex: 1, height: 1, background: T.paperEdge }}></div>
+          or with email
+          <div style={{ flex: 1, height: 1, background: T.paperEdge }}></div>
+        </div>
+
+        <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={S.field}>
+            <label style={S.label}>Email</label>
+            <input type="email" required style={S.input} value={email} onChange={e => setEmail(e.target.value)} placeholder="you@studio.com" autoFocus={!isMobile} />
+          </div>
+          {mode !== 'reset' && (
+            <div style={S.field}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <label style={S.label}>Password</label>
+                {mode === 'signin' && (
+                  <a href="#" onClick={(e) => { e.preventDefault(); setMode('reset'); }} style={{ ...S.label, color: T.orange, textDecoration: 'none' }}>Forgot?</a>
+                )}
+              </div>
+              <input type="password" required style={S.input} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
+            </div>
+          )}
+          {mode !== 'reset' && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: T.ink, cursor: 'pointer', userSelect: 'none' }}>
+              <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} style={{ width: 15, height: 15, accentColor: T.orange, margin: 0, cursor: 'pointer' }} />
+              Keep me signed in
+            </label>
+          )}
+          <button type="submit" disabled={busy} style={{ ...S.btnP, padding: 12, marginTop: 8, opacity: busy ? 0.6 : 1 }}>
+            {busy ? '...' : (mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create account' : 'Send reset email')}
+          </button>
+        </form>
+
+        <div style={{ marginTop: 24, fontSize: 12, color: T.textMute, textAlign: 'center' }}>
+          {mode === 'reset' ? (
+            <a href="#" onClick={(e) => { e.preventDefault(); setMode('signin'); }} style={{ color: T.ink, fontWeight: 600 }}>← Back to sign in</a>
+          ) : (
+            <React.Fragment>
+              {mode === 'signin' ? "New to Gear? " : 'Already have an account? '}
+              <a href="#" onClick={(e) => { e.preventDefault(); setMode(mode === 'signin' ? 'signup' : 'signin'); }} style={{ color: T.ink, fontWeight: 600 }}>
+                {mode === 'signin' ? 'Create account' : 'Sign in'}
+              </a>
+            </React.Fragment>
+          )}
+        </div>
+      </React.Fragment>
+    );
+
+    // Phone: the brand photo up top and the same form in a sheet below it.
+    if (isMobile) {
+      return (
+        <div style={{ position: 'fixed', inset: 0, overflowY: 'auto', background: '#fff', color: T.ink }}>
+          <div style={{ minHeight: 280, padding: 'calc(env(safe-area-inset-top) + 24px) 24px 40px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 40, color: '#fff', background: 'linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.25) 45%, rgba(0,0,0,0.85) 100%), #0c0c0c url(login-bg.jpg) center / cover no-repeat' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <img src="app-icon.jpg" alt="Gear" style={{ width: 30, height: 30, borderRadius: 7 }} />
+              <div style={{ fontFamily: S.mono, fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em' }}>THE GEAR APP</div>
+            </div>
+            <div>
+              <div style={{ fontFamily: S.sans, fontSize: 'clamp(32px, 9vw, 46px)', fontWeight: 700, letterSpacing: '-0.025em', lineHeight: 1.05, marginBottom: 10 }}>
+                All your gear,<br />in one place.
+              </div>
+              <div style={{ fontSize: 14, lineHeight: 1.5, color: 'rgba(255,255,255,0.75)' }}>
+                Organise your equipment, track your inventory and prep for every shoot.
+              </div>
+            </div>
+          </div>
+          <div style={{ position: 'relative', marginTop: -16, background: '#fff', borderRadius: '16px 16px 0 0', padding: '28px 22px calc(env(safe-area-inset-bottom) + 32px)' }}>
+            {form}
+          </div>
         </div>
       );
     }
@@ -175,67 +227,7 @@
 
         {/* Right — form */}
         <div style={{ width: 480, background: '#fff', color: T.ink, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 56px' }}>
-          <div style={{ ...S.label, marginBottom: 8 }}>{mode === 'signin' ? 'Welcome back' : 'Get started'}</div>
-          <div style={{ fontFamily: S.mono, fontSize: 30, fontWeight: 600, letterSpacing: '-0.02em', marginBottom: mode === 'signup' ? 8 : 28 }}>
-            {mode === 'signin' ? 'Sign in to the Gear App' : mode === 'signup' ? 'Create your account' : 'Reset your password'}
-          </div>
-          {mode === 'signup' && (
-            <div style={{ fontSize: 13, color: T.textMute, marginBottom: 24 }}>Start on the Free plan. No card needed; upgrade to Pro any time.</div>
-          )}
-
-          {/* OAuth */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
-            <button onClick={() => oauth('google')} style={oauthBtn}>
-              <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 16 19 13 24 13c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2c-2 1.4-4.5 2.4-7.2 2.4-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.3-4.1 5.7l6.2 5.2C41 35.5 44 30.2 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>
-              Continue with Google
-            </button>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '12px 0 20px', color: T.textMute, fontFamily: S.mono, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-            <div style={{ flex: 1, height: 1, background: T.paperEdge }}></div>
-            or with email
-            <div style={{ flex: 1, height: 1, background: T.paperEdge }}></div>
-          </div>
-
-          <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={S.field}>
-              <label style={S.label}>Email</label>
-              <input type="email" required style={S.input} value={email} onChange={e => setEmail(e.target.value)} placeholder="you@studio.com" autoFocus />
-            </div>
-            {mode !== 'reset' && (
-              <div style={S.field}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <label style={S.label}>Password</label>
-                  {mode === 'signin' && (
-                    <a href="#" onClick={(e) => { e.preventDefault(); setMode('reset'); }} style={{ ...S.label, color: T.orange, textDecoration: 'none' }}>Forgot?</a>
-                  )}
-                </div>
-                <input type="password" required style={S.input} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
-              </div>
-            )}
-            {mode !== 'reset' && (
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: T.ink, cursor: 'pointer', userSelect: 'none' }}>
-                <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} style={{ width: 15, height: 15, accentColor: T.orange, margin: 0, cursor: 'pointer' }} />
-                Keep me signed in
-              </label>
-            )}
-            <button type="submit" disabled={busy} style={{ ...S.btnP, padding: 12, marginTop: 8, opacity: busy ? 0.6 : 1 }}>
-              {busy ? '...' : (mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create account' : 'Send reset email')}
-            </button>
-          </form>
-
-          <div style={{ marginTop: 24, fontSize: 12, color: T.textMute, textAlign: 'center' }}>
-            {mode === 'reset' ? (
-              <a href="#" onClick={(e) => { e.preventDefault(); setMode('signin'); }} style={{ color: T.ink, fontWeight: 600 }}>← Back to sign in</a>
-            ) : (
-              <React.Fragment>
-                {mode === 'signin' ? "New to Gear? " : 'Already have an account? '}
-                <a href="#" onClick={(e) => { e.preventDefault(); setMode(mode === 'signin' ? 'signup' : 'signin'); }} style={{ color: T.ink, fontWeight: 600 }}>
-                  {mode === 'signin' ? 'Create account' : 'Sign in'}
-                </a>
-              </React.Fragment>
-            )}
-          </div>
+          {form}
         </div>
       </div>
     );
@@ -269,7 +261,7 @@
     };
     return (
       <div style={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: T.ink, color: '#fff' }}>
-        <form onSubmit={submit} style={{ width: 380, padding: 32, background: '#fff', color: T.ink, borderRadius: 8 }}>
+        <form onSubmit={submit} style={{ width: 380, maxWidth: 'calc(100vw - 32px)', padding: 32, background: '#fff', color: T.ink, borderRadius: 8 }}>
           <div style={{ ...S.label, marginBottom: 6 }}>Reset password</div>
           <div style={{ fontFamily: S.mono, fontSize: 22, fontWeight: 600, letterSpacing: '-0.01em', marginBottom: 20 }}>Set a new password</div>
           <div style={S.field}>
@@ -465,5 +457,5 @@
     );
   }
 
-  window.STUDIO_AUTH = { LoginPage, AccountPage, MobileLanding, useIsMobile, RecoveryForm };
+  window.STUDIO_AUTH = { LoginPage, AccountPage, DeleteAccountDialog, useIsMobile, RecoveryForm };
 })();
