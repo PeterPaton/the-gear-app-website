@@ -436,7 +436,7 @@
 
     const downloadPDF = async () => {
       const node = sheetRef.current;
-      if (!node || busy) return;
+      if (busy || (!isPhone && !node)) return;
       const filename = `${project.name.replace(/[^a-z0-9_\- ]/gi, '_').trim() || 'pull-list'}.pdf`;
 
       if (isPhone) {
@@ -509,6 +509,59 @@
       color: active ? T.orange : T.ink,
       cursor: 'pointer',
     });
+
+    // Phones: a full-screen sheet sized with inset (not vh, which iOS Safari
+    // measures as if its toolbar weren't there, hiding the buttons), with the
+    // options and a summary instead of the wide desktop preview.
+    if (isPhone) {
+      const sectionCount = sections ? sections.length : 0;
+      return (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: '#faf7f2', display: 'flex', flexDirection: 'column' }} role="dialog" aria-label="Export PDF">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: 'calc(env(safe-area-inset-top) + 12px) 16px 12px', background: '#fff', borderBottom: `1px solid ${T.paperEdge}`, flexShrink: 0 }}>
+            <div style={{ fontFamily: S.mono, fontSize: 16, fontWeight: 700 }}>Export PDF</div>
+            <button onClick={onClose} disabled={busy} aria-label="Close" style={{ background: T.paperLight, border: 'none', borderRadius: '50%', width: 32, height: 32, fontSize: 18, lineHeight: 1, color: T.textMute, cursor: 'pointer' }}>×</button>
+          </div>
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 10, padding: 16 }}>
+              <div style={{ ...S.label, marginBottom: 6 }}>Full list</div>
+              <div style={{ fontFamily: S.mono, fontSize: 22, fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1.15, wordBreak: 'break-word' }}>{project.name}</div>
+              {[project.client, project.shoot, project.location].some(Boolean) && (
+                <div style={{ fontSize: 12, color: T.textMute, marginTop: 4 }}>{[project.client, project.shoot, project.location].filter(Boolean).join(' · ')}</div>
+              )}
+              <div style={{ display: 'flex', gap: 24, fontFamily: S.mono, marginTop: 14 }}>
+                <div><div style={{ ...S.label, fontSize: 9 }}>Items</div><div style={{ fontSize: 18, marginTop: 2 }}>{totalQty}</div></div>
+                <div><div style={{ ...S.label, fontSize: 9 }}>Unique</div><div style={{ fontSize: 18, marginTop: 2 }}>{uniqueCount}</div></div>
+                {sectionCount > 0 && <div><div style={{ ...S.label, fontSize: 9 }}>Sections</div><div style={{ fontSize: 18, marginTop: 2 }}>{sectionCount}</div></div>}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button style={toggleBtn(showPhotos)} onClick={() => setShowPhotos(v => !v)}>{showPhotos ? '✓' : '○'} Photos</button>
+              <button style={toggleBtn(showSubheaders)} onClick={() => setShowSubheaders(v => !v)}>{showSubheaders ? '✓' : '○'} Subheaders</button>
+              <button style={toggleBtn(isTight)} onClick={() => setDensity('tight')}>▤ Compact</button>
+              <button style={toggleBtn(!isTight)} onClick={() => setDensity('comfortable')}>≡ Spacious</button>
+            </div>
+            {error && (
+              <div style={{ background: '#fde6dd', color: T.err, border: `1px solid ${T.err}`, borderRadius: 4, padding: '9px 12px', fontSize: 12, fontFamily: S.mono }}>{error}</div>
+            )}
+            {branding && onUpgrade && (
+              <div style={{ fontSize: 11, color: T.textMute, fontFamily: S.mono, lineHeight: 1.5 }}>
+                Free exports carry Gear branding. <a href="#" onClick={(e) => { e.preventDefault(); onUpgrade(); }} style={{ color: T.orange, fontWeight: 600 }}>Go Pro for clean exports</a>
+              </div>
+            )}
+          </div>
+          <div style={{ padding: '12px 16px calc(env(safe-area-inset-bottom) + 12px)', background: '#fff', borderTop: `1px solid ${T.paperEdge}`, display: 'flex', gap: 8, flexShrink: 0 }}>
+            {pdf ? (
+              <React.Fragment>
+                <a href={pdf.url} target="_blank" rel="noopener" download={pdf.file.name} style={{ ...S.btnG, flex: 1, padding: 13, textAlign: 'center', textDecoration: 'none', borderRadius: 8 }}>Open PDF</a>
+                {canShare && <button style={{ ...S.btnP, flex: 1, padding: 13, borderRadius: 8 }} onClick={sharePdf}>Share PDF</button>}
+              </React.Fragment>
+            ) : (
+              <button style={{ ...S.btnP, flex: 1, padding: 13, borderRadius: 8, opacity: busy ? 0.6 : 1 }} onClick={downloadPDF} disabled={busy}>{busy ? 'Generating…' : 'Create PDF'}</button>
+            )}
+          </div>
+        </div>
+      );
+    }
 
     return (
       <ModalShell title="Export Full List" onClose={onClose} width={760} footer={
