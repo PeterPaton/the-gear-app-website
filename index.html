@@ -1209,7 +1209,6 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
           openNewProject, openUpgrade, startCheckout, openBillingPortal, refreshBilling,
           signOut, deleteAccount, updateUser,
           editItem: setModalEditItem,
-          newInventoryItem: () => { if (canAddInventoryItem()) setModalEditItem({ category: 'Camera', qty: 1, status: 'available' }); },
           exportProject: setModalExport,
           suggestProps: {
             userId: session?.user?.id,
@@ -1285,7 +1284,6 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
                 onRenameGroup={renameGroup}
                 onDeleteGroup={deleteGroup}
                 onMoveItemToGroup={moveItemToGroup}
-                onAddItem={() => { if (canAddInventoryItem()) setModalEditItem({ category: 'Camera', qty: 1, status: 'available' }); }}
                 onOpenDatabase={() => setPage('database')}
                 onExportInventory={() => setModalExport({ name: (user && user.name) ? `${user.name}'s Inventory` : 'Inventory', client: '', shoot: '', location: '' })}
                 draggedId={draggedId} setDraggedId={setDraggedId}

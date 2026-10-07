@@ -10,7 +10,7 @@
     density, setDensity,
     onEditItem, onAddToCart, onChangeInvQty,
     groups = [], onCombineIntoGroup, onRenameGroup, onDeleteGroup, onMoveItemToGroup,
-    onAddItem, onOpenDatabase, onExportInventory,
+    onOpenDatabase, onExportInventory,
     draggedId, setDraggedId, draggedGroupId, setDraggedGroupId,
     hoverCart, setHoverCart,
   }) {

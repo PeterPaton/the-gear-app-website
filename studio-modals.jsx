@@ -177,7 +177,15 @@
     // bucket for ungrouped rows.
     const [showSubheaders, setShowSubheaders] = useState(true);
     const [busy, setBusy] = useState(false);
+    const [error, setError] = useState('');
+    // Phones: the finished PDF, handed over by Share / Open. iOS ignores a
+    // scripted download (and share() needs a fresh tap), so it's two steps.
+    const [pdf, setPdf] = useState(null); // { blob, url, file }
+    const isPhone = window.STUDIO_AUTH ? window.STUDIO_AUTH.useIsMobile() : false;
     const sheetRef = React.useRef(null);
+    const dropPdf = () => setPdf(p => { if (p) URL.revokeObjectURL(p.url); return null; });
+    React.useEffect(() => dropPdf, []);
+    React.useEffect(() => { dropPdf(); }, [showPhotos, density, showSubheaders]);
 
     const totalQty = items.reduce((s, pi) => s + (pi.qty || 0), 0);
     const uniqueCount = items.length;
@@ -266,6 +274,7 @@
       const node = sheetRef.current;
       if (!node || !window.html2pdf || busy) return;
       setBusy(true);
+      setError('');
       // html2canvas refuses to render elements that are positioned far off-
       // screen (the cloned-and-hidden approach was producing blank PDFs), so
       // mutate the visible preview's <img> srcs in place, generate the PDF,
@@ -275,16 +284,29 @@
       const originalSrcs = imgs.map(img => img.getAttribute('src'));
       try {
         await inlineImagesAsDataUrls(node);
-        await window.html2pdf().from(node).set({
+        // iOS won't draw a canvas over ~16.7M pixels (it comes out blank), so
+        // long lists render at a lower scale rather than failing.
+        const area = Math.max(1, node.scrollWidth * node.scrollHeight);
+        const scale = Math.max(0.75, Math.min(2, Math.sqrt(15e6 / area)));
+        const filename = `${project.name.replace(/[^a-z0-9_\- ]/gi, '_').trim() || 'pull-list'}.pdf`;
+        const worker = window.html2pdf().from(node).set({
           margin: [0.4, 0.5, 0.5, 0.5],
-          filename: `${project.name.replace(/[^a-z0-9_\- ]/gi, '_').trim() || 'pull-list'}.pdf`,
+          filename,
           image: { type: 'jpeg', quality: 0.95 },
-          html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
+          html2canvas: { scale, useCORS: true, backgroundColor: '#ffffff', logging: false },
           jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
           pagebreak: { mode: ['css', 'legacy'], avoid: 'tr' },
-        }).save();
+        });
+        if (isPhone) {
+          const blob = await worker.outputPdf('blob');
+          dropPdf();
+          setPdf({ blob, url: URL.createObjectURL(blob), file: new File([blob], filename, { type: 'application/pdf' }) });
+        } else {
+          await worker.save();
+        }
       } catch (err) {
         console.warn('[Export] html2pdf failed:', err);
+        setError('Couldn’t create the PDF. Try Compact, or turn Photos off for a long list.');
       } finally {
         // Restore original sources so the preview keeps showing actual remote
         // images (the data-URL versions would still look identical but are
@@ -294,6 +316,12 @@
         });
         setBusy(false);
       }
+    };
+
+    const canShare = !!(pdf && navigator.canShare && navigator.canShare({ files: [pdf.file] }));
+    const sharePdf = async () => {
+      try { await navigator.share({ files: [pdf.file], title: project.name }); }
+      catch (err) { if (err && err.name !== 'AbortError') setError('Sharing didn’t work. Use Open PDF instead.'); }
     };
 
     const toggleBtn = (active) => ({
@@ -314,7 +342,14 @@
       <ModalShell title="Export Full List" onClose={onClose} width={760} footer={
         <React.Fragment>
           <button style={S.btnG} onClick={onClose} disabled={busy}>Cancel</button>
-          <button style={{ ...S.btnP, opacity: busy ? 0.6 : 1 }} onClick={downloadPDF} disabled={busy}>{busy ? 'Generating…' : 'Download PDF'}</button>
+          {pdf ? (
+            <React.Fragment>
+              <a href={pdf.url} target="_blank" rel="noopener" download={pdf.file.name} style={{ ...S.btnG, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>Open PDF</a>
+              {canShare && <button style={S.btnP} onClick={sharePdf}>Share PDF</button>}
+            </React.Fragment>
+          ) : (
+            <button style={{ ...S.btnP, opacity: busy ? 0.6 : 1 }} onClick={downloadPDF} disabled={busy}>{busy ? 'Generating…' : isPhone ? 'Create PDF' : 'Download PDF'}</button>
+          )}
         </React.Fragment>
       }>
         {/* Appearance toggles */}
@@ -401,6 +436,9 @@
             )}
         </div>
         </div>
+        {error && (
+          <div style={{ background: '#fde6dd', color: T.err, border: `1px solid ${T.err}`, borderRadius: 4, padding: '9px 12px', fontSize: 12, fontFamily: S.mono, marginTop: 10 }}>{error}</div>
+        )}
         {branding && onUpgrade && (
           <div style={{ fontSize: 11, color: T.textMute, fontFamily: S.mono, marginTop: 10 }}>
             Free exports carry Gear branding. <a href="#" onClick={(e) => { e.preventDefault(); onUpgrade(); }} style={{ color: T.orange, fontWeight: 600 }}>Go Pro for clean exports</a>

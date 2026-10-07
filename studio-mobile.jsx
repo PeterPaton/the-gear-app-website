@@ -35,7 +35,7 @@
     const [visited, setVisited] = useState(() => new Set(['inventory']));
     const [openProjectId, setOpenProjectId] = useState(null);
     const [showAccount, setShowAccount] = useState(false);
-    // { kind: 'gear', id, source: 'inventory' | 'catalog' } | { kind: 'addGear', projectId } | { kind: 'addItem' }
+    // { kind: 'gear', id, source: 'inventory' | 'catalog' } | { kind: 'addGear', projectId }
     const [sheet, setSheet] = useState(null);
 
     const go = (k) => {
@@ -76,7 +76,7 @@
             <InventoryScreen
               items={items} groups={groups} billing={billing}
               onOpenItem={(it) => setSheet({ kind: 'gear', id: it.id, source: 'inventory' })}
-              onAdd={() => setSheet({ kind: 'addItem' })}
+              onAdd={() => go('database')}
               onUpgrade={() => app.openUpgrade('inventory')}
             />
           </Pane>
@@ -143,20 +143,6 @@
             onAdd={(id) => app.addToProject(id, sheetProject.id)}
             onClose={() => setSheet(null)}
           />
-        )}
-        {sheet && sheet.kind === 'addItem' && (
-          <Sheet title="Add gear" onClose={() => setSheet(null)}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 6 }}>
-              <button style={bigChoice} onClick={() => { setSheet(null); go('database'); }}>
-                <span style={{ fontSize: 15, fontWeight: 600 }}>Find it in the database</span>
-                <span style={choiceSub}>{catalog.length ? `${catalog.length.toLocaleString()} cameras, lenses, lights and more` : 'Cameras, lenses, lights and more'}</span>
-              </button>
-              <button style={bigChoice} onClick={() => { setSheet(null); app.newInventoryItem(); }}>
-                <span style={{ fontSize: 15, fontWeight: 600 }}>Add a custom item</span>
-                <span style={choiceSub}>For anything that isn’t in the database</span>
-              </button>
-            </div>
-          </Sheet>
         )}
       </div>
     );
@@ -741,8 +727,6 @@
   const stepBtn = { width: 36, height: 34, background: 'none', border: 'none', fontSize: 18, color: T.ink, cursor: 'pointer' };
   const heroStatLabel = { fontSize: 9, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 4 };
   const emptyLine = { margin: '24px 16px', textAlign: 'center', fontFamily: S.mono, fontSize: 12, color: T.textMute, lineHeight: 1.5 };
-  const bigChoice = { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4, textAlign: 'left', padding: '16px 16px', background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 10, color: T.ink, cursor: 'pointer' };
-  const choiceSub = { fontSize: 12, color: T.textMute };
 
   window.STUDIO_MOBILE = { MobileApp };
 })();

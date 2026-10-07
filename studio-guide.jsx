@@ -152,7 +152,7 @@
   ];
 
   const STEPS = [
-    ['Add your gear', 'Search the database or create custom items.'],
+    ['Add your gear', 'Search the database and add what you own.'],
     ['Create a project', 'One per shoot, with client, dates and location.'],
     ['Fill it', 'Drag gear in, or let Suggest build the kit for you.'],
   ];
