@@ -126,7 +126,8 @@
           <GearSheet
             gear={sheetGear}
             invRow={sheet.source === 'inventory' ? sheetGear : items.find(i => gearKey(i) === sheetGear.id)}
-            projects={projects} projectItems={projectItems}
+            projects={projects} projectItems={projectItems} groups={groups}
+            onMoveToGroup={(rowId, groupId, newName) => app.moveItemsToGroup([rowId], groupId, newName)}
             onAddToProject={(projectId, invRow) => app.addToProject(invRow ? invRow.id : sheetGear.id, projectId)}
             onAddToInventory={() => app.saveItem(sheetGear)}
             onChangeInvQty={app.changeInvQty}
@@ -525,7 +526,7 @@
 
   // ─── Sheets ─────────────────────────────────────────────────────────
   // One piece of gear: what you own of it, and which projects it's in.
-  function GearSheet({ gear, invRow, projects, projectItems, onAddToProject, onAddToInventory, onChangeInvQty, onEdit, onNewProject, onClose }) {
+  function GearSheet({ gear, invRow, projects, projectItems, groups = [], onMoveToGroup, onAddToProject, onAddToInventory, onChangeInvQty, onEdit, onNewProject, onClose }) {
     // Project rows are matched on catalog id. Custom inventory items have
     // none, so they show no count here, but they still add fine.
     const key = gearKey(invRow || gear);
@@ -553,6 +554,27 @@
               <a href="#" onClick={(e) => { e.preventDefault(); onEdit(invRow); }} style={{ fontSize: 12, color: T.orange, fontWeight: 600, textDecoration: 'none' }}>Edit details</a>
             </div>
             <Stepper value={invRow.qty || 1} onMinus={minusOwned} onPlus={() => onChangeInvQty(invRow.id, 1)} />
+          </div>
+        ) : null}
+        {invRow ? (
+          <div style={{ ...sheetCard, display: 'flex', alignItems: 'center', gap: 12, marginTop: 10 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, flexShrink: 0 }}>Group</div>
+            <select
+              value={(groups.find(g => g.itemIds.includes(invRow.id)) || {}).id || ''}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === '__new') {
+                  const name = window.prompt('Name the new group', '');
+                  if (name && name.trim()) onMoveToGroup(invRow.id, null, name.trim());
+                } else {
+                  onMoveToGroup(invRow.id, v || null);
+                }
+              }}
+              style={{ ...S.input, flex: 1, minWidth: 0, borderRadius: 6 }}>
+              <option value="">No group</option>
+              {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+              <option value="__new">+ New group…</option>
+            </select>
           </div>
         ) : (
           <button onClick={onAddToInventory} style={{ ...S.btnP, width: '100%', padding: 13, borderRadius: 8, marginBottom: 14 }}>+ Add to inventory</button>

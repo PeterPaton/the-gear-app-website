@@ -9,7 +9,7 @@
     items, projects, activeProjectId,
     density, setDensity,
     onEditItem, onAddToCart, onChangeInvQty,
-    groups = [], onCombineIntoGroup, onRenameGroup, onDeleteGroup, onMoveItemToGroup,
+    groups = [], onCombineIntoGroup, onRenameGroup, onDeleteGroup, onMoveItemToGroup, onMoveItemsToGroup,
     onOpenDatabase, onExportInventory,
     draggedId, setDraggedId, draggedGroupId, setDraggedGroupId,
     hoverCart, setHoverCart,
@@ -21,6 +21,7 @@
     const [filter, setFilter] = useState('all');
     const [selected, setSelected] = useState(new Set());
     const [editMode, setEditMode] = useState(false);
+    const [groupMenu, setGroupMenu] = useState(false); // "Move to group" menu open
     // Row currently being hovered during a drag, for the "drop here to group" highlight.
     const [hoverRowId, setHoverRowId] = useState(null);
     // The group whose name input should be focused (set when a group is just created).
@@ -81,10 +82,23 @@
       return { groupItems, ungrouped };
     }, [filtered, groups]);
 
-    const toggleSel = (id) => {
-      const next = new Set(selected);
+    const toggleSel = (id) => setSelected(prev => {
+      const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
-      setSelected(next);
+      return next;
+    });
+
+    // Selected items go into a group in one step — no dragging across a long list.
+    const moveSelected = (groupId, newName) => {
+      if (!onMoveItemsToGroup || selected.size === 0) return;
+      const target = onMoveItemsToGroup(Array.from(selected), groupId, newName);
+      if (target) setCollapsedGroups(prev => { const next = new Set(prev); next.delete(target); return next; });
+      setSelected(new Set());
+      setGroupMenu(false);
+    };
+    const newGroupFromSelected = () => {
+      const name = window.prompt(`Name the new group (${selected.size} item${selected.size > 1 ? 's' : ''})`, '');
+      if (name && name.trim()) moveSelected(null, name.trim());
     };
 
     const cats = useMemo(() => {
@@ -181,11 +195,11 @@
 
     // Section card: header + list of rows. Optionally an inline editable name
     // for groups; static label for the ungrouped bucket.
-    const renderSection = ({ key, group, label, rows }) => {
+    const renderSection = ({ key, group, label, rows, collapsible = true }) => {
       if (rows.length === 0 && !group) return null; // skip empty ungrouped section
       const totalQty = rows.reduce((s, it) => s + (it.qty || 1), 0);
-      const collapsed = group ? collapsedGroups.has(group.id) : false;
-      const cardKey = group ? group.id : '_ungrouped';
+      const cardKey = group ? group.id : key;
+      const collapsed = collapsible && collapsedGroups.has(cardKey);
       // Only real group cards outline as a drop target. The ungrouped Items
       // card hands its drops through to the page-background drop zone so the
       // "release from group" gesture lights up the whole middle page.
@@ -227,7 +241,7 @@
               control; both call stopPropagation so we don't double-toggle.
               The bar is also a drag source: dragging a group header to the
               cart panel adds every item in that group to the active project. */}
-          <div onClick={() => { if (group) toggleGroupCollapse(group.id); }}
+          <div onClick={() => { if (collapsible) toggleGroupCollapse(cardKey); }}
                draggable={group ? !editMode : false}
                onDragStart={(e) => {
                  if (!group || editMode) return;
@@ -246,7 +260,7 @@
                  setDraggedGroupId && setDraggedGroupId(null);
                  setHoverCart && setHoverCart(false);
                }}
-               style={{ padding: '10px 14px 10px 18px', background: '#f6f3ee', borderBottom: collapsed ? 'none' : `1px solid ${T.paperEdge}`, display: 'flex', alignItems: 'center', gap: 10, cursor: group ? (editMode ? 'pointer' : 'grab') : 'default', userSelect: 'none', opacity: draggedGroupId === (group && group.id) ? 0.5 : 1 }}>
+               style={{ padding: '10px 14px 10px 18px', background: '#f6f3ee', borderBottom: collapsed ? 'none' : `1px solid ${T.paperEdge}`, display: 'flex', alignItems: 'center', gap: 10, cursor: group && !editMode ? 'grab' : (collapsible ? 'pointer' : 'default'), userSelect: 'none', opacity: draggedGroupId === (group && group.id) ? 0.5 : 1 }}>
             {(() => {
               if (!group) return <span style={{ flex: 1, fontFamily: S.mono, fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.ink }}>{label}</span>;
               // Names are only renamable when (a) the group was just created
@@ -280,15 +294,25 @@
               );
             })()}
             <span style={{ fontFamily: S.mono, fontSize: 10, color: T.textMute, fontWeight: 600 }}>{totalQty}</span>
+            {editMode && rows.length > 0 && (
+              <button onClick={(e) => { e.stopPropagation(); setSelected(prev => new Set([...prev, ...rows.map(it => it.id)])); }}
+                      title="Select every item in this section"
+                      style={{ border: `1px solid ${T.paperEdge}`, background: '#fff', color: T.ink, borderRadius: 4, cursor: 'pointer', fontFamily: S.mono, fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '4px 8px' }}>Select</button>
+            )}
             {group && editMode && (
               <button onClick={(e) => { e.stopPropagation(); if (window.confirm(`Delete group "${group.name}"? Items stay in inventory.`)) onDeleteGroup && onDeleteGroup(group.id); }}
                       title="Delete group"
                       style={{ width: 22, height: 22, border: 'none', background: 'rgba(196,74,44,0.1)', color: '#c44a2c', borderRadius: 4, cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: 0 }}>×</button>
             )}
-            {group && (
-              <button onClick={(e) => { e.stopPropagation(); toggleGroupCollapse(group.id); }}
-                      title={collapsed ? 'Expand group' : 'Collapse group'}
-                      style={{ width: 22, height: 22, border: 'none', background: 'rgba(0,0,0,0.06)', color: T.ink, borderRadius: 4, cursor: 'pointer', fontSize: 20, lineHeight: 1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform .15s', transform: collapsed ? 'rotate(90deg)' : 'rotate(0deg)' }}>▾</button>
+            {collapsible && (
+              <button onClick={(e) => { e.stopPropagation(); toggleGroupCollapse(cardKey); }}
+                      title={collapsed ? 'Expand' : 'Collapse'} aria-expanded={!collapsed}
+                      style={{ width: 22, height: 22, border: 'none', background: 'rgba(0,0,0,0.06)', color: T.ink, borderRadius: 4, cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {/* Chevron: points down when open, right when collapsed. */}
+                <svg width="10" height="10" viewBox="0 0 10 10" style={{ transition: 'transform .15s', transform: collapsed ? 'rotate(-90deg)' : 'none' }}>
+                  <path d="M2 3.5 L5 6.5 L8 3.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
             )}
           </div>
           {!collapsed && (
@@ -331,19 +355,51 @@
           <button style={S.btnP} onClick={onOpenDatabase}>+ Add Item</button>
         </div>
 
-        {editMode && selected.size > 0 && (
-          <div style={{ background: T.ink, color: '#fff', padding: '10px 28px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+        {editMode && (
+          <div style={{ background: T.ink, color: '#fff', padding: '10px 28px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0, position: 'relative', zIndex: 5 }}>
             <div style={{ fontFamily: S.mono, fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.7)' }}>
-              {selected.size} item{selected.size > 1 ? 's' : ''} selected
+              {selected.size > 0 ? `${selected.size} item${selected.size > 1 ? 's' : ''} selected` : 'Click items to select them'}
             </div>
-            <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.15)' }} />
-            <button style={{ background: T.orange, color: '#fff', border: 'none', padding: '7px 16px', fontSize: 11, fontFamily: S.mono, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.06em', borderRadius: 3, textTransform: 'uppercase' }}
-              onClick={() => { selected.forEach(id => onAddToCart(id)); setSelected(new Set()); }}>
-              + Add to {activeProject ? activeProject.name : 'project'}
+            <button style={barGhost} onClick={() => setSelected(new Set(filtered.map(it => it.id)))}>
+              Select all{filtered.length !== items.length ? ' shown' : ''} · {filtered.length}
             </button>
-            <div style={{ flex: 1 }} />
-            <button style={{ background: 'transparent', color: 'rgba(255,255,255,0.5)', border: 'none', padding: '7px 12px', fontSize: 11, fontFamily: S.mono, cursor: 'pointer', letterSpacing: '0.06em', textTransform: 'uppercase' }}
-              onClick={() => setSelected(new Set())}>✕ Clear</button>
+            {selected.size > 0 && (
+              <React.Fragment>
+                <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.15)' }} />
+                <div style={{ position: 'relative' }}>
+                  <button style={{ ...barSolid, background: '#fff', color: T.ink }} onClick={() => setGroupMenu(m => !m)} aria-expanded={groupMenu}>
+                    Move to group ▾
+                  </button>
+                  {groupMenu && (
+                    <React.Fragment>
+                      <div style={{ position: 'fixed', inset: 0, zIndex: 1 }} onClick={() => setGroupMenu(false)} />
+                      <div role="menu" style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 2, background: '#fff', color: T.ink, border: `1px solid ${T.paperEdge}`, borderRadius: 6, boxShadow: '0 12px 32px rgba(0,0,0,0.18)', minWidth: 240, maxHeight: 320, overflowY: 'auto', padding: 4 }}>
+                        <button role="menuitem" style={{ ...menuItem, color: T.orange, fontWeight: 600 }} onClick={newGroupFromSelected}>+ New group…</button>
+                        {groups.length > 0 && <div style={{ height: 1, background: '#f0ebe2', margin: '4px 0' }} />}
+                        {groups.map(g => (
+                          <button key={g.id} role="menuitem" style={menuItem} onClick={() => moveSelected(g.id)}>
+                            <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.name}</span>
+                            <span style={{ fontFamily: S.mono, fontSize: 10, color: T.textMute }}>{g.itemIds.length}</span>
+                          </button>
+                        ))}
+                        {groups.length > 0 && (
+                          <React.Fragment>
+                            <div style={{ height: 1, background: '#f0ebe2', margin: '4px 0' }} />
+                            <button role="menuitem" style={{ ...menuItem, color: T.textMute }} onClick={() => moveSelected(null)}>Remove from group</button>
+                          </React.Fragment>
+                        )}
+                      </div>
+                    </React.Fragment>
+                  )}
+                </div>
+                <button style={barSolid}
+                  onClick={() => { selected.forEach(id => onAddToCart(id)); setSelected(new Set()); }}>
+                  + Add to {activeProject ? activeProject.name : 'project'}
+                </button>
+                <div style={{ flex: 1 }} />
+                <button style={barGhost} onClick={() => setSelected(new Set())}>✕ Clear</button>
+              </React.Fragment>
+            )}
           </div>
         )}
 
@@ -401,7 +457,10 @@
               No items match. Try clearing filters.
             </div>
           ) : (
-            <React.Fragment>
+            query.trim() ? (
+              // Searching: one flat list of matches, no group sections.
+              renderSection({ key: '_results', label: `Results · ${filtered.length}`, rows: filtered, collapsible: false })
+            ) : <React.Fragment>
               {/* One section per group. When a filter is active, hide groups
                   that have no matching items (no more "No items match the
                   current filter" empty section). With no filter we still show
@@ -423,6 +482,10 @@
       </div>
     );
   }
+
+  const barSolid = { background: T.orange, color: '#fff', border: 'none', padding: '7px 16px', fontSize: 11, fontFamily: S.mono, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.06em', borderRadius: 3, textTransform: 'uppercase' };
+  const barGhost = { background: 'transparent', color: 'rgba(255,255,255,0.6)', border: 'none', padding: '7px 10px', fontSize: 11, fontFamily: S.mono, cursor: 'pointer', letterSpacing: '0.06em', textTransform: 'uppercase' };
+  const menuItem = { display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', background: 'none', border: 'none', borderRadius: 4, padding: '8px 10px', fontSize: 13, fontFamily: S.sans, color: T.ink, cursor: 'pointer' };
 
   window.STUDIO_INVENTORY = InventoryPage;
 })();
