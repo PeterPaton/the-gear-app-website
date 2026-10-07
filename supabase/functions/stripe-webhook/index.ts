@@ -71,7 +71,14 @@ async function handle(stripe: Stripe, event: Stripe.Event) {
       const userId = s.client_reference_id || s.metadata?.user_id;
       if (!userId || !(await userExists(userId))) return;
       if (s.mode === "subscription" && s.subscription) {
-        await syncSubscription(stripe, typeof s.subscription === "string" ? s.subscription : s.subscription.id, userId);
+        const subscriptionId = typeof s.subscription === "string" ? s.subscription : s.subscription.id;
+        // A Pro checkout that cost nothing used a free-month code (such as
+        // GEARFRIENDS26). Those end after the free month instead of rolling
+        // on to a paid one, so set the subscription to cancel at period end.
+        if (s.amount_total === 0 && (s.total_details?.amount_discount ?? 0) > 0) {
+          await stripe.subscriptions.update(subscriptionId, { cancel_at_period_end: true });
+        }
+        await syncSubscription(stripe, subscriptionId, userId);
       } else if (s.mode === "payment" && s.payment_status === "paid" && s.metadata?.pack_id) {
         // Delayed payment methods finish later, in async_payment_succeeded.
         const { data: pack, error } = await admin.from("credit_packs").select("credits").eq("id", s.metadata.pack_id).single();
