@@ -181,7 +181,11 @@
     // Phones: the finished PDF, handed over by Share / Open. iOS ignores a
     // scripted download (and share() needs a fresh tap), so it's two steps.
     const [pdf, setPdf] = useState(null); // { blob, url, file }
-    const isPhone = window.STUDIO_AUTH ? window.STUDIO_AUTH.useIsMobile() : false;
+    // Phones and other touch devices (including an iPhone set to "Request
+    // Desktop Website") use the light jsPDF export; html2canvas can run them
+    // out of memory.
+    const narrow = window.STUDIO_AUTH ? window.STUDIO_AUTH.useIsMobile() : false;
+    const isPhone = narrow || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || navigator.maxTouchPoints > 1;
     const sheetRef = React.useRef(null);
     const dropPdf = () => setPdf(p => { if (p) URL.revokeObjectURL(p.url); return null; });
     React.useEffect(() => dropPdf, []);
@@ -275,38 +279,57 @@
     };
 
     // A small JPEG thumbnail for the phone PDF, or null if the image can't be
-    // had within a few seconds.
+    // had within a few seconds. Works from a Blob and an object URL rather
+    // than a base64 data URL, and frees both straight away, so a long list of
+    // large product photos doesn't push Safari past its memory limit.
+    const fetchBlob = async (url) => {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 6000);
+      try {
+        const res = await fetch(url, { mode: 'cors', cache: 'no-store', signal: ctrl.signal });
+        if (!res.ok) throw new Error('fetch ' + res.status);
+        return await res.blob();
+      } finally { clearTimeout(timer); }
+    };
     const thumbFor = async (url) => {
-      let data = url;
+      let src = url, objectUrl = null;
       if (!url.startsWith('data:')) {
-        try { data = await fetchToDataUrl(url); }
+        let blob;
+        try { blob = await fetchBlob(url); }
         catch (e1) {
-          try { data = await fetchToDataUrl('/api/proxy?url=' + encodeURIComponent(url)); }
+          try { blob = await fetchBlob('/api/proxy?url=' + encodeURIComponent(url)); }
           catch (e2) { return null; }
         }
+        src = objectUrl = URL.createObjectURL(blob);
       }
-      return await new Promise(resolve => {
-        const img = new Image();
-        const timer = setTimeout(() => resolve(null), 4000);
-        img.onload = () => {
-          clearTimeout(timer);
-          try {
-            // SVGs without a size report 0×0 on iOS; treat those as square.
-            const nw = img.naturalWidth || 120, nh = img.naturalHeight || 120;
-            const k = Math.min(1, 120 / Math.max(nw, nh));
-            const c = document.createElement('canvas');
-            c.width = Math.max(1, Math.round(nw * k));
-            c.height = Math.max(1, Math.round(nh * k));
-            const ctx = c.getContext('2d');
-            ctx.fillStyle = '#fff';
-            ctx.fillRect(0, 0, c.width, c.height);
-            ctx.drawImage(img, 0, 0, c.width, c.height);
-            resolve({ data: c.toDataURL('image/jpeg', 0.85), w: c.width, h: c.height });
-          } catch (e) { resolve(null); }
-        };
-        img.onerror = () => { clearTimeout(timer); resolve(null); };
-        img.src = data;
-      });
+      try {
+        return await new Promise(resolve => {
+          const img = new Image();
+          const timer = setTimeout(() => resolve(null), 4000);
+          img.onload = () => {
+            clearTimeout(timer);
+            try {
+              // SVGs without a size report 0×0 on iOS; treat those as square.
+              const nw = img.naturalWidth || 120, nh = img.naturalHeight || 120;
+              const k = Math.min(1, 120 / Math.max(nw, nh));
+              const c = document.createElement('canvas');
+              c.width = Math.max(1, Math.round(nw * k));
+              c.height = Math.max(1, Math.round(nh * k));
+              const ctx = c.getContext('2d');
+              ctx.fillStyle = '#fff';
+              ctx.fillRect(0, 0, c.width, c.height);
+              ctx.drawImage(img, 0, 0, c.width, c.height);
+              const out = { data: c.toDataURL('image/jpeg', 0.85), w: c.width, h: c.height };
+              c.width = c.height = 0; // release the canvas's memory now (iOS keeps it otherwise)
+              resolve(out);
+            } catch (e) { resolve(null); }
+          };
+          img.onerror = () => { clearTimeout(timer); resolve(null); };
+          img.src = src;
+        });
+      } finally {
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+      }
     };
 
     // Phones: draw the list straight into a PDF with jsPDF, as text plus
@@ -326,9 +349,15 @@
 
       const thumbs = new Map();
       if (th) {
-        await Promise.all(items.map(async pi => {
-          thumbs.set(pi.id, await thumbFor(pi.image_url || window.GEAR_PLACEHOLDER(pi.category)));
-        }));
+        // Three at a time: enough to be quick, few enough that only a handful
+        // of full-size photos are ever decoded at once.
+        const queue = items.slice();
+        const worker = async () => {
+          for (let pi; (pi = queue.shift());) {
+            thumbs.set(pi.id, await thumbFor(pi.image_url || window.GEAR_PLACEHOLDER(pi.category)));
+          }
+        };
+        await Promise.all([worker(), worker(), worker()]);
       }
 
       // Header: title, details, branding, totals.
