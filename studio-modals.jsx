@@ -291,10 +291,12 @@
         img.onload = () => {
           clearTimeout(timer);
           try {
-            const k = Math.min(1, 120 / Math.max(img.naturalWidth, img.naturalHeight, 1));
+            // SVGs without a size report 0×0 on iOS; treat those as square.
+            const nw = img.naturalWidth || 120, nh = img.naturalHeight || 120;
+            const k = Math.min(1, 120 / Math.max(nw, nh));
             const c = document.createElement('canvas');
-            c.width = Math.max(1, Math.round(img.naturalWidth * k));
-            c.height = Math.max(1, Math.round(img.naturalHeight * k));
+            c.width = Math.max(1, Math.round(nw * k));
+            c.height = Math.max(1, Math.round(nh * k));
             const ctx = c.getContext('2d');
             ctx.fillStyle = '#fff';
             ctx.fillRect(0, 0, c.width, c.height);
