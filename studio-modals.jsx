@@ -230,8 +230,12 @@
     // first (works for Supabase Storage and other CORS-friendly hosts), then
     // falls through to our /api/proxy serverless route which re-serves
     // anything CORS-restricted with the right headers attached.
+    // Each fetch gives up after a few seconds so one slow image host can't
+    // leave the export stuck on "Generating…".
     const fetchToDataUrl = async (url) => {
-      const res = await fetch(url, { mode: 'cors', cache: 'no-store' });
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 6000);
+      const res = await fetch(url, { mode: 'cors', cache: 'no-store', signal: ctrl.signal }).finally(() => clearTimeout(timer));
       if (!res.ok) throw new Error('fetch ' + res.status);
       const blob = await res.blob();
       return await new Promise((resolve, reject) => {
@@ -270,9 +274,158 @@
       }));
     };
 
+    // A small JPEG thumbnail for the phone PDF, or null if the image can't be
+    // had within a few seconds.
+    const thumbFor = async (url) => {
+      let data = url;
+      if (!url.startsWith('data:')) {
+        try { data = await fetchToDataUrl(url); }
+        catch (e1) {
+          try { data = await fetchToDataUrl('/api/proxy?url=' + encodeURIComponent(url)); }
+          catch (e2) { return null; }
+        }
+      }
+      return await new Promise(resolve => {
+        const img = new Image();
+        const timer = setTimeout(() => resolve(null), 4000);
+        img.onload = () => {
+          clearTimeout(timer);
+          try {
+            const k = Math.min(1, 120 / Math.max(img.naturalWidth, img.naturalHeight, 1));
+            const c = document.createElement('canvas');
+            c.width = Math.max(1, Math.round(img.naturalWidth * k));
+            c.height = Math.max(1, Math.round(img.naturalHeight * k));
+            const ctx = c.getContext('2d');
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, c.width, c.height);
+            ctx.drawImage(img, 0, 0, c.width, c.height);
+            resolve({ data: c.toDataURL('image/jpeg', 0.85), w: c.width, h: c.height });
+          } catch (e) { resolve(null); }
+        };
+        img.onerror = () => { clearTimeout(timer); resolve(null); };
+        img.src = data;
+      });
+    };
+
+    // Phones: draw the list straight into a PDF with jsPDF, as text plus
+    // small thumbnails. Rendering the whole sheet to one big canvas
+    // (html2canvas) freezes iPhones on all but the shortest lists.
+    const buildPhonePdf = async () => {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+      const W = 612, H = 792, M = 40, right = W - M;
+      const ink = [25, 25, 25], mute = [122, 113, 106], rule = [232, 226, 216];
+      const th = showPhotos ? (isTight ? 22 : 34) : 0;
+      const pad = isTight ? 4 : 8;
+      const qtyX = M, photoX = M + 36, nameX = photoX + (th ? th + 12 : 0), catX = right - 100, nameW = catX - nameX - 12;
+      let y = M;
+      const ensure = (h) => { if (y + h > H - M - 20) { doc.addPage(); y = M; } };
+      const hline = (color, width) => { doc.setDrawColor(...color); doc.setLineWidth(width); doc.line(M, y, right, y); };
+
+      const thumbs = new Map();
+      if (th) {
+        await Promise.all(items.map(async pi => {
+          thumbs.set(pi.id, await thumbFor(pi.image_url || window.GEAR_PLACEHOLDER(pi.category)));
+        }));
+      }
+
+      // Header: title, details, branding, totals.
+      doc.setFont('courier', 'normal'); doc.setFontSize(8); doc.setTextColor(...mute);
+      doc.text('FULL LIST', M, y + 8);
+      const mark = branding ? 'THE GEAR APP' : (studioName ? String(studioName).toUpperCase() : '');
+      if (mark) { doc.setFont('courier', 'bold'); doc.setFontSize(11); doc.setTextColor(...ink); doc.text(mark, right, y + 8, { align: 'right' }); }
+      y += 20;
+      doc.setFont('courier', 'bold'); doc.setFontSize(22); doc.setTextColor(...ink);
+      const titleLines = doc.splitTextToSize(project.name || 'Kit list', W - 2 * M - 120);
+      titleLines.forEach(line => { y += 22; doc.text(line, M, y); });
+      const meta = [project.client, project.shoot, project.location].filter(Boolean).join(' · ');
+      if (meta) { y += 16; doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...mute); doc.text(doc.splitTextToSize(meta, W - 2 * M)[0], M, y); }
+      y += 12; hline(ink, 1.5);
+      y += 18;
+      doc.setFont('courier', 'normal'); doc.setFontSize(7); doc.setTextColor(...mute);
+      doc.text('ITEMS', M, y); doc.text('UNIQUE', W / 2, y);
+      y += 16; doc.setFontSize(14); doc.setTextColor(...ink);
+      doc.text(String(totalQty), M, y); doc.text(String(uniqueCount), W / 2, y);
+      y += 20;
+
+      if (items.length === 0) {
+        doc.setFont('courier', 'normal'); doc.setFontSize(9); doc.setTextColor(...mute);
+        doc.text('NO ITEMS IN THIS PROJECT', W / 2, y + 30, { align: 'center' });
+      } else {
+        doc.setFont('courier', 'bold'); doc.setFontSize(7); doc.setTextColor(...ink);
+        doc.text('QTY', qtyX, y); doc.text('ITEM', nameX, y); doc.text('CATEGORY', catX, y);
+        y += 6; hline(ink, 0.75);
+        (sections || [{ name: null, rows: items }]).forEach(sec => {
+          if (sec.name) {
+            ensure(24 + Math.max(th, 12) + pad * 2); // keep the heading with its first row
+            y += 18;
+            doc.setFont('courier', 'bold'); doc.setFontSize(8); doc.setTextColor(...ink);
+            doc.text(String(sec.name).toUpperCase(), M, y);
+            doc.setFont('courier', 'normal'); doc.setTextColor(...mute);
+            doc.text(String(sec.rows.reduce((n, pi) => n + (pi.qty || 0), 0)), M + doc.getTextWidth(String(sec.name).toUpperCase()) + 10, y);
+            y += 6; hline(ink, 0.75);
+          }
+          sec.rows.forEach(pi => {
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+            const lines = doc.splitTextToSize(pi.name || '', nameW);
+            const h = Math.max(th, lines.length * 12) + pad * 2;
+            ensure(h);
+            const mid = y + h / 2;
+            doc.setFont('courier', 'bold'); doc.setFontSize(10); doc.setTextColor(...ink);
+            doc.text(`${pi.qty}x`, qtyX, mid + 3);
+            if (th) {
+              doc.setDrawColor(224, 224, 224); doc.setLineWidth(0.5);
+              doc.roundedRect(photoX, y + pad, th, th, 3, 3);
+              const t = thumbs.get(pi.id);
+              if (t) {
+                const k = Math.min((th - 4) / t.w, (th - 4) / t.h);
+                const w = t.w * k, ih = t.h * k;
+                doc.addImage(t.data, 'JPEG', photoX + (th - w) / 2, y + pad + (th - ih) / 2, w, ih);
+              }
+            }
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(...ink);
+            const top = mid - (lines.length * 12) / 2 + 9;
+            lines.forEach((line, i) => doc.text(line, nameX, top + i * 12));
+            doc.setFont('courier', 'normal'); doc.setFontSize(8); doc.setTextColor(...mute);
+            doc.text(doc.splitTextToSize(pi.category || '', right - catX)[0] || '', catX, mid + 3);
+            y += h; hline(rule, 0.5);
+          });
+        });
+      }
+
+      if (branding) {
+        ensure(30);
+        y += 22;
+        doc.setFont('courier', 'normal'); doc.setFontSize(7); doc.setTextColor(...mute);
+        doc.text('MADE WITH THE GEAR APP', M, y);
+        doc.text('GEARAPP.IO', right, y, { align: 'right' });
+      }
+      return doc.output('blob');
+    };
+
     const downloadPDF = async () => {
       const node = sheetRef.current;
-      if (!node || !window.html2pdf || busy) return;
+      if (!node || busy) return;
+      const filename = `${project.name.replace(/[^a-z0-9_\- ]/gi, '_').trim() || 'pull-list'}.pdf`;
+
+      if (isPhone) {
+        if (!window.jspdf) { setError('The PDF tool didn’t load. Check your connection and try again.'); return; }
+        setBusy(true);
+        setError('');
+        try {
+          const blob = await buildPhonePdf();
+          dropPdf();
+          setPdf({ blob, url: URL.createObjectURL(blob), file: new File([blob], filename, { type: 'application/pdf' }) });
+        } catch (err) {
+          console.warn('[Export] phone PDF failed:', err);
+          setError('Couldn’t create the PDF. Try again, or turn Photos off.');
+        } finally {
+          setBusy(false);
+        }
+        return;
+      }
+
+      if (!window.html2pdf) return;
       setBusy(true);
       setError('');
       // html2canvas refuses to render elements that are positioned far off-
@@ -284,26 +437,14 @@
       const originalSrcs = imgs.map(img => img.getAttribute('src'));
       try {
         await inlineImagesAsDataUrls(node);
-        // iOS won't draw a canvas over ~16.7M pixels (it comes out blank), so
-        // long lists render at a lower scale rather than failing.
-        const area = Math.max(1, node.scrollWidth * node.scrollHeight);
-        const scale = Math.max(0.75, Math.min(2, Math.sqrt(15e6 / area)));
-        const filename = `${project.name.replace(/[^a-z0-9_\- ]/gi, '_').trim() || 'pull-list'}.pdf`;
-        const worker = window.html2pdf().from(node).set({
+        await window.html2pdf().from(node).set({
           margin: [0.4, 0.5, 0.5, 0.5],
           filename,
           image: { type: 'jpeg', quality: 0.95 },
-          html2canvas: { scale, useCORS: true, backgroundColor: '#ffffff', logging: false },
+          html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
           jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
           pagebreak: { mode: ['css', 'legacy'], avoid: 'tr' },
-        });
-        if (isPhone) {
-          const blob = await worker.outputPdf('blob');
-          dropPdf();
-          setPdf({ blob, url: URL.createObjectURL(blob), file: new File([blob], filename, { type: 'application/pdf' }) });
-        } else {
-          await worker.save();
-        }
+        }).save();
       } catch (err) {
         console.warn('[Export] html2pdf failed:', err);
         setError('Couldn’t create the PDF. Try Compact, or turn Photos off for a long list.');
