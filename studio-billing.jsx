@@ -44,7 +44,7 @@
     const planCard = (plan, highlight) => {
       const current = status ? status.plan === plan.id : plan.id === 'free';
       return (
-        <div style={{ flex: 1, border: `${highlight ? 2 : 1}px solid ${highlight ? T.orange : T.paperEdge}`, borderRadius: 6, padding: 20, background: highlight ? '#fff8f4' : '#fff', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ flex: '1 1 260px', border: `${highlight ? 2 : 1}px solid ${highlight ? T.orange : T.paperEdge}`, borderRadius: 6, padding: 20, background: highlight ? '#fff8f4' : '#fff', display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
             <div style={{ ...S.label, color: highlight ? T.orange : T.textMute }}>{plan.name}</div>
             {current && <span style={S.pill(T.paperLight, T.ink)}>Current plan</span>}

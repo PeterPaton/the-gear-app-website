@@ -12,7 +12,7 @@ window.STUDIO_STYLES = (function () {
     pill: (bg, fg) => ({ display: 'inline-block', padding: '2px 8px', borderRadius: 999, background: bg, color: fg, fontSize: 9, fontWeight: 600, fontFamily: '"JetBrains Mono", monospace', letterSpacing: '0.06em', textTransform: 'uppercase' }),
     input: { padding: '9px 12px', borderRadius: 4, border: `1px solid ${T.paperEdge}`, background: '#fff', fontSize: 13, fontFamily: '"Inter", system-ui, sans-serif', color: T.ink, outline: 'none', width: '100%' },
     modalOverlay: { position: 'fixed', inset: 0, background: 'rgba(20,16,12,0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 },
-    modal: { background: '#fff', borderRadius: 8, width: 540, maxHeight: '85vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 60px rgba(0,0,0,0.25)' },
+    modal: { background: '#fff', borderRadius: 8, width: 540, maxWidth: 'calc(100vw - 24px)', maxHeight: '85vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 60px rgba(0,0,0,0.25)' },
     modalHead: { padding: '20px 24px', borderBottom: '1px solid #f0ebe2', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
     modalTitle: { fontFamily: '"JetBrains Mono", monospace', fontSize: 18, fontWeight: 600, letterSpacing: '-0.01em' },
     modalBody: { padding: 24, overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 16 },

@@ -3,7 +3,14 @@
 <head>
 <meta charset="UTF-8" />
 <title>Gear — Studio</title>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#191919" />
+<!-- Add to Home Screen: opens full screen like an app, under a dark status bar. -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Gear" />
+<link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" href="app-icon.jpg" type="image/jpeg" />
 <link rel="apple-touch-icon" href="app-icon.jpg" />
 <!-- Vercel Web Analytics (served by Vercel; 404s harmlessly under serve.py) -->
@@ -32,6 +39,13 @@
      in the group name input (and elsewhere) actually shows feedback. */
   input::selection, textarea::selection, [contenteditable="true"]::selection { background: rgba(255,87,12,0.28); color: inherit; }
   input::-moz-selection, textarea::-moz-selection, [contenteditable="true"]::-moz-selection { background: rgba(255,87,12,0.28); color: inherit; }
+  /* Phones (same test as STUDIO_AUTH.useIsMobile): 16px fields stop iOS
+     zooming in on focus, and the page itself doesn't rubber-band. */
+  @media (max-width: 819px), (pointer: coarse) and (max-height: 500px) {
+    input, select, textarea { font-size: 16px !important; }
+    html, body { overscroll-behavior: none; }
+    body { -webkit-tap-highlight-color: transparent; }
+  }
 </style>
 </head>
 <body>
@@ -65,6 +79,7 @@
 <script type="text/babel" src="studio-tour.jsx"></script>
 <script type="text/babel" src="studio-projects.jsx"></script>
 <script type="text/babel" src="studio-auth.jsx"></script>
+<script type="text/babel" src="studio-mobile.jsx"></script>
 <script type="text/babel" src="tweaks-panel.jsx"></script>
 
 <script type="text/babel" data-presets="react">
@@ -636,8 +651,16 @@ function App() {
 
   // ── Mutations ────────────────────────────────────────────────
   
-  const addToProject = (rawId) => {
-    if (!activeProjectId) return;
+  // Project-item inserts still in flight, by row id. A quick second tap must
+  // wait for the row to exist before its qty update or delete goes out, or
+  // the change is lost on the next load.
+  const pendingInserts = React.useRef(new Map());
+  const afterInsert = (rowId) => pendingInserts.current.get(rowId) || Promise.resolve();
+
+  // Adds to the active project by default; the phone layout names the
+  // project explicitly because it has no cart panel.
+  const addToProject = (rawId, projectId = activeProjectId) => {
+    if (!projectId) return;
     // Identify whether the drag came from the Database (catalog row) or the
     // Inventory (a user_inventory row). project_items.equipment_id is a FK
     // back to equipment.UUID, so we have to send the catalog id — not the
@@ -653,7 +676,7 @@ function App() {
     // Dedupe key — when the dragged item maps onto a catalog row, multiple
     // drops collapse into one qty++ row. Custom inventory items with no
     // catalog link stay as separate rows.
-    const current = projectItems[activeProjectId] || [];
+    const current = projectItems[projectId] || [];
     const existing = equipmentId ? current.find(it => it.equipment_id === equipmentId) : null;
 
     // Client-mint the new row's id so the optimistic row already has its
@@ -664,16 +687,16 @@ function App() {
 
     // Optimistic local update.
     setProjectItems(prev => {
-      const cur = prev[activeProjectId] || [];
+      const cur = prev[projectId] || [];
       const ex = equipmentId ? cur.find(it => it.equipment_id === equipmentId) : null;
       if (ex) {
-        return { ...prev, [activeProjectId]: cur.map(it =>
+        return { ...prev, [projectId]: cur.map(it =>
           it.id === ex.id ? { ...it, qty: it.qty + 1 } : it
         )};
       }
-      return { ...prev, [activeProjectId]: [...cur, {
+      return { ...prev, [projectId]: [...cur, {
         id: newId,
-        project_id: activeProjectId,
+        project_id: projectId,
         equipment_id: equipmentId,
         name: source.name,
         image_url: source.image_url,
@@ -685,7 +708,7 @@ function App() {
     // Persist to Supabase — single roundtrip per case.
     if (window.GEAR_DB?.enabled && session) {
       if (existing && existing.id) {
-        window.GEAR_DB.updateProjectItemQty(existing.id, existing.qty + 1, session);
+        afterInsert(existing.id).then(() => window.GEAR_DB.updateProjectItemQty(existing.id, existing.qty + 1, session));
       } else {
         // Build a synthetic "equipment" payload pointing at the canonical
         // catalog id (or null for custom items, which requires the
@@ -696,8 +719,10 @@ function App() {
           image_url: source.image_url,
           category: source.category,
         };
-        window.GEAR_DB.addProjectItem(activeProjectId, equipmentPayload, session, newId)
-          .catch(err => console.warn('[App] addProjectItem failed:', err?.message || err));
+        const insert = window.GEAR_DB.addProjectItem(projectId, equipmentPayload, session, newId)
+          .catch(err => console.warn('[App] addProjectItem failed:', err?.message || err))
+          .finally(() => pendingInserts.current.delete(newId));
+        pendingInserts.current.set(newId, insert);
       }
     }
   };
@@ -715,11 +740,9 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
 
     // Persist to Supabase
     if (window.GEAR_DB?.enabled && session) {
-      if (newQty <= 0) {
-        window.GEAR_DB.deleteProjectItem(item.id, session);
-      } else {
-        window.GEAR_DB.updateProjectItemQty(item.id, newQty, session);
-      }
+      afterInsert(item.id).then(() => (newQty <= 0
+        ? window.GEAR_DB.deleteProjectItem(item.id, session)
+        : window.GEAR_DB.updateProjectItemQty(item.id, newQty, session)));
     }
     return { ...prev, [projectId]: updated };
   });
@@ -1113,18 +1136,100 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
     );
   }
 
-  // ── Phone takeover ──
-  // The studio UI is desktop-only. Anyone on a phone gets the brand landing
-  // with a "use it on your laptop" pointer, signed in or not.
-  if (isMobileViewport) return <window.STUDIO_AUTH.MobileLanding />;
-
   // ── Password recovery ──
   // Triggered when Supabase fires PASSWORD_RECOVERY after the user clicks
   // the reset email link. Block the rest of the app until they pick a new one.
   if (recoveryMode) return <window.STUDIO_AUTH.RecoveryForm onComplete={() => setRecoveryMode(false)} />;
 
-  // ── Auth gate ──
+  // ── Auth gate ── (LoginPage has its own phone layout)
   if (!user) return <window.STUDIO_AUTH.LoginPage onSignIn={signIn} catalog={catalog} />;
+
+  // Modals, the upgrade screen and the checkout notice, shared by the
+  // desktop studio and the phone layout.
+  const overlays = (
+    <React.Fragment>
+      {modalNewProject && (
+        <window.STUDIO_MODALS.NewProjectModal
+          onClose={() => setModalNewProject(false)}
+          onCreate={createProject}
+        />
+      )}
+      {modalEditItem && (
+        <window.STUDIO_MODALS.EditItemModal
+          item={modalEditItem}
+          onClose={() => setModalEditItem(null)}
+          onSave={saveItem}
+        />
+      )}
+      {modalExport && (
+        <window.STUDIO_MODALS.ExportPDFModal
+          project={modalExport}
+          /* No id => exporting the user's inventory rather than a project. */
+          items={modalExport.id ? (projectItems[modalExport.id] || []) : items}
+          mode={modalExport.id ? 'project' : 'inventory'}
+          groups={groups}
+          branding={!billing || billing.pdf_branding}
+          studioName={user && user.studio}
+          onUpgrade={() => openUpgrade('branding')}
+          onClose={() => setModalExport(null)}
+        />
+      )}
+      {paywall && (
+        <window.STUDIO_BILLING.PricingModal
+          reason={paywall.reason}
+          status={billing}
+          catalog={billingCatalog}
+          busy={billingBusy}
+          error={billingError}
+          onCheckout={startCheckout}
+          onManage={openBillingPortal}
+          onClose={() => { setPaywall(null); setBillingError(''); }}
+        />
+      )}
+      {billingNotice && (
+        <div role="status" style={{ position: 'fixed', top: 'calc(env(safe-area-inset-top) + 18px)', left: '50%', transform: 'translateX(-50%)', maxWidth: 'calc(100vw - 24px)', background: '#191919', color: '#fff', padding: '11px 16px', borderRadius: 6, fontFamily: '"JetBrains Mono", monospace', fontSize: 12, zIndex: 300, display: 'flex', alignItems: 'center', gap: 14, boxShadow: '0 8px 24px rgba(0,0,0,0.25)' }}>
+          <span>{billingNotice.text}</span>
+          {billingNotice.done && <button onClick={() => setBillingNotice(null)} aria-label="Dismiss" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: 16, padding: 0 }}>×</button>}
+        </div>
+      )}
+    </React.Fragment>
+  );
+
+  // ── Phone layout ──
+  // Same state and actions as the studio below, laid out for a phone. The
+  // first-login tour points at desktop controls, so it waits for a laptop.
+  if (isMobileViewport && window.STUDIO_MOBILE) {
+    return (
+      <React.Fragment>
+        <window.STUDIO_MOBILE.MobileApp app={{
+          user, session, billing, billingCatalog, billingBusy, billingError,
+          items, groups, catalog, dbStatus, projects, projectItems,
+          setActiveProjectId, addToProject, changeQty, changeInvQty, saveItem,
+          deleteProject, renameProject, changeProjectStatus,
+          openNewProject, openUpgrade, startCheckout, openBillingPortal, refreshBilling,
+          signOut, deleteAccount, updateUser,
+          editItem: setModalEditItem,
+          newInventoryItem: () => { if (canAddInventoryItem()) setModalEditItem({ category: 'Camera', qty: 1, status: 'available' }); },
+          exportProject: setModalExport,
+          suggestProps: {
+            userId: session?.user?.id,
+            catalog,
+            supabaseUrl: tweaks.supabaseUrl,
+            anonKey: tweaks.supabaseAnonKey,
+            accessToken: session?.access_token,
+            projects,
+            activeProjectId,
+            billing,
+            onCreditsChange: (c) => setBilling(b => (b ? { ...b, monthly_credits: c.monthly, bonus_credits: c.bonus } : b)),
+            onUpgrade: openUpgrade,
+            onAddKitToProject: addKitToProject,
+            onCreateProjectFromKit: createProjectFromKit,
+          },
+        }} />
+        {overlays}
+      </React.Fragment>
+    );
+  }
 
   return (
     <div style={{ width: '100vw', height: '100vh', display: 'flex', overflow: 'hidden', background: '#f6f3ee' }}>
@@ -1275,33 +1380,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
         )}
       </div>
 
-      {/* Modals */}
-      {modalNewProject && (
-        <window.STUDIO_MODALS.NewProjectModal
-          onClose={() => setModalNewProject(false)}
-          onCreate={createProject}
-        />
-      )}
-      {modalEditItem && (
-        <window.STUDIO_MODALS.EditItemModal
-          item={modalEditItem}
-          onClose={() => setModalEditItem(null)}
-          onSave={saveItem}
-        />
-      )}
-      {modalExport && (
-        <window.STUDIO_MODALS.ExportPDFModal
-          project={modalExport}
-          /* No id => exporting the user's inventory rather than a project. */
-          items={modalExport.id ? (projectItems[modalExport.id] || []) : items}
-          mode={modalExport.id ? 'project' : 'inventory'}
-          groups={groups}
-          branding={!billing || billing.pdf_branding}
-          studioName={user && user.studio}
-          onUpgrade={() => openUpgrade('branding')}
-          onClose={() => setModalExport(null)}
-        />
-      )}
+      {overlays}
 
       {tour && window.STUDIO_TOUR && !(modalNewProject || modalEditItem || modalExport || paywall) && (
         <window.STUDIO_TOUR.Tour
@@ -1314,24 +1393,6 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
           onFinish={() => endTour()}
           onOpen={(p) => endTour(p)}
         />
-      )}
-      {paywall && (
-        <window.STUDIO_BILLING.PricingModal
-          reason={paywall.reason}
-          status={billing}
-          catalog={billingCatalog}
-          busy={billingBusy}
-          error={billingError}
-          onCheckout={startCheckout}
-          onManage={openBillingPortal}
-          onClose={() => { setPaywall(null); setBillingError(''); }}
-        />
-      )}
-      {billingNotice && (
-        <div role="status" style={{ position: 'fixed', top: 18, left: '50%', transform: 'translateX(-50%)', background: '#191919', color: '#fff', padding: '11px 16px', borderRadius: 6, fontFamily: '"JetBrains Mono", monospace', fontSize: 12, zIndex: 300, display: 'flex', alignItems: 'center', gap: 14, boxShadow: '0 8px 24px rgba(0,0,0,0.25)' }}>
-          <span>{billingNotice.text}</span>
-          {billingNotice.done && <button onClick={() => setBillingNotice(null)} aria-label="Dismiss" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: 16, padding: 0 }}>×</button>}
-        </div>
       )}
 
       {/* Tweaks panel is hidden in production. Show only when explicitly

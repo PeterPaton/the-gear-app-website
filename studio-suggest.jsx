@@ -57,7 +57,8 @@
     ok:          { label: 'Compatible', fg: T.ok,   bg: '#e3efe5', icon: '✓' },
   };
 
-  function SuggestPage({ userId, catalog = [], supabaseUrl, anonKey, accessToken, projects = [], activeProjectId, billing, onCreditsChange, onUpgrade, onAddKitToProject, onCreateProjectFromKit }) {
+  // `compact` is the phone layout: tighter margins, no keyboard hint.
+  function SuggestPage({ userId, catalog = [], supabaseUrl, anonKey, accessToken, projects = [], activeProjectId, billing, onCreditsChange, onUpgrade, onAddKitToProject, onCreateProjectFromKit, compact }) {
     const [prompt, setPrompt] = useState('');
     const [stage, setStage] = useState(''); // '' when idle, otherwise a progress label
     const [busyMode, setBusyMode] = useState(null); // 'generate' | 'refine' while working
@@ -343,7 +344,7 @@
     // ── Render ───────────────────────────────────────────────────────────
     return (
       <div style={{ flex: 1, overflowY: 'auto', background: '#f6f3ee' }}>
-        <div style={{ maxWidth: 1180, margin: '0 auto', padding: '32px 28px 80px' }}>
+        <div style={{ maxWidth: 1180, margin: '0 auto', padding: compact ? '18px 14px 32px' : '32px 28px 80px' }}>
 
           <div style={{ marginBottom: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
             <div>
@@ -403,7 +404,7 @@
             />
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 14, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 11, color: T.textMute, fontFamily: S.mono }}>
-                {catalog.length ? `${catalog.length.toLocaleString()} items in catalog` : 'Catalog loading…'} · ⌘↵ to generate
+                {catalog.length ? `${catalog.length.toLocaleString()} items in catalog` : 'Catalog loading…'}{compact ? '' : ' · ⌘↵ to generate'}
               </span>
               <button onClick={() => generate()} disabled={working} style={{ ...S.btnP, opacity: working ? 0.6 : 1, padding: '10px 18px' }}>
                 {busyMode === 'generate' ? 'Working…' : outOfCredits ? 'Get more credits' : 'Generate kit list · 1 credit'}
@@ -522,7 +523,7 @@
         </div>
 
         {toast && (
-          <div style={{ position: 'fixed', bottom: 26, left: '50%', transform: 'translateX(-50%)', background: T.ink, color: '#fff', padding: '11px 18px', fontFamily: S.mono, fontSize: 12, letterSpacing: '0.04em', zIndex: 200 }}>
+          <div style={{ position: 'fixed', bottom: compact ? 'calc(env(safe-area-inset-bottom) + 80px)' : 26, left: '50%', transform: 'translateX(-50%)', background: T.ink, color: '#fff', padding: '11px 18px', fontFamily: S.mono, fontSize: 12, letterSpacing: '0.04em', zIndex: 200 }}>
             {toast}
           </div>
         )}
