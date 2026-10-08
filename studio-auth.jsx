@@ -97,8 +97,8 @@
 
     if (showGuide && window.STUDIO_GUIDE) {
       return (
-        <div style={{ width: '100vw', height: '100vh', display: 'flex', overflow: 'hidden' }}>
-          <window.STUDIO_GUIDE catalog={plans} items={catalog} closeLabel="← Back to sign in" onClose={() => setShowGuide(false)} onCreateAccount={() => { setShowGuide(false); setMode('signup'); }} />
+        <div style={{ position: 'fixed', inset: 0, display: 'flex', overflow: 'hidden' }}>
+          <window.STUDIO_GUIDE compact={isMobile} catalog={plans} items={catalog} closeLabel="← Back to sign in" onClose={() => setShowGuide(false)} onCreateAccount={() => { setShowGuide(false); setMode('signup'); }} />
         </div>
       );
     }
@@ -185,6 +185,11 @@
               <div style={{ fontSize: 14, lineHeight: 1.5, color: 'rgba(255,255,255,0.75)' }}>
                 Organise your equipment, track your inventory and prep for every shoot.
               </div>
+              {window.STUDIO_GUIDE && (
+                <button onClick={() => setShowGuide(true)} style={{ marginTop: 18, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.22)', color: '#fff', borderRadius: 6, padding: '9px 14px', cursor: 'pointer', fontFamily: S.mono, fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                  See how it works →
+                </button>
+              )}
             </div>
           </div>
           <div style={{ position: 'relative', marginTop: -16, background: '#fff', borderRadius: '16px 16px 0 0', padding: '28px 22px calc(env(safe-area-inset-bottom) + 32px)' }}>

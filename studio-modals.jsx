@@ -177,7 +177,19 @@
     // bucket for ungrouped rows.
     const [showSubheaders, setShowSubheaders] = useState(true);
     const [busy, setBusy] = useState(false);
+    const [error, setError] = useState('');
+    // Phones: the finished PDF, handed over by Share / Open. iOS ignores a
+    // scripted download (and share() needs a fresh tap), so it's two steps.
+    const [pdf, setPdf] = useState(null); // { blob, url, file }
+    // Phones and other touch devices (including an iPhone set to "Request
+    // Desktop Website") use the light jsPDF export; html2canvas can run them
+    // out of memory.
+    const narrow = window.STUDIO_AUTH ? window.STUDIO_AUTH.useIsMobile() : false;
+    const isPhone = narrow || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || navigator.maxTouchPoints > 1;
     const sheetRef = React.useRef(null);
+    const dropPdf = () => setPdf(p => { if (p) URL.revokeObjectURL(p.url); return null; });
+    React.useEffect(() => dropPdf, []);
+    React.useEffect(() => { dropPdf(); }, [showPhotos, density, showSubheaders]);
 
     const totalQty = items.reduce((s, pi) => s + (pi.qty || 0), 0);
     const uniqueCount = items.length;
@@ -222,8 +234,12 @@
     // first (works for Supabase Storage and other CORS-friendly hosts), then
     // falls through to our /api/proxy serverless route which re-serves
     // anything CORS-restricted with the right headers attached.
+    // Each fetch gives up after a few seconds so one slow image host can't
+    // leave the export stuck on "Generating…".
     const fetchToDataUrl = async (url) => {
-      const res = await fetch(url, { mode: 'cors', cache: 'no-store' });
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 6000);
+      const res = await fetch(url, { mode: 'cors', cache: 'no-store', signal: ctrl.signal }).finally(() => clearTimeout(timer));
       if (!res.ok) throw new Error('fetch ' + res.status);
       const blob = await res.blob();
       return await new Promise((resolve, reject) => {
@@ -262,10 +278,187 @@
       }));
     };
 
+    // A small JPEG thumbnail for the phone PDF, or null if the image can't be
+    // had within a few seconds. Works from a Blob and an object URL rather
+    // than a base64 data URL, and frees both straight away, so a long list of
+    // large product photos doesn't push Safari past its memory limit.
+    const fetchBlob = async (url) => {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 6000);
+      try {
+        const res = await fetch(url, { mode: 'cors', cache: 'no-store', signal: ctrl.signal });
+        if (!res.ok) throw new Error('fetch ' + res.status);
+        return await res.blob();
+      } finally { clearTimeout(timer); }
+    };
+    const thumbFor = async (url) => {
+      let src = url, objectUrl = null;
+      if (!url.startsWith('data:')) {
+        let blob;
+        try { blob = await fetchBlob(url); }
+        catch (e1) {
+          try { blob = await fetchBlob('/api/proxy?url=' + encodeURIComponent(url)); }
+          catch (e2) { return null; }
+        }
+        src = objectUrl = URL.createObjectURL(blob);
+      }
+      try {
+        return await new Promise(resolve => {
+          const img = new Image();
+          const timer = setTimeout(() => resolve(null), 4000);
+          img.onload = () => {
+            clearTimeout(timer);
+            try {
+              // SVGs without a size report 0×0 on iOS; treat those as square.
+              const nw = img.naturalWidth || 120, nh = img.naturalHeight || 120;
+              const k = Math.min(1, 120 / Math.max(nw, nh));
+              const c = document.createElement('canvas');
+              c.width = Math.max(1, Math.round(nw * k));
+              c.height = Math.max(1, Math.round(nh * k));
+              const ctx = c.getContext('2d');
+              ctx.fillStyle = '#fff';
+              ctx.fillRect(0, 0, c.width, c.height);
+              ctx.drawImage(img, 0, 0, c.width, c.height);
+              const out = { data: c.toDataURL('image/jpeg', 0.85), w: c.width, h: c.height };
+              c.width = c.height = 0; // release the canvas's memory now (iOS keeps it otherwise)
+              resolve(out);
+            } catch (e) { resolve(null); }
+          };
+          img.onerror = () => { clearTimeout(timer); resolve(null); };
+          img.src = src;
+        });
+      } finally {
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+      }
+    };
+
+    // Phones: draw the list straight into a PDF with jsPDF, as text plus
+    // small thumbnails. Rendering the whole sheet to one big canvas
+    // (html2canvas) freezes iPhones on all but the shortest lists.
+    const buildPhonePdf = async () => {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+      const W = 612, H = 792, M = 40, right = W - M;
+      const ink = [25, 25, 25], mute = [122, 113, 106], rule = [232, 226, 216];
+      const th = showPhotos ? (isTight ? 22 : 34) : 0;
+      const pad = isTight ? 4 : 8;
+      const qtyX = M, photoX = M + 36, nameX = photoX + (th ? th + 12 : 0), catX = right - 100, nameW = catX - nameX - 12;
+      let y = M;
+      const ensure = (h) => { if (y + h > H - M - 20) { doc.addPage(); y = M; } };
+      const hline = (color, width) => { doc.setDrawColor(...color); doc.setLineWidth(width); doc.line(M, y, right, y); };
+
+      const thumbs = new Map();
+      if (th) {
+        // Three at a time: enough to be quick, few enough that only a handful
+        // of full-size photos are ever decoded at once.
+        const queue = items.slice();
+        const worker = async () => {
+          for (let pi; (pi = queue.shift());) {
+            thumbs.set(pi.id, await thumbFor(pi.image_url || window.GEAR_PLACEHOLDER(pi.category)));
+          }
+        };
+        await Promise.all([worker(), worker(), worker()]);
+      }
+
+      // Header: title, details, branding, totals.
+      doc.setFont('courier', 'normal'); doc.setFontSize(8); doc.setTextColor(...mute);
+      doc.text('FULL LIST', M, y + 8);
+      const mark = branding ? 'THE GEAR APP' : (studioName ? String(studioName).toUpperCase() : '');
+      if (mark) { doc.setFont('courier', 'bold'); doc.setFontSize(11); doc.setTextColor(...ink); doc.text(mark, right, y + 8, { align: 'right' }); }
+      y += 20;
+      doc.setFont('courier', 'bold'); doc.setFontSize(22); doc.setTextColor(...ink);
+      const titleLines = doc.splitTextToSize(project.name || 'Kit list', W - 2 * M - 120);
+      titleLines.forEach(line => { y += 22; doc.text(line, M, y); });
+      const meta = [project.client, project.shoot, project.location].filter(Boolean).join(' · ');
+      if (meta) { y += 16; doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...mute); doc.text(doc.splitTextToSize(meta, W - 2 * M)[0], M, y); }
+      y += 12; hline(ink, 1.5);
+      y += 18;
+      doc.setFont('courier', 'normal'); doc.setFontSize(7); doc.setTextColor(...mute);
+      doc.text('ITEMS', M, y); doc.text('UNIQUE', W / 2, y);
+      y += 16; doc.setFontSize(14); doc.setTextColor(...ink);
+      doc.text(String(totalQty), M, y); doc.text(String(uniqueCount), W / 2, y);
+      y += 20;
+
+      if (items.length === 0) {
+        doc.setFont('courier', 'normal'); doc.setFontSize(9); doc.setTextColor(...mute);
+        doc.text('NO ITEMS IN THIS PROJECT', W / 2, y + 30, { align: 'center' });
+      } else {
+        doc.setFont('courier', 'bold'); doc.setFontSize(7); doc.setTextColor(...ink);
+        doc.text('QTY', qtyX, y); doc.text('ITEM', nameX, y); doc.text('CATEGORY', catX, y);
+        y += 6; hline(ink, 0.75);
+        (sections || [{ name: null, rows: items }]).forEach(sec => {
+          if (sec.name) {
+            ensure(24 + Math.max(th, 12) + pad * 2); // keep the heading with its first row
+            y += 18;
+            doc.setFont('courier', 'bold'); doc.setFontSize(8); doc.setTextColor(...ink);
+            doc.text(String(sec.name).toUpperCase(), M, y);
+            doc.setFont('courier', 'normal'); doc.setTextColor(...mute);
+            doc.text(String(sec.rows.reduce((n, pi) => n + (pi.qty || 0), 0)), M + doc.getTextWidth(String(sec.name).toUpperCase()) + 10, y);
+            y += 6; hline(ink, 0.75);
+          }
+          sec.rows.forEach(pi => {
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+            const lines = doc.splitTextToSize(pi.name || '', nameW);
+            const h = Math.max(th, lines.length * 12) + pad * 2;
+            ensure(h);
+            const mid = y + h / 2;
+            doc.setFont('courier', 'bold'); doc.setFontSize(10); doc.setTextColor(...ink);
+            doc.text(`${pi.qty}x`, qtyX, mid + 3);
+            if (th) {
+              doc.setDrawColor(224, 224, 224); doc.setLineWidth(0.5);
+              doc.roundedRect(photoX, y + pad, th, th, 3, 3);
+              const t = thumbs.get(pi.id);
+              if (t) {
+                const k = Math.min((th - 4) / t.w, (th - 4) / t.h);
+                const w = t.w * k, ih = t.h * k;
+                doc.addImage(t.data, 'JPEG', photoX + (th - w) / 2, y + pad + (th - ih) / 2, w, ih);
+              }
+            }
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(...ink);
+            const top = mid - (lines.length * 12) / 2 + 9;
+            lines.forEach((line, i) => doc.text(line, nameX, top + i * 12));
+            doc.setFont('courier', 'normal'); doc.setFontSize(8); doc.setTextColor(...mute);
+            doc.text(doc.splitTextToSize(pi.category || '', right - catX)[0] || '', catX, mid + 3);
+            y += h; hline(rule, 0.5);
+          });
+        });
+      }
+
+      if (branding) {
+        ensure(30);
+        y += 22;
+        doc.setFont('courier', 'normal'); doc.setFontSize(7); doc.setTextColor(...mute);
+        doc.text('MADE WITH THE GEAR APP', M, y);
+        doc.text('GEARAPP.IO', right, y, { align: 'right' });
+      }
+      return doc.output('blob');
+    };
+
     const downloadPDF = async () => {
       const node = sheetRef.current;
-      if (!node || !window.html2pdf || busy) return;
+      if (busy || (!isPhone && !node)) return;
+      const filename = `${project.name.replace(/[^a-z0-9_\- ]/gi, '_').trim() || 'pull-list'}.pdf`;
+
+      if (isPhone) {
+        if (!window.jspdf) { setError('The PDF tool didn’t load. Check your connection and try again.'); return; }
+        setBusy(true);
+        setError('');
+        try {
+          const blob = await buildPhonePdf();
+          dropPdf();
+          setPdf({ blob, url: URL.createObjectURL(blob), file: new File([blob], filename, { type: 'application/pdf' }) });
+        } catch (err) {
+          console.warn('[Export] phone PDF failed:', err);
+          setError('Couldn’t create the PDF. Try again, or turn Photos off.');
+        } finally {
+          setBusy(false);
+        }
+        return;
+      }
+
+      if (!window.html2pdf) return;
       setBusy(true);
+      setError('');
       // html2canvas refuses to render elements that are positioned far off-
       // screen (the cloned-and-hidden approach was producing blank PDFs), so
       // mutate the visible preview's <img> srcs in place, generate the PDF,
@@ -277,7 +470,7 @@
         await inlineImagesAsDataUrls(node);
         await window.html2pdf().from(node).set({
           margin: [0.4, 0.5, 0.5, 0.5],
-          filename: `${project.name.replace(/[^a-z0-9_\- ]/gi, '_').trim() || 'pull-list'}.pdf`,
+          filename,
           image: { type: 'jpeg', quality: 0.95 },
           html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
           jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
@@ -285,6 +478,7 @@
         }).save();
       } catch (err) {
         console.warn('[Export] html2pdf failed:', err);
+        setError('Couldn’t create the PDF. Try Compact, or turn Photos off for a long list.');
       } finally {
         // Restore original sources so the preview keeps showing actual remote
         // images (the data-URL versions would still look identical but are
@@ -294,6 +488,12 @@
         });
         setBusy(false);
       }
+    };
+
+    const canShare = !!(pdf && navigator.canShare && navigator.canShare({ files: [pdf.file] }));
+    const sharePdf = async () => {
+      try { await navigator.share({ files: [pdf.file], title: project.name }); }
+      catch (err) { if (err && err.name !== 'AbortError') setError('Sharing didn’t work. Use Open PDF instead.'); }
     };
 
     const toggleBtn = (active) => ({
@@ -310,11 +510,71 @@
       cursor: 'pointer',
     });
 
+    // Phones: a full-screen sheet sized with inset (not vh, which iOS Safari
+    // measures as if its toolbar weren't there, hiding the buttons), with the
+    // options and a summary instead of the wide desktop preview.
+    if (isPhone) {
+      const sectionCount = sections ? sections.length : 0;
+      return (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: '#faf7f2', display: 'flex', flexDirection: 'column' }} role="dialog" aria-label="Export PDF">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: 'calc(env(safe-area-inset-top) + 12px) 16px 12px', background: '#fff', borderBottom: `1px solid ${T.paperEdge}`, flexShrink: 0 }}>
+            <div style={{ fontFamily: S.mono, fontSize: 16, fontWeight: 700 }}>Export PDF</div>
+            <button onClick={onClose} disabled={busy} aria-label="Close" style={{ background: T.paperLight, border: 'none', borderRadius: '50%', width: 32, height: 32, fontSize: 18, lineHeight: 1, color: T.textMute, cursor: 'pointer' }}>×</button>
+          </div>
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 10, padding: 16 }}>
+              <div style={{ ...S.label, marginBottom: 6 }}>Full list</div>
+              <div style={{ fontFamily: S.mono, fontSize: 22, fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1.15, wordBreak: 'break-word' }}>{project.name}</div>
+              {[project.client, project.shoot, project.location].some(Boolean) && (
+                <div style={{ fontSize: 12, color: T.textMute, marginTop: 4 }}>{[project.client, project.shoot, project.location].filter(Boolean).join(' · ')}</div>
+              )}
+              <div style={{ display: 'flex', gap: 24, fontFamily: S.mono, marginTop: 14 }}>
+                <div><div style={{ ...S.label, fontSize: 9 }}>Items</div><div style={{ fontSize: 18, marginTop: 2 }}>{totalQty}</div></div>
+                <div><div style={{ ...S.label, fontSize: 9 }}>Unique</div><div style={{ fontSize: 18, marginTop: 2 }}>{uniqueCount}</div></div>
+                {sectionCount > 0 && <div><div style={{ ...S.label, fontSize: 9 }}>Sections</div><div style={{ fontSize: 18, marginTop: 2 }}>{sectionCount}</div></div>}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button style={toggleBtn(showPhotos)} onClick={() => setShowPhotos(v => !v)}>{showPhotos ? '✓' : '○'} Photos</button>
+              <button style={toggleBtn(showSubheaders)} onClick={() => setShowSubheaders(v => !v)}>{showSubheaders ? '✓' : '○'} Subheaders</button>
+              <button style={toggleBtn(isTight)} onClick={() => setDensity('tight')}>▤ Compact</button>
+              <button style={toggleBtn(!isTight)} onClick={() => setDensity('comfortable')}>≡ Spacious</button>
+            </div>
+            {error && (
+              <div style={{ background: '#fde6dd', color: T.err, border: `1px solid ${T.err}`, borderRadius: 4, padding: '9px 12px', fontSize: 12, fontFamily: S.mono }}>{error}</div>
+            )}
+            {branding && onUpgrade && (
+              <div style={{ fontSize: 11, color: T.textMute, fontFamily: S.mono, lineHeight: 1.5 }}>
+                Free exports carry Gear branding. <a href="#" onClick={(e) => { e.preventDefault(); onUpgrade(); }} style={{ color: T.orange, fontWeight: 600 }}>Go Pro for clean exports</a>
+              </div>
+            )}
+          </div>
+          <div style={{ padding: '12px 16px calc(env(safe-area-inset-bottom) + 12px)', background: '#fff', borderTop: `1px solid ${T.paperEdge}`, display: 'flex', gap: 8, flexShrink: 0 }}>
+            {pdf ? (
+              <React.Fragment>
+                <a href={pdf.url} target="_blank" rel="noopener" download={pdf.file.name} style={{ ...S.btnG, flex: 1, padding: 13, textAlign: 'center', textDecoration: 'none', borderRadius: 8 }}>Open PDF</a>
+                {canShare && <button style={{ ...S.btnP, flex: 1, padding: 13, borderRadius: 8 }} onClick={sharePdf}>Share PDF</button>}
+              </React.Fragment>
+            ) : (
+              <button style={{ ...S.btnP, flex: 1, padding: 13, borderRadius: 8, opacity: busy ? 0.6 : 1 }} onClick={downloadPDF} disabled={busy}>{busy ? 'Generating…' : 'Create PDF'}</button>
+            )}
+          </div>
+        </div>
+      );
+    }
+
     return (
       <ModalShell title="Export Full List" onClose={onClose} width={760} footer={
         <React.Fragment>
           <button style={S.btnG} onClick={onClose} disabled={busy}>Cancel</button>
-          <button style={{ ...S.btnP, opacity: busy ? 0.6 : 1 }} onClick={downloadPDF} disabled={busy}>{busy ? 'Generating…' : 'Download PDF'}</button>
+          {pdf ? (
+            <React.Fragment>
+              <a href={pdf.url} target="_blank" rel="noopener" download={pdf.file.name} style={{ ...S.btnG, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>Open PDF</a>
+              {canShare && <button style={S.btnP} onClick={sharePdf}>Share PDF</button>}
+            </React.Fragment>
+          ) : (
+            <button style={{ ...S.btnP, opacity: busy ? 0.6 : 1 }} onClick={downloadPDF} disabled={busy}>{busy ? 'Generating…' : isPhone ? 'Create PDF' : 'Download PDF'}</button>
+          )}
         </React.Fragment>
       }>
         {/* Appearance toggles */}
@@ -401,6 +661,9 @@
             )}
         </div>
         </div>
+        {error && (
+          <div style={{ background: '#fde6dd', color: T.err, border: `1px solid ${T.err}`, borderRadius: 4, padding: '9px 12px', fontSize: 12, fontFamily: S.mono, marginTop: 10 }}>{error}</div>
+        )}
         {branding && onUpgrade && (
           <div style={{ fontSize: 11, color: T.textMute, fontFamily: S.mono, marginTop: 10 }}>
             Free exports carry Gear branding. <a href="#" onClick={(e) => { e.preventDefault(); onUpgrade(); }} style={{ color: T.orange, fontWeight: 600 }}>Go Pro for clean exports</a>

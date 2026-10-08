@@ -63,6 +63,8 @@
 <!-- Optional: Supabase client (no-op if SUPABASE_CONFIG below is empty) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>
+<!-- jsPDF on its own: phones build the PDF directly (see ExportPDFModal). -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="gear-db.js"></script>
 
 <script src="studio-row.js"></script>
@@ -1027,6 +1029,31 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
     }
   };
 
+  // Move several items at once: into an existing group (groupId), into a new
+  // group (newName), or out of every group (both null). One state update, so
+  // it doesn't race like calling moveItemToGroup in a loop would. Returns the
+  // target group's id.
+  const moveItemsToGroup = (itemIds, groupId, newName) => {
+    const ids = new Set(itemIds || []);
+    if (ids.size === 0) return null;
+    const fresh = newName
+      ? { id: 'g_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6), name: String(newName).trim() || 'New Group', itemIds: [] }
+      : null;
+    const target = fresh ? fresh.id : groupId;
+    const base = fresh ? [fresh, ...groups] : groups;
+    const next = base.map(g => {
+      if (g.id === target) return { ...g, itemIds: Array.from(new Set([...g.itemIds, ...ids])) };
+      if (g.itemIds.some(id => ids.has(id))) return { ...g, itemIds: g.itemIds.filter(id => !ids.has(id)) };
+      return g;
+    });
+    setGroups(next);
+    if (window.GEAR_DB?.enabled && session) {
+      next.filter((g, i) => g !== base[i] || g.id === target)
+        .forEach(g => window.GEAR_DB.saveGroup(g, session).catch(err => console.warn('[App] saveGroup (bulk move):', err.message)));
+    }
+    return target;
+  };
+
   // Drop a whole inventory group into the active project — adds every item
   // in the group via the regular addToProject path (dedup + qty++ rules
   // apply, so duplicates collapse).
@@ -1204,12 +1231,11 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
         <window.STUDIO_MOBILE.MobileApp app={{
           user, session, billing, billingCatalog, billingBusy, billingError,
           items, groups, catalog, dbStatus, projects, projectItems,
-          setActiveProjectId, addToProject, changeQty, changeInvQty, saveItem,
+          setActiveProjectId, addToProject, changeQty, changeInvQty, saveItem, moveItemsToGroup,
           deleteProject, renameProject, changeProjectStatus,
           openNewProject, openUpgrade, startCheckout, openBillingPortal, refreshBilling,
           signOut, deleteAccount, updateUser,
           editItem: setModalEditItem,
-          newInventoryItem: () => { if (canAddInventoryItem()) setModalEditItem({ category: 'Camera', qty: 1, status: 'available' }); },
           exportProject: setModalExport,
           suggestProps: {
             userId: session?.user?.id,
@@ -1285,7 +1311,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
                 onRenameGroup={renameGroup}
                 onDeleteGroup={deleteGroup}
                 onMoveItemToGroup={moveItemToGroup}
-                onAddItem={() => { if (canAddInventoryItem()) setModalEditItem({ category: 'Camera', qty: 1, status: 'available' }); }}
+                onMoveItemsToGroup={moveItemsToGroup}
                 onOpenDatabase={() => setPage('database')}
                 onExportInventory={() => setModalExport({ name: (user && user.name) ? `${user.name}'s Inventory` : 'Inventory', client: '', shoot: '', location: '' })}
                 draggedId={draggedId} setDraggedId={setDraggedId}
