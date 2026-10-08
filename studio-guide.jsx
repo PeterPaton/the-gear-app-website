@@ -4,7 +4,9 @@
 // the sidebar (Guide), and from the login page before signing up.
 //
 // Screenshots live in /guide and show a demo studio built from real catalog
-// items. Also exports ItemMarquee, used on the login page.
+// items. Phones get MobileGuidePage instead: portrait screenshots of the
+// phone layout (/guide/mobile) and a list of what the desktop adds. Also
+// exports ItemMarquee, used on the login page.
 (function () {
   const { useState, useMemo, useEffect } = React;
   const S = window.STUDIO_STYLES;
@@ -151,6 +153,60 @@
     },
   ];
 
+  // Phone guide: portrait screenshots of the phone app (guide/mobile, taken
+  // in iPhone Safari with the same demo studio), in tab order.
+  const MOBILE_WALKTHROUGH = [
+    {
+      img: 'guide/mobile/inventory.webp', page: 'inventory', label: 'Inventory', title: 'Your kit in your pocket',
+      text: 'Everything you own, in the groups you use on set.',
+      points: ['Search your gear or filter by category.', 'Groups like an A-Cam package or a sound bag keep kit together.', 'Tap + to add more from the database.'],
+    },
+    {
+      img: 'guide/mobile/item.webp', page: 'inventory', label: 'Item', title: 'Tap any item',
+      text: 'One sheet for everything about a piece of kit.',
+      points: ['Change how many you own and edit its details.', 'Move it into a group, or start a new one.', 'Add it to any project, and see how many are already on each list.'],
+    },
+    {
+      img: 'guide/mobile/projects.webp', page: 'projects', label: 'Projects', title: 'A project for every shoot',
+      text: 'Client, dates, location and the kit going out, at a glance.',
+      points: ['Create a project per shoot.', 'Status shows what’s planning, active or wrapped.'],
+    },
+    {
+      img: 'guide/mobile/project.webp', page: 'projects', label: 'Kit list', title: 'The kit list on the day',
+      text: 'The full list, grouped by category, ready for prep at the rental counter.',
+      points: ['Change quantities with + and −.', 'Switch the status or rename the project with a tap.'],
+    },
+    {
+      img: 'guide/mobile/addgear.webp', page: 'projects', label: 'Add gear', title: 'Add from your gear or the database',
+      text: 'Fill a project from what you own, or from thousands of catalog items when you’re hiring in.',
+      points: ['Search either list and tap + to add.', 'The count shows what’s already on the list.'],
+    },
+    {
+      img: 'guide/mobile/suggest.webp', page: 'suggest', label: 'Suggest', title: 'Describe the shoot, get a kit',
+      text: 'AI builds a kit list from the database and checks that it works together.',
+      points: ['Mounts, batteries, media, monitoring and audio are checked for you.', 'Ask for changes in plain English.', 'Add it to a project or save it as a new one.'],
+    },
+    {
+      img: 'guide/mobile/database.webp', page: 'database', label: 'Database', title: 'Thousands of items, one search',
+      text: 'Cameras, lenses, lighting, audio and support, all with pictures.',
+      points: ['Filter by category and add to your inventory in one tap.'],
+    },
+    {
+      img: 'guide/mobile/export.webp', page: 'projects', label: 'Export', title: 'Send the pull list',
+      text: 'Make a PDF of any project right from your phone.',
+      points: ['Choose photos, category headings and a compact or spacious layout.', 'Share it to WhatsApp, Mail or AirDrop, or save it to Files.'],
+    },
+  ];
+
+  // Only what the desktop version adds; keep in step with the phone layout
+  // (studio-mobile.jsx) so this list stays true.
+  const WEB_EXTRAS = [
+    ['Drag and drop', 'Drag items, or whole groups, straight into a project, with its kit list open alongside your inventory.'],
+    ['Faster organising', 'Select many items at once, move them between groups in one go, and rename or delete groups.'],
+    ['Inventory PDF', 'Export your whole inventory as a PDF, with a full-page preview of the sheet.'],
+    ['Bigger views', 'Sortable database columns, compact and spacious rows, and undo (⌘Z) for deleted items, groups and projects.'],
+  ];
+
   const STEPS = [
     ['Add your gear', 'Search the database and add what you own.'],
     ['Create a project', 'One per shoot, with client, dates and location.'],
@@ -169,8 +225,7 @@
     );
   }
 
-  // `compact` is the phone layout: tighter margins, room for the notch, "tap" wording.
-  function GuidePage({ onNavigate, onClose, onCreateAccount, closeLabel, catalog, items = [], compact }) {
+  function GuidePage({ onNavigate, onClose, onCreateAccount, closeLabel, catalog, items = [] }) {
     const [zoom, setZoom] = useState(null);
     useEffect(() => {
       if (!zoom) return;
@@ -185,25 +240,25 @@
     return (
       <div style={{ flex: 1, overflowY: 'auto', background: '#f6f3ee' }}>
         {/* Hero */}
-        <div style={{ position: 'relative', ...DOTS, color: '#fff', padding: compact ? 'calc(env(safe-area-inset-top) + 64px) 0 32px' : '56px 0 40px', textAlign: 'center', overflow: 'hidden' }}>
+        <div style={{ position: 'relative', ...DOTS, color: '#fff', padding: '56px 0 40px', textAlign: 'center', overflow: 'hidden' }}>
           {onClose && (
-            <button onClick={onClose} style={{ position: 'absolute', top: compact ? 'calc(env(safe-area-inset-top) + 14px)' : 18, right: compact ? 14 : 22, zIndex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: 4, padding: '7px 12px', cursor: 'pointer', fontFamily: S.mono, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+            <button onClick={onClose} style={{ position: 'absolute', top: 18, right: 22, zIndex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: 4, padding: '7px 12px', cursor: 'pointer', fontFamily: S.mono, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
               {closeLabel || 'Close'}
             </button>
           )}
-          <div style={{ padding: compact ? '0 20px' : '0 40px' }}>
+          <div style={{ padding: '0 40px' }}>
             <img src="app-icon.jpg" alt="" style={{ width: 56, height: 56, borderRadius: 12, marginBottom: 22 }} />
             <div style={{ fontFamily: S.sans, fontSize: 'clamp(36px, 5vw, 60px)', fontWeight: 700, letterSpacing: '-0.035em', lineHeight: 1.02 }}>All your gear,<br />in one place.</div>
             <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.6)', maxWidth: 520, margin: '18px auto 0', lineHeight: 1.55 }}>
               Organise your equipment, track your inventory and prep for every shoot.
             </div>
           </div>
-          <div style={{ marginTop: compact ? 28 : 40 }}>
+          <div style={{ marginTop: 40 }}>
             <ItemMarquee items={items} dark />
           </div>
         </div>
 
-        <div style={{ maxWidth: 1040, margin: '0 auto', padding: compact ? '32px 16px calc(env(safe-area-inset-bottom) + 40px)' : '48px 28px 72px' }}>
+        <div style={{ maxWidth: 1040, margin: '0 auto', padding: '48px 28px 72px' }}>
           {/* Features */}
           <div style={{ textAlign: 'center', marginBottom: 28 }}>
             <div style={{ fontFamily: S.mono, fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em' }}>Gear at a Glance</div>
@@ -233,12 +288,12 @@
           </div>
 
           {/* Walkthrough */}
-          <div style={{ textAlign: 'center', margin: compact ? '48px 0 8px' : '72px 0 8px' }}>
+          <div style={{ textAlign: 'center', margin: '72px 0 8px' }}>
             <div style={{ fontFamily: S.mono, fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em' }}>A closer look</div>
-            <div style={{ fontSize: 14, color: T.textMute, marginTop: 8 }}>How each part of the app works. {compact ? 'Tap' : 'Click'} any screenshot to see it full size.</div>
+            <div style={{ fontSize: 14, color: T.textMute, marginTop: 8 }}>How each part of the app works. Click any screenshot to see it full size.</div>
           </div>
           {WALKTHROUGH.map((w, i) => (
-            <div key={w.img} style={{ display: 'flex', flexWrap: 'wrap', flexDirection: i % 2 ? 'row-reverse' : 'row', alignItems: 'center', gap: compact ? 20 : 40, marginTop: compact ? 40 : 56 }}>
+            <div key={w.img} style={{ display: 'flex', flexWrap: 'wrap', flexDirection: i % 2 ? 'row-reverse' : 'row', alignItems: 'center', gap: 40, marginTop: 56 }}>
               <div style={{ flex: '1 1 320px', minWidth: 0 }}>
                 <div style={{ ...S.label, color: T.orange }}>{String(i + 1).padStart(2, '0')} · {w.label}</div>
                 <div style={{ fontFamily: S.mono, fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', margin: '8px 0 10px' }}>{w.title}</div>
@@ -259,7 +314,7 @@
           ))}
 
           {/* Getting started */}
-          <div style={{ marginTop: compact ? 48 : 72, background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 6, padding: '24px 26px' }}>
+          <div style={{ marginTop: 72, background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 6, padding: '24px 26px' }}>
             <div style={{ ...S.label, marginBottom: 16 }}>Get started in three steps</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 18 }}>
               {STEPS.map(([title, text], i) => (
@@ -283,7 +338,7 @@
 
         {zoom && (
           <div onClick={() => setZoom(null)} role="dialog" aria-label={`${zoom.label} screenshot`}
-            style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(12,12,12,0.86)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: compact ? 12 : 32, cursor: 'zoom-out' }}>
+            style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(12,12,12,0.86)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32, cursor: 'zoom-out' }}>
             <img src={zoom.img} alt={`${zoom.label} screen`} style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 8, boxShadow: '0 24px 60px rgba(0,0,0,0.5)' }} />
           </div>
         )}
@@ -293,6 +348,130 @@
 
   const linkBtn = { alignSelf: 'flex-start', background: 'none', border: 'none', padding: 0, color: T.orange, fontFamily: S.mono, fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' };
 
+  // ── Phone guide ─────────────────────────────────────────────────────────
+  // Same story as GuidePage, told with the phone app: one column of portrait
+  // screenshots in a phone frame, then what the desktop version adds.
+  function MobileGuidePage({ onNavigate, onClose, onCreateAccount, closeLabel, catalog, items = [] }) {
+    const [zoom, setZoom] = useState(null);
+    const free = catalog && catalog.plans && catalog.plans.free;
+    const pro = catalog && catalog.plans && catalog.plans.pro;
+    const B = window.GEAR_BILLING;
+
+    return (
+      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', background: '#f6f3ee' }}>
+        {/* Hero */}
+        <div style={{ position: 'relative', ...DOTS, color: '#fff', padding: 'calc(env(safe-area-inset-top) + 64px) 0 28px', textAlign: 'center', overflow: 'hidden' }}>
+          {onClose && (
+            <button onClick={onClose} style={{ position: 'absolute', top: 'calc(env(safe-area-inset-top) + 14px)', right: 14, zIndex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: 6, padding: '8px 12px', cursor: 'pointer', fontFamily: S.mono, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              {closeLabel || 'Close'}
+            </button>
+          )}
+          <div style={{ padding: '0 22px' }}>
+            <img src="app-icon.jpg" alt="" style={{ width: 48, height: 48, borderRadius: 11, marginBottom: 18 }} />
+            <div style={{ fontFamily: S.sans, fontSize: 'clamp(32px, 9vw, 42px)', fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.04 }}>All your gear,<br />in your pocket.</div>
+            <div style={{ fontSize: 15, color: 'rgba(255,255,255,0.65)', margin: '14px auto 0', maxWidth: 360, lineHeight: 1.5 }}>
+              Check what you own, build kit lists and prep for the shoot from your phone.
+            </div>
+          </div>
+          <div style={{ marginTop: 28 }}>
+            <ItemMarquee items={items} dark count={20} />
+          </div>
+        </div>
+
+        <div style={{ padding: '8px 18px calc(env(safe-area-inset-bottom) + 36px)', maxWidth: 520, margin: '0 auto' }}>
+          {MOBILE_WALKTHROUGH.map((w, i) => (
+            <div key={w.img} style={{ marginTop: 40 }}>
+              <div style={{ ...S.label, color: T.orange }}>{String(i + 1).padStart(2, '0')} · {w.label}</div>
+              <div style={{ fontFamily: S.mono, fontSize: 21, fontWeight: 700, letterSpacing: '-0.02em', margin: '6px 0 8px', lineHeight: 1.2 }}>{w.title}</div>
+              <div style={{ fontSize: 14, color: T.textMute, lineHeight: 1.55 }}>{w.text}</div>
+              <PhoneShot src={w.img} alt={`${w.label} screen`} onOpen={() => setZoom(w)} />
+              <ul style={{ margin: '16px 0 0', padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {w.points.map(p => (
+                  <li key={p} style={{ display: 'flex', gap: 10, fontSize: 14, color: T.ink, lineHeight: 1.5 }}>
+                    <span style={{ color: T.orange, fontFamily: S.mono, fontWeight: 700, flexShrink: 0 }}>✓</span>{p}
+                  </li>
+                ))}
+              </ul>
+              {onNavigate && <button onClick={() => onNavigate(w.page)} style={{ ...linkBtn, marginTop: 14, padding: '6px 0' }}>Open {w.page} →</button>}
+            </div>
+          ))}
+
+          {/* What the desktop version adds */}
+          <div style={{ marginTop: 48, ...DOTS, color: '#fff', borderRadius: 12, padding: '22px 20px' }}>
+            <div style={{ ...S.label, color: T.orange }}>On the web</div>
+            <div style={{ fontFamily: S.mono, fontSize: 21, fontWeight: 700, letterSpacing: '-0.02em', margin: '6px 0 6px', lineHeight: 1.2 }}>There’s more on your laptop</div>
+            <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.65)', lineHeight: 1.55 }}>
+              Open <span style={{ color: '#fff', fontWeight: 600 }}>gearapp.io</span> on a computer and sign in with the same account. Your inventory, groups and projects are already there, with the full studio around them:
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 18 }}>
+              {WEB_EXTRAS.map(([title, text]) => (
+                <div key={title} style={{ display: 'flex', gap: 12 }}>
+                  <span style={{ width: 22, height: 22, borderRadius: 6, background: 'rgba(255,87,12,0.18)', color: T.orange, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0, marginTop: 1 }}>+</span>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{title}</div>
+                    <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.62)', lineHeight: 1.5, marginTop: 2 }}>{text}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 18, borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.12)' }}>
+              <img src="guide/inventory.webp" alt="The desktop studio" loading="lazy" style={{ display: 'block', width: '100%' }} />
+            </div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', fontFamily: S.mono, marginTop: 8 }}>The desktop studio at gearapp.io</div>
+          </div>
+
+          {free && pro && (
+            <div style={{ marginTop: 18, background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 12, padding: '18px 20px' }}>
+              <div style={{ fontWeight: 700, fontSize: 15 }}>Free to start</div>
+              <div style={{ fontSize: 13, color: T.textMute, lineHeight: 1.55, marginTop: 6 }}>
+                Free includes {free.max_projects} projects, {free.max_inventory_items} inventory items and {free.monthly_credits} AI kit builds a month.
+                Pro ({B.money(pro.price_pence, pro.currency)}/month) removes the limits and gives you {pro.monthly_credits} builds a month.
+              </div>
+            </div>
+          )}
+
+          <div style={{ marginTop: 18, background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 12, padding: '18px 20px' }}>
+            <div style={{ ...S.label, marginBottom: 14 }}>Get started in three steps</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {STEPS.map(([title, text], i) => (
+                <div key={title} style={{ display: 'flex', gap: 12 }}>
+                  <div style={{ width: 26, height: 26, borderRadius: '50%', background: T.ink, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: S.mono, fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{title}</div>
+                    <div style={{ fontSize: 13, color: T.textMute, marginTop: 2, lineHeight: 1.5 }}>{text}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {onNavigate ? (
+              <button onClick={() => onNavigate('database')} style={{ ...S.btnP, marginTop: 20, padding: 13, width: '100%', borderRadius: 8 }}>Start adding gear</button>
+            ) : onCreateAccount ? (
+              <button onClick={onCreateAccount} style={{ ...S.btnP, marginTop: 20, padding: 13, width: '100%', borderRadius: 8 }}>Create a free account</button>
+            ) : null}
+          </div>
+          <div style={{ marginTop: 12, fontSize: 11, color: T.textMute, fontFamily: S.mono, textAlign: 'center' }}>Screenshots show a demo studio.</div>
+        </div>
+
+        {zoom && (
+          <div onClick={() => setZoom(null)} role="dialog" aria-label={`${zoom.label} screenshot`}
+            style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(12,12,12,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'calc(env(safe-area-inset-top) + 12px) 12px calc(env(safe-area-inset-bottom) + 12px)', cursor: 'zoom-out' }}>
+            <img src={zoom.img} alt={`${zoom.label} screen`} style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 18 }} />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // A portrait screenshot in a simple phone frame.
+  function PhoneShot({ src, alt, onOpen }) {
+    return (
+      <div onClick={onOpen} style={{ margin: '18px auto 0', width: '78%', maxWidth: 300, padding: 7, background: T.ink, borderRadius: 30, boxShadow: '0 18px 40px rgba(25,25,25,0.22)', cursor: 'zoom-in' }}>
+        <img src={src} alt={alt} loading="lazy" style={{ display: 'block', width: '100%', borderRadius: 24, background: '#f6f3ee', aspectRatio: '600 / 1158' }} />
+      </div>
+    );
+  }
+
   window.STUDIO_GUIDE = GuidePage;
+  window.STUDIO_GUIDE_MOBILE = MobileGuidePage;
   window.STUDIO_GUIDE_MARQUEE = ItemMarquee;
 })();
