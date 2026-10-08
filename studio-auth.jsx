@@ -96,9 +96,11 @@
     };
 
     if (showGuide && window.STUDIO_GUIDE) {
+      // Phones get the phone guide, with screenshots of the phone app.
+      const Guide = (isMobile && window.STUDIO_GUIDE_MOBILE) || window.STUDIO_GUIDE;
       return (
         <div style={{ position: 'fixed', inset: 0, display: 'flex', overflow: 'hidden' }}>
-          <window.STUDIO_GUIDE compact={isMobile} catalog={plans} items={catalog} closeLabel="← Back to sign in" onClose={() => setShowGuide(false)} onCreateAccount={() => { setShowGuide(false); setMode('signup'); }} />
+          <Guide catalog={plans} items={catalog} closeLabel="← Back to sign in" onClose={() => setShowGuide(false)} onCreateAccount={() => { setShowGuide(false); setMode('signup'); }} />
         </div>
       );
     }

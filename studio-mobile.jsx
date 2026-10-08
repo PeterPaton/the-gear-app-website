@@ -67,7 +67,7 @@
           title={title}
           user={user}
           onAccount={() => setShowAccount(true)}
-          onGuide={window.STUDIO_GUIDE ? () => setShowGuide(true) : null}
+          onGuide={window.STUDIO_GUIDE_MOBILE ? () => setShowGuide(true) : null}
           onBack={inProject ? () => setOpenProjectId(null) : null}
           backLabel="Projects"
           action={inProject ? <button style={topAction} onClick={() => app.exportProject(openProj)}>PDF</button> : null}
@@ -122,13 +122,13 @@
 
         <TabBar tab={tab} onTab={go} />
 
-        {showAccount && <AccountScreen app={app} onBack={() => setShowAccount(false)} onGuide={window.STUDIO_GUIDE ? () => { setShowAccount(false); setShowGuide(true); } : null} />}
+        {showAccount && <AccountScreen app={app} onBack={() => setShowAccount(false)} onGuide={window.STUDIO_GUIDE_MOBILE ? () => { setShowAccount(false); setShowGuide(true); } : null} />}
 
-        {/* "How it works": the same guide as the desktop, full screen. Its
-            "Open …" links switch to the matching tab. */}
+        {/* "How it works": the phone guide, full screen. Its "Open …" links
+            switch to the matching tab. */}
         {showGuide && (
           <div style={{ ...root, zIndex: 55 }}>
-            <window.STUDIO_GUIDE compact
+            <window.STUDIO_GUIDE_MOBILE
               catalog={app.billingCatalog} items={catalog}
               closeLabel="✕ Close" onClose={() => setShowGuide(false)}
               onNavigate={(page) => { setShowGuide(false); setOpenProjectId(null); go(TABS.some(t => t.k === page) ? page : 'inventory'); }} />
