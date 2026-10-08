@@ -35,6 +35,7 @@
     const [visited, setVisited] = useState(() => new Set(['inventory']));
     const [openProjectId, setOpenProjectId] = useState(null);
     const [showAccount, setShowAccount] = useState(false);
+    const [showGuide, setShowGuide] = useState(false);
     // { kind: 'gear', id, source: 'inventory' | 'catalog' } | { kind: 'addGear', projectId }
     const [sheet, setSheet] = useState(null);
 
@@ -66,6 +67,7 @@
           title={title}
           user={user}
           onAccount={() => setShowAccount(true)}
+          onGuide={window.STUDIO_GUIDE ? () => setShowGuide(true) : null}
           onBack={inProject ? () => setOpenProjectId(null) : null}
           backLabel="Projects"
           action={inProject ? <button style={topAction} onClick={() => app.exportProject(openProj)}>PDF</button> : null}
@@ -120,7 +122,18 @@
 
         <TabBar tab={tab} onTab={go} />
 
-        {showAccount && <AccountScreen app={app} onBack={() => setShowAccount(false)} />}
+        {showAccount && <AccountScreen app={app} onBack={() => setShowAccount(false)} onGuide={window.STUDIO_GUIDE ? () => { setShowAccount(false); setShowGuide(true); } : null} />}
+
+        {/* "How it works": the same guide as the desktop, full screen. Its
+            "Open …" links switch to the matching tab. */}
+        {showGuide && (
+          <div style={{ ...root, zIndex: 55 }}>
+            <window.STUDIO_GUIDE compact
+              catalog={app.billingCatalog} items={catalog}
+              closeLabel="✕ Close" onClose={() => setShowGuide(false)}
+              onNavigate={(page) => { setShowGuide(false); setOpenProjectId(null); go(TABS.some(t => t.k === page) ? page : 'inventory'); }} />
+          </div>
+        )}
 
         {sheet && sheet.kind === 'gear' && sheetGear && (
           <GearSheet
@@ -154,7 +167,7 @@
   }
 
   // ─── Chrome ─────────────────────────────────────────────────────────
-  function TopBar({ title, user, onAccount, onBack, backLabel, action }) {
+  function TopBar({ title, user, onAccount, onGuide, onBack, backLabel, action }) {
     return (
       <div style={topBar}>
         {onBack ? (
@@ -167,6 +180,7 @@
         )}
         <div style={{ flex: 1 }} />
         {action}
+        {onGuide && <button onClick={onGuide} aria-label="How it works" title="How it works" style={guideBtn}>?</button>}
         <button onClick={onAccount} aria-label="Account" style={avatarBtn}>{(user?.name || 'U').charAt(0).toUpperCase()}</button>
       </div>
     );
@@ -657,7 +671,7 @@
   }
 
   // ─── Account ────────────────────────────────────────────────────────
-  function AccountScreen({ app, onBack }) {
+  function AccountScreen({ app, onBack, onGuide }) {
     const { user, session, billing } = app;
     const [name, setName] = useState(user.name || '');
     const [studio, setStudio] = useState(user.studio || '');
@@ -710,11 +724,12 @@
           )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 20 }}>
+            {onGuide && <button style={{ ...S.btnG, background: '#fff', padding: 12 }} onClick={onGuide}>How it works</button>}
             <button style={{ ...S.btnG, background: '#fff', padding: 12 }} onClick={() => { onBack(); app.signOut(); }}>Sign out</button>
             <button style={{ ...S.btnG, background: '#fff', padding: 12, color: '#B33A06', borderColor: '#f3d9d0' }} onClick={() => setDeleting(true)}>Delete account</button>
           </div>
           <div style={{ fontSize: 12, color: T.textMute, lineHeight: 1.5, marginTop: 18, textAlign: 'center' }}>
-            Grouping gear, drag and drop and the guide are on the desktop version at gearapp.io.
+            Drag and drop is on the desktop version at gearapp.io.
           </div>
         </div>
         {deleting && DeleteDialog && <DeleteDialog billing={billing} onConfirm={app.deleteAccount} onClose={() => setDeleting(false)} />}
@@ -735,6 +750,7 @@
   const topBar = { background: T.ink, color: '#fff', padding: 'calc(env(safe-area-inset-top) + 10px) 14px 10px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, minHeight: 52 };
   const backBtn = { background: 'none', border: 'none', color: '#fff', fontFamily: S.mono, fontSize: 13, fontWeight: 600, padding: '6px 4px', cursor: 'pointer' };
   const topAction = { background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)', color: '#fff', borderRadius: 6, padding: '6px 11px', fontFamily: S.mono, fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', cursor: 'pointer' };
+  const guideBtn = { width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', fontFamily: S.mono, fontWeight: 700, fontSize: 14, cursor: 'pointer', flexShrink: 0 };
   const avatarBtn = { width: 32, height: 32, borderRadius: '50%', background: T.orange, color: '#fff', border: 'none', fontWeight: 700, fontSize: 13, cursor: 'pointer', flexShrink: 0 };
   const tabBar = { background: T.ink, display: 'flex', paddingBottom: 'env(safe-area-inset-bottom)', borderTop: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 };
   const tabBtn = (a) => ({ flex: 1, minWidth: 0, background: 'none', border: 'none', color: a ? T.orange : 'rgba(255,255,255,0.6)', padding: '9px 0 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, cursor: 'pointer', minHeight: 54 });

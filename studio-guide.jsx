@@ -76,11 +76,11 @@
   // ── Content ────────────────────────────────────────────────────────────
   // In sidebar order, so the guide mirrors the app's navigation.
   const FEATURES = [
-    { icon: '▣', page: 'inventory', title: 'Build your inventory', text: 'Add gear from a database of thousands of items or create your own. Track quantities and status, and group kit that travels together.' },
+    { icon: '▣', page: 'inventory', title: 'Build your inventory', text: 'Add gear from a database of thousands of items. Track quantities and status, and group kit that travels together.' },
     { icon: '✧', page: 'suggest', title: 'Let AI build the kit', text: 'Describe the shoot and get a kit list that works together. Mounts, batteries, media, monitoring and gimbal payload are checked for you. Then ask for changes in plain English.' },
     { icon: '◎', page: 'discover', title: 'Discover new gear', text: 'Hand-picked new releases from across the industry, explained: what’s new, the key specs and what it costs.' },
     { icon: '◈', page: 'database', title: 'Search the database', text: 'Filter cameras, lenses, lighting, audio and support by category, then add items to your inventory or straight into a project.' },
-    { icon: '◧', page: 'projects', title: 'Sort your items into projects', text: 'Prep for each shoot by dragging items, or whole groups, into a project. Adjust quantities, track its status and export a PDF pull list.' },
+    { icon: '◧', page: 'projects', title: 'Sort your items into projects', text: 'Prep for each shoot by adding items, or whole groups, to a project. Adjust quantities, track its status and export a PDF pull list.' },
   ];
 
   // In sidebar order; the project view and PDF export follow Projects.
@@ -89,10 +89,10 @@
       img: 'guide/inventory.webp', page: 'inventory', label: 'Inventory', title: 'Your kit, organised',
       text: 'Everything you own in one list, with the project you’re prepping open alongside it.',
       points: [
-        'Add items from the database, or create your own for anything that isn’t listed.',
-        'Drag one item onto another to make a group, like an A-Cam package or a sound bag.',
+        'Add items from the database of thousands of cameras, lenses, lights and more.',
+        'Select items and move them into a group, like an A-Cam package or a sound bag.',
         'Track how many you own and whether each is available, checked out or in for repair.',
-        'Drag items, or a whole group, into the active project on the right.',
+        'Add items, or a whole group, to a project.',
       ],
     },
     {
@@ -120,7 +120,7 @@
       points: [
         'Search by name and narrow it down by category.',
         'Add anything to your inventory in one click.',
-        'Or drag it straight into a project when you’re hiring it in.',
+        'Or add it straight to a project when you’re hiring it in.',
       ],
     },
     {
@@ -154,7 +154,7 @@
   const STEPS = [
     ['Add your gear', 'Search the database and add what you own.'],
     ['Create a project', 'One per shoot, with client, dates and location.'],
-    ['Fill it', 'Drag gear in, or let Suggest build the kit for you.'],
+    ['Fill it', 'Add gear, or let Suggest build the kit for you.'],
   ];
 
   function Screenshot({ src, alt, onOpen }) {
@@ -169,7 +169,8 @@
     );
   }
 
-  function GuidePage({ onNavigate, onClose, onCreateAccount, closeLabel, catalog, items = [] }) {
+  // `compact` is the phone layout: tighter margins, room for the notch, "tap" wording.
+  function GuidePage({ onNavigate, onClose, onCreateAccount, closeLabel, catalog, items = [], compact }) {
     const [zoom, setZoom] = useState(null);
     useEffect(() => {
       if (!zoom) return;
@@ -184,25 +185,25 @@
     return (
       <div style={{ flex: 1, overflowY: 'auto', background: '#f6f3ee' }}>
         {/* Hero */}
-        <div style={{ position: 'relative', ...DOTS, color: '#fff', padding: '56px 0 40px', textAlign: 'center', overflow: 'hidden' }}>
+        <div style={{ position: 'relative', ...DOTS, color: '#fff', padding: compact ? 'calc(env(safe-area-inset-top) + 64px) 0 32px' : '56px 0 40px', textAlign: 'center', overflow: 'hidden' }}>
           {onClose && (
-            <button onClick={onClose} style={{ position: 'absolute', top: 18, right: 22, zIndex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: 4, padding: '7px 12px', cursor: 'pointer', fontFamily: S.mono, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+            <button onClick={onClose} style={{ position: 'absolute', top: compact ? 'calc(env(safe-area-inset-top) + 14px)' : 18, right: compact ? 14 : 22, zIndex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: 4, padding: '7px 12px', cursor: 'pointer', fontFamily: S.mono, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
               {closeLabel || 'Close'}
             </button>
           )}
-          <div style={{ padding: '0 40px' }}>
+          <div style={{ padding: compact ? '0 20px' : '0 40px' }}>
             <img src="app-icon.jpg" alt="" style={{ width: 56, height: 56, borderRadius: 12, marginBottom: 22 }} />
             <div style={{ fontFamily: S.sans, fontSize: 'clamp(36px, 5vw, 60px)', fontWeight: 700, letterSpacing: '-0.035em', lineHeight: 1.02 }}>All your gear,<br />in one place.</div>
             <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.6)', maxWidth: 520, margin: '18px auto 0', lineHeight: 1.55 }}>
               Organise your equipment, track your inventory and prep for every shoot.
             </div>
           </div>
-          <div style={{ marginTop: 40 }}>
+          <div style={{ marginTop: compact ? 28 : 40 }}>
             <ItemMarquee items={items} dark />
           </div>
         </div>
 
-        <div style={{ maxWidth: 1040, margin: '0 auto', padding: '48px 28px 72px' }}>
+        <div style={{ maxWidth: 1040, margin: '0 auto', padding: compact ? '32px 16px calc(env(safe-area-inset-bottom) + 40px)' : '48px 28px 72px' }}>
           {/* Features */}
           <div style={{ textAlign: 'center', marginBottom: 28 }}>
             <div style={{ fontFamily: S.mono, fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em' }}>Gear at a Glance</div>
@@ -232,12 +233,12 @@
           </div>
 
           {/* Walkthrough */}
-          <div style={{ textAlign: 'center', margin: '72px 0 8px' }}>
+          <div style={{ textAlign: 'center', margin: compact ? '48px 0 8px' : '72px 0 8px' }}>
             <div style={{ fontFamily: S.mono, fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em' }}>A closer look</div>
-            <div style={{ fontSize: 14, color: T.textMute, marginTop: 8 }}>How each part of the app works. Click any screenshot to see it full size.</div>
+            <div style={{ fontSize: 14, color: T.textMute, marginTop: 8 }}>How each part of the app works. {compact ? 'Tap' : 'Click'} any screenshot to see it full size.</div>
           </div>
           {WALKTHROUGH.map((w, i) => (
-            <div key={w.img} style={{ display: 'flex', flexWrap: 'wrap', flexDirection: i % 2 ? 'row-reverse' : 'row', alignItems: 'center', gap: 40, marginTop: 56 }}>
+            <div key={w.img} style={{ display: 'flex', flexWrap: 'wrap', flexDirection: i % 2 ? 'row-reverse' : 'row', alignItems: 'center', gap: compact ? 20 : 40, marginTop: compact ? 40 : 56 }}>
               <div style={{ flex: '1 1 320px', minWidth: 0 }}>
                 <div style={{ ...S.label, color: T.orange }}>{String(i + 1).padStart(2, '0')} · {w.label}</div>
                 <div style={{ fontFamily: S.mono, fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', margin: '8px 0 10px' }}>{w.title}</div>
@@ -258,7 +259,7 @@
           ))}
 
           {/* Getting started */}
-          <div style={{ marginTop: 72, background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 6, padding: '24px 26px' }}>
+          <div style={{ marginTop: compact ? 48 : 72, background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 6, padding: '24px 26px' }}>
             <div style={{ ...S.label, marginBottom: 16 }}>Get started in three steps</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 18 }}>
               {STEPS.map(([title, text], i) => (
@@ -282,7 +283,7 @@
 
         {zoom && (
           <div onClick={() => setZoom(null)} role="dialog" aria-label={`${zoom.label} screenshot`}
-            style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(12,12,12,0.86)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32, cursor: 'zoom-out' }}>
+            style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(12,12,12,0.86)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: compact ? 12 : 32, cursor: 'zoom-out' }}>
             <img src={zoom.img} alt={`${zoom.label} screen`} style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 8, boxShadow: '0 24px 60px rgba(0,0,0,0.5)' }} />
           </div>
         )}
