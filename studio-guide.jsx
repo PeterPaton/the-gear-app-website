@@ -148,7 +148,7 @@
       points: [
         'Include photos and category headings, in a compact or spacious layout.',
         'Share it with crew, rental houses or insurers.',
-        'Pro exports carry your studio name instead of The Gear App’s.',
+        'Pro exports carry your own company name instead of The Gear App’s.',
       ],
     },
   ];
@@ -333,7 +333,7 @@
               <button onClick={onCreateAccount} style={{ ...S.btnP, marginTop: 22, padding: '11px 18px' }}>Create a free account</button>
             ) : null}
           </div>
-          <div style={{ marginTop: 14, fontSize: 11, color: T.textMute, fontFamily: S.mono, textAlign: 'center' }}>Screenshots show a demo studio.</div>
+          <div style={{ marginTop: 14, fontSize: 11, color: T.textMute, fontFamily: S.mono, textAlign: 'center' }}>Screenshots show a demo account.</div>
         </div>
 
         {zoom && (
@@ -401,7 +401,7 @@
             <div style={{ ...S.label, color: T.orange }}>On the web</div>
             <div style={{ fontFamily: S.mono, fontSize: 21, fontWeight: 700, letterSpacing: '-0.02em', margin: '6px 0 6px', lineHeight: 1.2 }}>There’s more on your laptop</div>
             <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.65)', lineHeight: 1.55 }}>
-              Open <span style={{ color: '#fff', fontWeight: 600 }}>gearapp.io</span> on a computer and sign in with the same account. Your inventory, groups and projects are already there, with the full studio around them:
+              Open <span style={{ color: '#fff', fontWeight: 600 }}>gearapp.io</span> on a computer and sign in with the same account. Your inventory, groups and projects are already there, plus everything the desktop version adds:
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 18 }}>
               {WEB_EXTRAS.map(([title, text]) => (
@@ -415,9 +415,9 @@
               ))}
             </div>
             <div style={{ marginTop: 18, borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.12)' }}>
-              <img src="guide/inventory.webp" alt="The desktop studio" loading="lazy" style={{ display: 'block', width: '100%' }} />
+              <img src="guide/inventory.webp" alt="The desktop version" loading="lazy" style={{ display: 'block', width: '100%' }} />
             </div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', fontFamily: S.mono, marginTop: 8 }}>The desktop studio at gearapp.io</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', fontFamily: S.mono, marginTop: 8 }}>The desktop version at gearapp.io</div>
           </div>
 
           {free && pro && (
@@ -449,7 +449,7 @@
               <button onClick={onCreateAccount} style={{ ...S.btnP, marginTop: 20, padding: 13, width: '100%', borderRadius: 8 }}>Create a free account</button>
             ) : null}
           </div>
-          <div style={{ marginTop: 12, fontSize: 11, color: T.textMute, fontFamily: S.mono, textAlign: 'center' }}>Screenshots show a demo studio.</div>
+          <div style={{ marginTop: 12, fontSize: 11, color: T.textMute, fontFamily: S.mono, textAlign: 'center' }}>Screenshots show a demo account.</div>
         </div>
 
         {zoom && (
