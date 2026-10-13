@@ -168,6 +168,16 @@
             </React.Fragment>
           )}
         </div>
+        {mode === 'signup' && (
+          <div style={{ marginTop: 14, fontSize: 11, color: T.textMute, textAlign: 'center', lineHeight: 1.5 }}>
+            By creating an account you agree to our <a href="/terms/" style={{ color: T.ink }}>Terms of Service</a> and <a href="/privacy/" style={{ color: T.ink }}>Privacy Policy</a>.
+          </div>
+        )}
+        {/* Google's brand verification needs the home page to link to these. */}
+        <div style={{ marginTop: 18, display: 'flex', justifyContent: 'center', gap: 16, fontFamily: S.mono, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          <a href="/privacy/" style={{ color: T.textMute, textDecoration: 'none' }}>Privacy</a>
+          <a href="/terms/" style={{ color: T.textMute, textDecoration: 'none' }}>Terms</a>
+        </div>
       </React.Fragment>
     );
 
