@@ -166,7 +166,7 @@
 
           {/* Image with qty badge */}
           <div style={{ position: 'relative', width: rowH, height: rowH, padding: 6, flexShrink: 0 }}>
-            <div style={{ width: '100%', height: '100%', background: isSel ? T.orange : '#fff', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', transition: 'background .12s' }}>
+            <div style={{ width: '100%', height: '100%', background: '#fff', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
               <img src={window.GEAR.itemImage(it)} onError={(e) => { e.currentTarget.src = window.GEAR_PLACEHOLDER(it.category); }} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} alt="" />
             </div>
             {ownedQty > 1 && (
