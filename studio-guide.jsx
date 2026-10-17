@@ -62,7 +62,7 @@
         <div className="gear-marquee-track" style={{ display: 'flex', width: 'max-content', padding: '4px 0', animation: `gearMarquee ${seconds}s linear infinite`, willChange: 'transform' }}>
           {[0, 1].map(copy => shown.map(it => (
             <div key={copy + it.id} style={{ width: tile, flexShrink: 0, marginRight: 12 }}>
-              <div style={{ width: tile, height: tile, background: '#fff', borderRadius: 8, border: dark ? '1px solid rgba(255,255,255,0.08)' : `1px solid ${T.paperEdge}`, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 10, boxSizing: 'border-box' }}>
+              <div style={{ width: tile, height: tile, background: '#fff', border: dark ? '1px solid rgba(255,255,255,0.08)' : `1px solid ${T.paperEdge}`, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 10, boxSizing: 'border-box' }}>
                 <img src={it.image_url} alt="" draggable="false" onError={e => { e.currentTarget.style.visibility = 'hidden'; }} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
               </div>
               <div style={{ marginTop: 6, fontSize: 10, lineHeight: 1.3, fontFamily: S.mono, color: dark ? 'rgba(255,255,255,0.55)' : T.textMute, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', height: 26 }}>
@@ -215,10 +215,10 @@
 
   function Screenshot({ src, alt, onOpen }) {
     return (
-      <div onClick={onOpen} style={{ borderRadius: 10, overflow: 'hidden', border: `1px solid ${T.paperEdge}`, boxShadow: '0 18px 40px rgba(25,25,25,0.14)', background: '#fff', cursor: 'zoom-in' }}>
+      <div onClick={onOpen} style={{ overflow: 'hidden', border: `1px solid ${T.paperEdge}`, boxShadow: '0 18px 40px rgba(25,25,25,0.14)', background: '#fff', cursor: 'zoom-in' }}>
         <div style={{ height: 28, background: '#ece6dc', display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px', borderBottom: `1px solid ${T.paperEdge}` }}>
           {['#ff5f57', '#febc2e', '#28c840'].map(c => <span key={c} style={{ width: 9, height: 9, borderRadius: '50%', background: c }} />)}
-          <span style={{ marginLeft: 10, fontFamily: S.mono, fontSize: 10, color: T.textMute, background: '#f6f3ee', padding: '2px 10px', borderRadius: 4 }}>gearapp.io</span>
+          <span style={{ marginLeft: 10, fontFamily: S.mono, fontSize: 10, color: T.textMute, background: '#f6f3ee', padding: '2px 10px' }}>gearapp.io</span>
         </div>
         <img src={src} alt={alt} loading="lazy" style={{ display: 'block', width: '100%', height: 'auto', aspectRatio: '16 / 10' }} />
       </div>
@@ -238,11 +238,11 @@
     const B = window.GEAR_BILLING;
 
     return (
-      <div style={{ flex: 1, overflowY: 'auto', background: '#f6f3ee' }}>
+      <div style={{ flex: 1, overflowY: 'auto', background: T.paper }}>
         {/* Hero */}
         <div style={{ position: 'relative', ...DOTS, color: '#fff', padding: '56px 0 40px', textAlign: 'center', overflow: 'hidden' }}>
           {onClose && (
-            <button onClick={onClose} style={{ position: 'absolute', top: 18, right: 22, zIndex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: 4, padding: '7px 12px', cursor: 'pointer', fontFamily: S.mono, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+            <button onClick={onClose} style={{ position: 'absolute', top: 18, right: 22, zIndex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', padding: '7px 12px', cursor: 'pointer', fontFamily: S.mono, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
               {closeLabel || 'Close'}
             </button>
           )}
@@ -266,8 +266,8 @@
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))', gap: 14 }}>
             {FEATURES.map(f => (
-              <div key={f.title} style={{ background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 6, padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 8, background: '#fff3ed', color: T.orange, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17 }}>{f.icon}</div>
+              <div key={f.title} style={{ background: '#fff', border: `1px solid ${T.paperEdge}`, padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ width: 36, height: 36, background: '#fff3ed', color: T.orange, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17 }}>{f.icon}</div>
                 <div style={{ fontWeight: 700, fontSize: 15, color: T.ink }}>{f.title}</div>
                 <div style={{ fontSize: 13, color: T.textMute, lineHeight: 1.55, flex: 1 }}>{f.text}</div>
                 {onNavigate && (
@@ -276,8 +276,8 @@
               </div>
             ))}
             {free && pro && (
-              <div style={{ ...DOTS, color: '#fff', borderRadius: 6, padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(255,87,12,0.18)', color: T.orange, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17 }}>✦</div>
+              <div style={{ ...DOTS, color: '#fff', padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ width: 36, height: 36, background: 'rgba(255,87,12,0.18)', color: T.orange, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17 }}>✦</div>
                 <div style={{ fontWeight: 700, fontSize: 15 }}>Free to start</div>
                 <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)', lineHeight: 1.55 }}>
                   Free includes {free.max_projects} projects, {free.max_inventory_items} inventory items and {free.monthly_credits} AI kit builds a month.
@@ -314,12 +314,12 @@
           ))}
 
           {/* Getting started */}
-          <div style={{ marginTop: 72, background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 6, padding: '24px 26px' }}>
+          <div style={{ marginTop: 72, background: '#fff', border: `1px solid ${T.paperEdge}`, padding: '24px 26px' }}>
             <div style={{ ...S.label, marginBottom: 16 }}>Get started in three steps</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 18 }}>
               {STEPS.map(([title, text], i) => (
                 <div key={title} style={{ display: 'flex', gap: 12 }}>
-                  <div style={{ width: 26, height: 26, borderRadius: '50%', background: T.ink, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: S.mono, fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
+                  <div style={{ width: 26, height: 26, background: T.ink, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: S.mono, fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
                   <div>
                     <div style={{ fontWeight: 600, fontSize: 14 }}>{title}</div>
                     <div style={{ fontSize: 12, color: T.textMute, marginTop: 3, lineHeight: 1.5 }}>{text}</div>
@@ -339,7 +339,7 @@
         {zoom && (
           <div onClick={() => setZoom(null)} role="dialog" aria-label={`${zoom.label} screenshot`}
             style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(12,12,12,0.86)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32, cursor: 'zoom-out' }}>
-            <img src={zoom.img} alt={`${zoom.label} screen`} style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 8, boxShadow: '0 24px 60px rgba(0,0,0,0.5)' }} />
+            <img src={zoom.img} alt={`${zoom.label} screen`} style={{ maxWidth: '100%', maxHeight: '100%', boxShadow: '0 24px 60px rgba(0,0,0,0.5)' }} />
           </div>
         )}
       </div>
@@ -362,7 +362,7 @@
         {/* Hero */}
         <div style={{ position: 'relative', ...DOTS, color: '#fff', padding: 'calc(env(safe-area-inset-top) + 64px) 0 28px', textAlign: 'center', overflow: 'hidden' }}>
           {onClose && (
-            <button onClick={onClose} style={{ position: 'absolute', top: 'calc(env(safe-area-inset-top) + 14px)', right: 14, zIndex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: 6, padding: '8px 12px', cursor: 'pointer', fontFamily: S.mono, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+            <button onClick={onClose} style={{ position: 'absolute', top: 'calc(env(safe-area-inset-top) + 14px)', right: 14, zIndex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', padding: '8px 12px', cursor: 'pointer', fontFamily: S.mono, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
               {closeLabel || 'Close'}
             </button>
           )}
@@ -397,7 +397,7 @@
           ))}
 
           {/* What the desktop version adds */}
-          <div style={{ marginTop: 48, ...DOTS, color: '#fff', borderRadius: 12, padding: '22px 20px' }}>
+          <div style={{ marginTop: 48, ...DOTS, color: '#fff', padding: '22px 20px' }}>
             <div style={{ ...S.label, color: T.orange }}>On the web</div>
             <div style={{ fontFamily: S.mono, fontSize: 21, fontWeight: 700, letterSpacing: '-0.02em', margin: '6px 0 6px', lineHeight: 1.2 }}>There’s more on your laptop</div>
             <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.65)', lineHeight: 1.55 }}>
@@ -406,7 +406,7 @@
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 18 }}>
               {WEB_EXTRAS.map(([title, text]) => (
                 <div key={title} style={{ display: 'flex', gap: 12 }}>
-                  <span style={{ width: 22, height: 22, borderRadius: 6, background: 'rgba(255,87,12,0.18)', color: T.orange, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0, marginTop: 1 }}>+</span>
+                  <span style={{ width: 22, height: 22, background: 'rgba(255,87,12,0.18)', color: T.orange, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0, marginTop: 1 }}>+</span>
                   <div>
                     <div style={{ fontWeight: 600, fontSize: 14 }}>{title}</div>
                     <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.62)', lineHeight: 1.5, marginTop: 2 }}>{text}</div>
@@ -414,14 +414,14 @@
                 </div>
               ))}
             </div>
-            <div style={{ marginTop: 18, borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.12)' }}>
+            <div style={{ marginTop: 18, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.12)' }}>
               <img src="guide/inventory.webp" alt="The desktop version" loading="lazy" style={{ display: 'block', width: '100%' }} />
             </div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', fontFamily: S.mono, marginTop: 8 }}>The desktop version at gearapp.io</div>
           </div>
 
           {free && pro && (
-            <div style={{ marginTop: 18, background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 12, padding: '18px 20px' }}>
+            <div style={{ marginTop: 18, background: '#fff', border: `1px solid ${T.paperEdge}`, padding: '18px 20px' }}>
               <div style={{ fontWeight: 700, fontSize: 15 }}>Free to start</div>
               <div style={{ fontSize: 13, color: T.textMute, lineHeight: 1.55, marginTop: 6 }}>
                 Free includes {free.max_projects} projects, {free.max_inventory_items} inventory items and {free.monthly_credits} AI kit builds a month.
@@ -430,12 +430,12 @@
             </div>
           )}
 
-          <div style={{ marginTop: 18, background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 12, padding: '18px 20px' }}>
+          <div style={{ marginTop: 18, background: '#fff', border: `1px solid ${T.paperEdge}`, padding: '18px 20px' }}>
             <div style={{ ...S.label, marginBottom: 14 }}>Get started in three steps</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {STEPS.map(([title, text], i) => (
                 <div key={title} style={{ display: 'flex', gap: 12 }}>
-                  <div style={{ width: 26, height: 26, borderRadius: '50%', background: T.ink, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: S.mono, fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
+                  <div style={{ width: 26, height: 26, background: T.ink, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: S.mono, fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
                   <div>
                     <div style={{ fontWeight: 600, fontSize: 14 }}>{title}</div>
                     <div style={{ fontSize: 13, color: T.textMute, marginTop: 2, lineHeight: 1.5 }}>{text}</div>
@@ -444,9 +444,9 @@
               ))}
             </div>
             {onNavigate ? (
-              <button onClick={() => onNavigate('database')} style={{ ...S.btnP, marginTop: 20, padding: 13, width: '100%', borderRadius: 8 }}>Start adding gear</button>
+              <button onClick={() => onNavigate('database')} style={{ ...S.btnP, marginTop: 20, padding: 13, width: '100%' }}>Start adding gear</button>
             ) : onCreateAccount ? (
-              <button onClick={onCreateAccount} style={{ ...S.btnP, marginTop: 20, padding: 13, width: '100%', borderRadius: 8 }}>Create a free account</button>
+              <button onClick={onCreateAccount} style={{ ...S.btnP, marginTop: 20, padding: 13, width: '100%' }}>Create a free account</button>
             ) : null}
           </div>
           <div style={{ marginTop: 12, fontSize: 11, color: T.textMute, fontFamily: S.mono, textAlign: 'center' }}>Screenshots show a demo account.</div>
@@ -455,7 +455,7 @@
         {zoom && (
           <div onClick={() => setZoom(null)} role="dialog" aria-label={`${zoom.label} screenshot`}
             style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(12,12,12,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'calc(env(safe-area-inset-top) + 12px) 12px calc(env(safe-area-inset-bottom) + 12px)', cursor: 'zoom-out' }}>
-            <img src={zoom.img} alt={`${zoom.label} screen`} style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 18 }} />
+            <img src={zoom.img} alt={`${zoom.label} screen`} style={{ maxWidth: '100%', maxHeight: '100%' }} />
           </div>
         )}
       </div>

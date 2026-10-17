@@ -25,13 +25,17 @@
 <!-- Vercel Web Analytics (served by Vercel; 404s harmlessly under serve.py) -->
 <script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
 <script defer src="/_vercel/insights/script.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Orbit&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@800&display=swap" rel="stylesheet" />
 <style>
   html, body, #root { margin: 0; padding: 0; height: 100%; width: 100%; }
   body { background: #f6f3ee; font-family: 'Inter', system-ui, sans-serif; color: #191919; -webkit-font-smoothing: antialiased; }
+  /* Orbit has a single weight; keep it crisp rather than letting browsers fake bold. */
+  body { font-synthesis: none; }
   *, *::before, *::after { box-sizing: border-box; }
   button { font-family: inherit; }
   input, select { font-family: inherit; outline: none; }
+  /* Safari rounds form fields by default; keep them square like the rest of the UI. */
+  input, select, textarea, button { border-radius: 0; }
   input:focus, select:focus { border-color: #FF570C !important; }
   ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -103,6 +107,9 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "imageColumn": "image_url",
   "tableName": "items"
 }/*EDITMODE-END*/;
+
+// Desktop frame: the page between the dark sidebar and right panel.
+const pageWin = { flex: 1, minWidth: 0, overflow: 'hidden', background: '#d9d2ca' };
 
 function App() {
   const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
@@ -1162,7 +1169,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
     return (
       <div style={{ position: 'fixed', inset: 0, background: '#191919', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, zIndex: 9999, animation: signingOut === 'fadeout' ? 'gearFadeOut .4s ease-in forwards' : 'gearFadeIn .25s ease-out' }}>
         <div style={{ width: 40, height: 40, border: '2px solid rgba(255,255,255,0.1)', borderTopColor: '#FF570C', borderRadius: '50%', animation: 'gearSpin 0.9s linear infinite' }} />
-        <div style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)' }}>Logging out…</div>
+        <div style={{ fontFamily: '"Orbit", monospace', fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)' }}>Logging out…</div>
         <style>{`
           @keyframes gearSpin { to { transform: rotate(360deg); } }
           @keyframes gearFadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -1223,7 +1230,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
         />
       )}
       {billingNotice && (
-        <div role="status" style={{ position: 'fixed', top: 'calc(env(safe-area-inset-top) + 18px)', left: '50%', transform: 'translateX(-50%)', maxWidth: 'calc(100vw - 24px)', background: '#191919', color: '#fff', padding: '11px 16px', borderRadius: 6, fontFamily: '"JetBrains Mono", monospace', fontSize: 12, zIndex: 300, display: 'flex', alignItems: 'center', gap: 14, boxShadow: '0 8px 24px rgba(0,0,0,0.25)' }}>
+        <div role="status" style={{ position: 'fixed', top: 'calc(env(safe-area-inset-top) + 18px)', left: '50%', transform: 'translateX(-50%)', maxWidth: 'calc(100vw - 24px)', background: '#191919', color: '#fff', padding: '11px 16px', fontFamily: '"Orbit", monospace', fontSize: 12, zIndex: 300, display: 'flex', alignItems: 'center', gap: 14, boxShadow: '0 8px 24px rgba(0,0,0,0.25)' }}>
           <span>{billingNotice.text}</span>
           {billingNotice.done && <button onClick={() => setBillingNotice(null)} aria-label="Dismiss" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: 16, padding: 0 }}>×</button>}
         </div>
@@ -1284,8 +1291,9 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
         }}
       />
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
         {showAccount && (
+          <div style={{ ...pageWin, display: 'flex' }}>
           <window.STUDIO_AUTH.AccountPage
             user={user}
             session={session}
@@ -1302,13 +1310,14 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
             onSignOut={() => { setShowAccount(false); signOut(); }}
             onUpdate={updateUser}
           />
+          </div>
         )}
         {/* All three pages stay mounted; only the active one is visible.
             Keeps per-page state (search, filters, collapsed groups, sort,
             pagination) intact when the user switches tabs and back. */}
         {!showAccount && !openProject && (
           <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-            <div style={{ flex: 1, display: page === 'inventory' ? 'flex' : 'none', overflow: 'hidden' }}>
+            <div style={{ ...pageWin, display: page === 'inventory' ? 'flex' : 'none' }}>
               <window.STUDIO_INVENTORY
                 items={items} projects={projects} activeProjectId={activeProjectId}
                 density={density} setDensity={setDensity}
@@ -1329,7 +1338,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
               />
             </div>
             {window.STUDIO_SUGGEST && (
-              <div style={{ flex: 1, display: page === 'suggest' ? 'flex' : 'none', overflow: 'hidden' }}>
+              <div style={{ ...pageWin, display: page === 'suggest' ? 'flex' : 'none' }}>
                 <window.STUDIO_SUGGEST
                   userId={session?.user?.id}
                   catalog={catalog}
@@ -1347,17 +1356,17 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
               </div>
             )}
             {window.STUDIO_DISCOVER && page === 'discover' && (
-              <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+              <div style={{ ...pageWin, display: 'flex' }}>
                 <window.STUDIO_DISCOVER catalog={catalog} items={items} onAddToInventory={saveItem} />
               </div>
             )}
             {window.STUDIO_GUIDE && page === 'guide' && (
-              <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+              <div style={{ ...pageWin, display: 'flex' }}>
                 <window.STUDIO_GUIDE onNavigate={setPage} catalog={billingCatalog} items={catalog} />
               </div>
             )}
             {window.STUDIO_DATABASE && (
-              <div style={{ flex: 1, display: page === 'database' ? 'flex' : 'none', overflow: 'hidden' }}>
+              <div style={{ ...pageWin, display: page === 'database' ? 'flex' : 'none' }}>
                 <window.STUDIO_DATABASE
                   catalog={catalog} items={items}
                   dbStatus={dbStatus}
@@ -1369,7 +1378,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
                 />
               </div>
             )}
-            <div style={{ flex: 1, display: page === 'projects' ? 'flex' : 'none', overflow: 'hidden' }}>
+            <div style={{ ...pageWin, display: page === 'projects' ? 'flex' : 'none' }}>
               <window.STUDIO_PROJECTS
                 projects={projects}
                 catalog={catalog}
@@ -1402,6 +1411,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
         )}
 
         {!showAccount && openProject && (
+          <div style={{ ...pageWin, display: 'flex' }}>
           <ProjectDetailView
             project={openProject}
             projectItems={projectItems[openProject.id] || []}
@@ -1411,7 +1421,9 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
             onChangeQty={(id, d) => changeQty(id, d, openProject.id)}
             onRename={(name) => renameProject(openProject.id, name)}
             onChangeStatus={(s) => changeProjectStatus(openProject.id, s)}
+            onAddGear={() => { setActiveProjectId(openProject.id); setOpenProjectId(null); setPage('inventory'); }}
           />
+          </div>
         )}
       </div>
 
@@ -1445,7 +1457,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
               <TweakText label="Anon key" value={tweaks.supabaseAnonKey} placeholder="eyJhbGci…" onChange={(v) => setTweak('supabaseAnonKey', v.trim())} />
             </TweakSection>
             <TweakSection label="Status">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '8px 10px', borderRadius: 7, background: 'rgba(0,0,0,0.04)', fontFamily: '"JetBrains Mono", monospace', fontSize: 10.5, color: 'rgba(41,38,27,0.78)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '8px 10px', background: 'rgba(0,0,0,0.04)', fontFamily: '"JetBrains Mono", monospace', fontSize: 10.5, color: 'rgba(41,38,27,0.78)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ width: 7, height: 7, borderRadius: '50%', background: dbStatus.state === 'ok' ? '#1f8a5b' : dbStatus.state === 'error' ? '#c44a2c' : dbStatus.state === 'loading' ? '#c98a1d' : '#999' }} />
                   <span style={{ textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
@@ -1465,7 +1477,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
 }
 
 // Project detail view — full-screen kit list for one project.
-function ProjectDetailView({ project, projectItems = [], catalog, onBack, onExport, onChangeQty, onRename, onChangeStatus }) {
+function ProjectDetailView({ project, projectItems = [], catalog, onBack, onExport, onChangeQty, onRename, onChangeStatus, onAddGear }) {
   const T = window.GEAR.tokens;
   const S = window.STUDIO_STYLES;
   const R = window.GEAR_ROW;
@@ -1481,130 +1493,125 @@ function ProjectDetailView({ project, projectItems = [], catalog, onBack, onExpo
     return acc;
   }, {});
 
-  const rowH = 64;
+  const facts = [['Client', project.client], ['Shoot', project.shoot], ['Location', project.location]];
+  const dim = '#8a827b';
+  const factCell = { padding: '7px 24px', borderRight: '1px solid #333', minWidth: 0 };
+  const factKey = { fontFamily: S.mono, fontSize: 10, letterSpacing: '0.1em', color: dim, textTransform: 'uppercase' };
+  const toolBtn = { display: 'flex', alignItems: 'center', gap: 8, padding: '0 16px', border: 'none', borderLeft: '1px solid #000', background: '#fff', color: T.ink, fontFamily: S.mono, fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', whiteSpace: 'nowrap' };
+  // Kit grid columns: photo, name, category, stepper.
+  const cols = '56px minmax(0, 1fr) 130px 120px';
+  const cell = { display: 'flex', alignItems: 'center', borderRight: `1px solid ${T.ink}`, minWidth: 0 };
+  const colHead = { ...cell, padding: '0 16px', fontFamily: S.mono, fontSize: 10, letterSpacing: '0.12em', color: T.textMute };
+  const stepBtn = { border: 'none', background: 'transparent', fontSize: 18, fontWeight: 300, cursor: 'pointer', color: T.ink, padding: 0 };
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#faf7f2' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: T.paper }}>
 
-      {/* Top bar */}
-      <div style={{ padding: '14px 28px', borderBottom: `1px solid ${T.paperEdge}`, background: '#fff', display: 'flex', alignItems: 'center', gap: 14 }}>
-        <button onClick={onBack} style={{ ...S.btnG, padding: '6px 12px' }}>← Back</button>
-        <div style={{ fontFamily: S.mono, fontSize: 11, color: T.textMute, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Project</div>
-        <div style={{ flex: 1 }} />
-        <button style={R.editToggleBtn(editMode)} onClick={() => setEditMode(e => !e)}>
-          {editMode ? '✕ Done' : '✎ Edit'}
-        </button>
-        <button style={S.btnP} onClick={onExport}>Export PDF</button>
-      </div>
-
-      {/* Project hero */}
-      <div style={{ background: T.ink, color: '#fff', padding: '32px 40px', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 24 }}>
-          <div>
-            <div style={{ marginBottom: 10 }}>
-              {editMode && onChangeStatus ? (
-                <select
-                  value={project.status}
-                  onChange={(e) => onChangeStatus(e.target.value)}
-                  style={{
-                    fontFamily: S.mono, fontSize: 11, color: T.orange,
-                    letterSpacing: '0.12em', textTransform: 'uppercase',
-                    background: 'rgba(255,87,12,0.12)',
-                    border: '1px solid rgba(255,87,12,0.45)', borderRadius: 4,
-                    outline: 'none', padding: '4px 26px 4px 10px', cursor: 'pointer',
-                    appearance: 'none', WebkitAppearance: 'none',
-                    backgroundImage: "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%23FF570C' d='M0 0h10L5 6z'/></svg>\")",
-                    backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center',
-                  }}>
-                  <option value="planning" style={{ color: T.ink }}>● Planning</option>
-                  <option value="active" style={{ color: T.ink }}>● Active</option>
-                  <option value="wrapped" style={{ color: T.ink }}>● Wrapped</option>
-                </select>
-              ) : (
-                <span style={{ fontFamily: S.mono, fontSize: 11, color: T.orange, letterSpacing: '0.12em', textTransform: 'uppercase' }}>● {project.status}</span>
-              )}
+      {/* Header: title, then the shoot facts as a grid */}
+      <div style={{ background: T.ink, color: '#fff', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, minHeight: 64, padding: '0 24px' }}>
+          <button onClick={onBack} title="Back to projects" style={{ background: 'none', border: 'none', color: T.orange, fontFamily: S.mono, fontSize: 24, cursor: 'pointer', padding: 0, lineHeight: 1 }}>&lt;</button>
+          {editMode && onRename ? (
+            <input
+              autoFocus
+              defaultValue={project.name}
+              key={project.id + ':' + project.name}
+              onBlur={(e) => {
+                const v = (e.target.value || '').trim();
+                if (v && v !== project.name) onRename(v);
+                if (!v) e.target.value = project.name;
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') e.target.blur();
+                if (e.key === 'Escape') { e.target.value = project.name; e.target.blur(); }
+              }}
+              style={{ flex: 1, fontFamily: S.mono, fontSize: 24, background: '#2a2a2a', border: '1px solid #000', outline: 'none', color: '#fff', padding: '4px 10px', minWidth: 0 }}
+            />
+          ) : (
+            <div style={{ fontFamily: S.mono, fontSize: 28, letterSpacing: '0.01em', lineHeight: 1.1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{project.name}</div>
+          )}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr)) 96px 96px', borderTop: '1px solid #000' }}>
+          {facts.map(([k, v]) => (
+            <div key={k} style={factCell}>
+              <div style={factKey}>{k}</div>
+              <div style={{ fontFamily: S.mono, fontSize: 13, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v || '—'}</div>
             </div>
-            <div style={{ marginBottom: 14 }}>
-              {editMode && onRename ? (
-                <input
-                  defaultValue={project.name}
-                  key={project.id + ':' + project.name}
-                  onBlur={(e) => {
-                    const v = (e.target.value || '').trim();
-                    if (v && v !== project.name) onRename(v);
-                    if (!v) e.target.value = project.name;
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') e.target.blur();
-                    if (e.key === 'Escape') { e.target.value = project.name; e.target.blur(); }
-                  }}
-                  style={{ fontFamily: S.mono, fontSize: 48, fontWeight: 400, letterSpacing: '-0.03em', lineHeight: 0.95, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 4, outline: 'none', color: '#fff', padding: '4px 10px', minWidth: 260, maxWidth: '100%' }}
-                />
-              ) : (
-                <div style={{ fontFamily: S.mono, fontSize: 48, fontWeight: 400, letterSpacing: '-0.03em', lineHeight: 0.95 }}>{project.name}</div>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: 24, fontSize: 11, fontFamily: S.mono, color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              {project.client && <span><span style={{ color: 'rgba(255,255,255,0.35)' }}>Client </span>{project.client}</span>}
-              {project.shoot && <span><span style={{ color: 'rgba(255,255,255,0.35)' }}>Shoot </span>{project.shoot}</span>}
-              {project.location && <span><span style={{ color: 'rgba(255,255,255,0.35)' }}>Location </span>{project.location}</span>}
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 32, fontFamily: S.mono, flexShrink: 0 }}>
-            <div><div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 4 }}>Items</div><div style={{ fontSize: 28, fontWeight: 600 }}>{totalQty}</div></div>
-            <div><div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 4 }}>Unique</div><div style={{ fontSize: 28, fontWeight: 600 }}>{uniqueCount}</div></div>
-          </div>
+          ))}
+          <div style={factCell}><div style={factKey}>Items</div><div style={{ fontFamily: S.mono, fontSize: 18, marginTop: 1, color: T.orange }}>{totalQty}</div></div>
+          <div style={{ ...factCell, borderRight: 'none' }}><div style={factKey}>Unique</div><div style={{ fontFamily: S.mono, fontSize: 18, marginTop: 1, color: T.orange }}>{uniqueCount}</div></div>
         </div>
       </div>
 
-      {/* Kit list */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 20px' }}>
+      {/* Tool bar: status blocks on the left, actions on the right */}
+      <div style={{ display: 'flex', height: 40, background: T.ink, borderTop: '1px solid #000', borderBottom: `1px solid ${T.ink}`, flexShrink: 0 }}>
+        {['planning', 'active', 'wrapped'].map(st => (
+          <button key={st} onClick={() => onChangeStatus && onChangeStatus(st)}
+            style={{ width: 104, border: 'none', borderRight: '1px solid #000', background: project.status === st ? T.orange : '#242424', color: project.status === st ? '#fff' : dim, fontFamily: S.mono, fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}>
+            {st}
+          </button>
+        ))}
+        <div style={{ flex: 1 }} />
+        {onRename && (
+          <button style={editMode ? { ...toolBtn, background: T.orange, color: '#fff' } : toolBtn} onClick={() => setEditMode(e => !e)}>
+            {editMode ? '✕ Done' : <React.Fragment><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.orange} strokeWidth="2"><path d="M4 20h4l11-11-4-4L4 16z"/><path d="M14 6l4 4"/></svg>Rename</React.Fragment>}
+          </button>
+        )}
+        <button style={toolBtn} onClick={onExport}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.ink} strokeWidth="2"><path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M5 12v8h14v-8"/></svg>Export PDF
+        </button>
+        {onAddGear && <button style={{ ...toolBtn, background: T.orange, color: '#fff' }} onClick={onAddGear}>+ Add gear</button>}
+      </div>
+
+      {/* Kit list as one grid */}
+      <div style={{ flex: 1, overflowY: 'auto' }}>
         {projectItems.length === 0 ? (
-          <div style={{ padding: '60px 0', textAlign: 'center', color: T.textMute, fontFamily: S.mono, fontSize: 13 }}>
-            No items yet. Go to Inventory or Database and add items to this project.
+          <div style={{ margin: '40px auto', maxWidth: 420, padding: '32px 24px', textAlign: 'center', border: `1px dashed ${T.ink}`, color: T.textMute }}>
+            <div style={{ fontFamily: S.mono, fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 14 }}>No items yet</div>
+            {onAddGear && <button style={S.btnP} onClick={onAddGear}>+ Add gear from your inventory</button>}
           </div>
         ) : (
-          Object.entries(grouped).map(([cat, rows]) => (
-            <div key={cat} style={{ marginBottom: 8, background: '#fff', borderRadius: 6, border: `1px solid ${T.paperEdge}`, overflow: 'hidden' }}>
-              <div style={{ padding: '10px 18px', background: '#f6f3ee', borderBottom: `1px solid ${T.paperEdge}`, fontFamily: S.mono, fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.ink, display: 'flex', justifyContent: 'space-between' }}>
-                <span>{cat}</span>
-                <span style={{ color: T.textMute }}>{rows.reduce((s, pi) => s + (pi.qty || 0), 0)}</span>
-              </div>
-              {rows.map(pi => (
-                <div key={pi.id}
-                  style={{ display: 'flex', alignItems: 'stretch', borderBottom: '1px solid #f0ebe2', background: '#faf7f2', height: rowH, transition: 'background .08s' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = '#f0ebe2'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = '#faf7f2'; }}>
-
-                  {/* Image */}
-                  <div style={{ position: 'relative', width: rowH, height: rowH, padding: 6, flexShrink: 0 }}>
-                    <div style={{ width: '100%', height: '100%', background: '#fff', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                      <img src={pi.image_url || window.GEAR_PLACEHOLDER(pi.category)} onError={(e) => { e.currentTarget.src = window.GEAR_PLACEHOLDER(pi.category); }} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} alt="" />
-                    </div>
-                    {pi.qty > 1 && (
-                      <div style={{ position: 'absolute', bottom: 2, right: 2, background: T.orange, color: '#fff', fontSize: 11, fontFamily: S.mono, fontWeight: 700, padding: '2px 6px', minWidth: 20, textAlign: 'center', lineHeight: 1.3, borderRadius: 4 }}>{pi.qty}</div>
-                    )}
-                  </div>
-
-                  {/* Name + category */}
-                  <div style={{ flex: 1, minWidth: 0, padding: '0 18px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: T.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pi.name}</div>
-                    {pi.category && <div style={{ fontSize: 10, fontFamily: S.mono, color: T.textMute, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>{pi.category}</div>}
-                  </div>
-
-                  {/* +/- only in edit mode */}
-                  {editMode && (
-                    <div style={{ display: 'flex', alignItems: 'center', paddingRight: 14, flexShrink: 0 }}>
-                      <div style={R.qPill(false)}>
-                        <button onClick={() => onChangeQty(pi.equipment_id, -1)} title={pi.qty <= 1 ? 'Remove' : 'Decrease'} style={R.qPillBtn(false)}>−</button>
-                        <button onClick={() => onChangeQty(pi.equipment_id, 1)} style={R.qPillBtn(false)}>+</button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+          <React.Fragment>
+            <div style={{ display: 'grid', gridTemplateColumns: cols, height: 28, background: T.paperLight, borderBottom: `1px solid ${T.ink}`, position: 'sticky', top: 0, zIndex: 1 }}>
+              <div style={colHead}></div>
+              <div style={colHead}>ITEM</div>
+              <div style={colHead}>CATEGORY</div>
+              <div style={{ ...colHead, borderRight: 'none', justifyContent: 'center' }}>QTY</div>
             </div>
-          ))
+            {Object.entries(grouped).map(([cat, rows]) => (
+              <React.Fragment key={cat}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: 28, padding: '0 14px', background: T.ink, color: '#fff', fontFamily: S.mono, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', borderBottom: `1px solid ${T.ink}` }}>
+                  <span>{cat}</span>
+                  <span style={{ color: T.orange }}>{rows.reduce((s, pi) => s + (pi.qty || 0), 0)}</span>
+                </div>
+                {rows.map(pi => (
+                  <div key={pi.id}
+                    style={{ display: 'grid', gridTemplateColumns: cols, height: 52, borderBottom: `1px solid ${T.ink}`, background: T.paper }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = '#e2dbd2'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = T.paper; }}>
+                    <div style={R.kitImgCell}>
+                      <img src={pi.image_url || window.GEAR_PLACEHOLDER(pi.category)} onError={(e) => { e.currentTarget.src = window.GEAR_PLACEHOLDER(pi.category); }} style={R.kitImg} alt="" />
+                    </div>
+                    <div style={{ ...cell, padding: '0 14px' }} title={pi.name}>
+                      <span style={{ fontSize: 13.5, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pi.name}</span>
+                    </div>
+                    <div style={{ ...cell, padding: '0 14px', fontFamily: S.mono, fontSize: 10, letterSpacing: '0.08em', color: T.textMute, textTransform: 'uppercase' }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pi.category}</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr' }}>
+                      <button onClick={() => onChangeQty(pi.id, -1)} title={pi.qty <= 1 ? 'Remove' : 'Decrease'} style={stepBtn}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = T.orange; e.currentTarget.style.color = '#fff'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = T.ink; }}>−</button>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: S.mono, fontSize: 14, borderLeft: `1px solid ${T.ink}`, borderRight: `1px solid ${T.ink}`, background: pi.qty > 1 ? T.orange : 'transparent', color: pi.qty > 1 ? '#fff' : T.ink }}>{pi.qty}</div>
+                      <button onClick={() => onChangeQty(pi.id, 1)} title="Increase" style={stepBtn}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = T.orange; e.currentTarget.style.color = '#fff'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = T.ink; }}>+</button>
+                    </div>
+                  </div>
+                ))}
+              </React.Fragment>
+            ))}
+          </React.Fragment>
         )}
       </div>
     </div>

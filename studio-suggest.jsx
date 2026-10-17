@@ -332,7 +332,7 @@
     const working = !!stage;
     const costLabel = outOfCredits ? 'Get more credits' : '1 credit';
     const actions = (
-      <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', maxWidth: '100%' }}>
         <button onClick={addToActive} disabled={!activeProjectId || working} title={activeProjectId ? '' : 'Select an active project first'}
           style={{ ...S.btnDark, opacity: activeProjectId && !working ? 1 : 0.45, cursor: activeProjectId ? 'pointer' : 'not-allowed' }}>
           {activeProject ? `Add to ${truncate(activeProject.name, 16)}` : 'Add to project'}
@@ -343,7 +343,7 @@
 
     // ── Render ───────────────────────────────────────────────────────────
     return (
-      <div style={{ flex: 1, overflowY: 'auto', background: '#f6f3ee' }}>
+      <div style={{ flex: 1, overflowY: 'auto', background: T.paper }}>
         <div style={{ maxWidth: 1180, margin: '0 auto', padding: compact ? '18px 14px 32px' : '32px 28px 80px' }}>
 
           <div style={{ marginBottom: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
@@ -371,7 +371,7 @@
                 const k = entry.result;
                 const open = result && result.id === entry.id;
                 return (
-                  <div key={entry.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', borderBottom: '1px solid #f0ebe2', background: open ? '#fff8f4' : '#fff' }}>
+                  <div key={entry.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', borderBottom: '1px solid #e2d9cd', background: open ? '#fff8f4' : '#fff' }}>
                     <button onClick={() => openSaved(entry)} disabled={working} title="Open this kit (free)"
                       style={{ flex: 1, minWidth: 0, background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer', color: T.ink }}>
                       <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -450,7 +450,7 @@
                     </button>
                   )}
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <input
                     id="kit-change"
                     value={change}
@@ -458,7 +458,7 @@
                     onKeyDown={e => { if (e.key === 'Enter' && !working) applyChange(); }}
                     disabled={working}
                     placeholder="e.g. Swap to a lighter camera that balances on the gimbal"
-                    style={{ ...S.input, flex: 1, fontSize: 13, padding: '10px 12px' }}
+                    style={{ ...S.input, flex: '1 1 200px', minWidth: 0, fontSize: 13, padding: '10px 12px' }}
                   />
                   <button onClick={() => applyChange()} disabled={working || (!change.trim() && !outOfCredits)}
                     style={{ ...S.btnP, flexShrink: 0, padding: '10px 14px', opacity: working || (!change.trim() && !outOfCredits) ? 0.5 : 1 }}>
@@ -603,7 +603,7 @@
         </div>
         <div style={{ padding: '12px 14px', maxHeight: '70vh', overflowY: 'auto' }}>
           {tab === 'notes' && (notes.length
-            ? notes.map((n, i) => <div key={i} style={{ fontSize: 12, color: T.ink, lineHeight: 1.5, padding: '8px 0', borderTop: i ? '1px solid #f0ebe2' : 'none' }}>{n}</div>)
+            ? notes.map((n, i) => <div key={i} style={{ fontSize: 12, color: T.ink, lineHeight: 1.5, padding: '8px 0', borderTop: i ? '1px solid #e2d9cd' : 'none' }}>{n}</div>)
             : <div style={{ fontSize: 12, color: T.textMute }}>No notes for this kit.</div>)}
           {tab === 'alts' && (alternatives.length ? alternatives.map((a, i) => (
             <div key={a.for.id} style={{ marginTop: i ? 14 : 0 }}>

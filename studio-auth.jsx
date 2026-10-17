@@ -188,7 +188,7 @@
           <div style={{ minHeight: 280, padding: 'calc(env(safe-area-inset-top) + 24px) 24px 40px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 40, color: '#fff', background: 'linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.25) 45%, rgba(0,0,0,0.85) 100%), #0c0c0c url(login-bg.jpg) center / cover no-repeat' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <img src="app-icon.jpg" alt="Gear" style={{ width: 30, height: 30, borderRadius: 7 }} />
-              <div style={{ fontFamily: S.mono, fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em' }}>THE GEAR APP</div>
+              <div style={{ ...S.wordmark, fontSize: 15 }}>THE GEAR APP</div>
             </div>
             <div>
               <div style={{ fontFamily: S.sans, fontSize: 'clamp(32px, 9vw, 46px)', fontWeight: 700, letterSpacing: '-0.025em', lineHeight: 1.05, marginBottom: 10 }}>
@@ -198,13 +198,13 @@
                 Organise your equipment, track your inventory and prep for every shoot.
               </div>
               {window.STUDIO_GUIDE && (
-                <button onClick={() => setShowGuide(true)} style={{ marginTop: 18, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.22)', color: '#fff', borderRadius: 6, padding: '9px 14px', cursor: 'pointer', fontFamily: S.mono, fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                <button onClick={() => setShowGuide(true)} style={{ marginTop: 18, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.22)', color: '#fff', padding: '9px 14px', cursor: 'pointer', fontFamily: S.mono, fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                   See how it works →
                 </button>
               )}
             </div>
           </div>
-          <div style={{ position: 'relative', marginTop: -16, background: '#fff', borderRadius: '16px 16px 0 0', padding: '28px 22px calc(env(safe-area-inset-bottom) + 32px)' }}>
+          <div style={{ position: 'relative', marginTop: -16, background: '#fff', padding: '28px 22px calc(env(safe-area-inset-bottom) + 32px)' }}>
             {form}
           </div>
         </div>
@@ -218,7 +218,7 @@
           <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)', backgroundSize: '22px 22px', pointerEvents: 'none' }} />
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 12 }}>
             <img src="app-icon.jpg" alt="Gear" style={{ width: 36, height: 36, borderRadius: 8 }} />
-            <div style={{ fontFamily: S.mono, fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em' }}>THE GEAR APP</div>
+            <div style={{ ...S.wordmark, fontSize: 22 }}>THE GEAR APP</div>
           </div>
           <div style={{ position: 'relative' }}>
             <div style={{ fontFamily: S.sans, fontSize: 'clamp(56px, 7vw, 96px)', fontWeight: 700, letterSpacing: '-0.035em', lineHeight: 1.0, marginBottom: 22, maxWidth: 800 }}>
@@ -227,7 +227,7 @@
             <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.55)', maxWidth: 520, lineHeight: 1.55 }}>
               Organise your equipment, track your inventory and prep for every shoot.
             </div>
-            <button onClick={() => setShowGuide(true)} style={{ marginTop: 26, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)', color: '#fff', borderRadius: 4, padding: '10px 16px', cursor: 'pointer', fontFamily: S.mono, fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            <button onClick={() => setShowGuide(true)} style={{ marginTop: 26, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)', color: '#fff', padding: '10px 16px', cursor: 'pointer', fontFamily: S.mono, fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
               See how it works →
             </button>
             {/* A random mix of real gear from the database, bleeding to the panel edges. */}
@@ -250,7 +250,7 @@
     );
   }
 
-  const oauthBtn = { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '11px 14px', background: '#fff', color: T.ink, border: `1px solid ${T.paperEdge}`, borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: S.sans, transition: 'background .12s' };
+  const oauthBtn = { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '11px 14px', background: '#fff', color: T.ink, border: `1px solid ${T.paperEdge}`, fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: S.sans, transition: 'background .12s' };
 
   // ─── Password recovery form ─────────────────────────────────
   // Shown when Supabase fires PASSWORD_RECOVERY (user clicked the reset
@@ -278,7 +278,7 @@
     };
     return (
       <div style={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: T.ink, color: '#fff' }}>
-        <form onSubmit={submit} style={{ width: 380, maxWidth: 'calc(100vw - 32px)', padding: 32, background: '#fff', color: T.ink, borderRadius: 8 }}>
+        <form onSubmit={submit} style={{ width: 380, maxWidth: 'calc(100vw - 32px)', padding: 32, background: '#fff', color: T.ink }}>
           <div style={{ ...S.label, marginBottom: 6 }}>Reset password</div>
           <div style={{ fontFamily: S.mono, fontSize: 22, fontWeight: 600, letterSpacing: '-0.01em', marginBottom: 20 }}>Set a new password</div>
           <div style={S.field}>
@@ -320,16 +320,16 @@
     ];
 
     return (
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#f6f3ee', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: T.paper, overflow: 'hidden' }}>
         {/* Top bar */}
-        <div style={{ padding: '14px 28px', borderBottom: `1px solid ${T.paperEdge}`, background: '#fff', display: 'flex', alignItems: 'center', gap: 14 }}>
-          <button onClick={onBack} style={{ ...S.btnG, padding: '6px 12px' }}>← Back</button>
-          <div style={{ fontFamily: S.mono, fontSize: 11, color: T.textMute, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Account</div>
+        <div style={window.GEAR_ROW.pageHead}>
+          <button onClick={onBack} style={window.GEAR_ROW.headBtn}>← Back</button>
+          <div style={window.GEAR_ROW.pageTitle}>Account</div>
         </div>
 
         {/* Hero */}
         <div style={{ padding: '36px 40px 24px', background: '#fff', borderBottom: `1px solid ${T.paperEdge}`, display: 'flex', alignItems: 'center', gap: 24 }}>
-          <div style={{ width: 84, height: 84, borderRadius: '50%', background: T.orange, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, fontWeight: 700, fontFamily: S.mono }}>
+          <div style={{ width: 84, height: 84, background: T.orange, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, fontWeight: 700, fontFamily: S.mono }}>
             {(user.name || 'U').charAt(0).toUpperCase()}
           </div>
           <div style={{ flex: 1 }}>
@@ -402,7 +402,7 @@
                     </div>
                     <button style={S.btnG} onClick={onSignOut}>Sign out</button>
                   </div>
-                  <div style={{ padding: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f0ebe2' }}>
+                  <div style={{ padding: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #e2d9cd' }}>
                     <div>
                       <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 2, color: '#B33A06' }}>Delete account</div>
                       <div style={{ fontSize: 12, color: T.textMute }}>Permanently delete your data. Cannot be undone.</div>
@@ -445,7 +445,7 @@
               <label style={S.label}>Type DELETE to confirm</label>
               <input style={S.input} value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') submit(); }} autoFocus disabled={busy} placeholder="DELETE" />
             </div>
-            {error && <div style={{ background: '#fde6dd', color: T.err, border: `1px solid ${T.err}`, borderRadius: 4, padding: '9px 12px', fontSize: 12, fontFamily: S.mono }}>{error}</div>}
+            {error && <div style={{ background: '#fde6dd', color: T.err, border: `1px solid ${T.err}`, padding: '9px 12px', fontSize: 12, fontFamily: S.mono }}>{error}</div>}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               <button style={S.btnG} onClick={onClose} disabled={busy}>Cancel</button>
               <button onClick={submit} disabled={!ready}
@@ -459,12 +459,12 @@
     );
   }
 
-  const card = { background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 6, overflow: 'hidden' };
-  const cardHead = { padding: '14px 20px', borderBottom: '1px solid #f0ebe2', fontFamily: S.mono, fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' };
+  const card = { background: '#fff', border: `1px solid ${T.paperEdge}`, overflow: 'hidden' };
+  const cardHead = { padding: '14px 20px', borderBottom: '1px solid #e2d9cd', fontFamily: S.mono, fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' };
 
   function Row({ label, value, action }) {
     return (
-      <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f0ebe2' }}>
+      <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e2d9cd' }}>
         <div>
           <div style={{ fontFamily: S.mono, fontSize: 10, color: T.textMute, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 3 }}>{label}</div>
           <div style={{ fontSize: 13 }}>{value}</div>

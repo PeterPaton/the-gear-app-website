@@ -9,7 +9,9 @@ window.GEAR.tokens = {
   inkSoft: '#332f30',      // secondary text on dark
   paper: '#d9d2ca',        // beige content bg
   paperLight: '#e8e2d8',   // lighter beige (placeholder bg, hovers)
-  paperEdge: '#c8bfb4',    // beige border
+  paperEdge: '#c2b7a9',    // beige border (grid edges)
+  line: '#e2d9cd',         // row dividers inside cards
+  bar: '#ebe5dc',          // section header bars
   white: '#ffffff',
   orange: '#FF570C',
   orangeAlt: '#F04C23',

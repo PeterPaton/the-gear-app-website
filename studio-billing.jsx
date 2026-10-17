@@ -44,7 +44,7 @@
     const planCard = (plan, highlight) => {
       const current = status ? status.plan === plan.id : plan.id === 'free';
       return (
-        <div style={{ flex: '1 1 260px', border: `${highlight ? 2 : 1}px solid ${highlight ? T.orange : T.paperEdge}`, borderRadius: 6, padding: 20, background: highlight ? '#fff8f4' : '#fff', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ flex: '1 1 260px', border: `${highlight ? 2 : 1}px solid ${highlight ? T.orange : T.paperEdge}`, padding: 20, background: highlight ? '#fff8f4' : '#fff', display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
             <div style={{ ...S.label, color: highlight ? T.orange : T.textMute }}>{plan.name}</div>
             {current && <span style={S.pill(T.paperLight, T.ink)}>Current plan</span>}
@@ -90,7 +90,7 @@
               {planCard(pro, true)}
             </div>
             {pack && (
-              <div style={{ border: `1px solid ${T.paperEdge}`, borderRadius: 6, padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
+              <div style={{ border: `1px solid ${T.paperEdge}`, padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: T.ink }}>Need more Suggest credits?</div>
                   <div style={{ fontSize: 12, color: T.textMute, marginTop: 2 }}>{pack.credits} credits for {B().money(pack.price_pence, pack.currency)} on any plan. They never expire and are used after your monthly credits.</div>
@@ -101,7 +101,7 @@
               </div>
             )}
             {error && (
-              <div style={{ background: '#fde6dd', color: T.err, border: `1px solid ${T.err}`, borderRadius: 4, padding: '10px 14px', fontSize: 12, fontFamily: S.mono }}>{error}</div>
+              <div style={{ background: '#fde6dd', color: T.err, border: `1px solid ${T.err}`, padding: '10px 14px', fontSize: 12, fontFamily: S.mono }}>{error}</div>
             )}
             <div style={{ fontSize: 11, color: T.textMute, fontFamily: S.mono, letterSpacing: '0.02em' }}>
               Secure checkout by Stripe. Cancel any time from Account → Billing.
@@ -118,7 +118,7 @@
     const total = B().totalCredits(status);
     const empty = total === 0;
     return (
-      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, background: '#fff', border: `1px solid ${empty ? T.err : T.paperEdge}`, borderRadius: 4, padding: '7px 12px', fontFamily: S.mono, fontSize: 11 }}>
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, background: '#fff', border: `1px solid ${empty ? T.err : T.paperEdge}`, padding: '7px 12px', fontFamily: S.mono, fontSize: 11 }}>
         <span style={{ fontWeight: 700, color: empty ? T.err : T.ink }}>{total} credit{total === 1 ? '' : 's'}</span>
         <span style={{ color: T.textMute }}>
           {status.monthly_credits}/{status.monthly_allowance} monthly{status.bonus_credits ? ` + ${status.bonus_credits} top-up` : ''}
@@ -153,7 +153,7 @@
           <span style={{ color: full ? T.err : T.ink, fontWeight: 600 }}>{used}{limit == null ? ' · unlimited' : ` / ${limit}`}</span>
         </div>
         {limit != null && (
-          <div style={{ height: 6, background: T.paperLight, borderRadius: 3, overflow: 'hidden' }}>
+          <div style={{ height: 6, background: T.paperLight, overflow: 'hidden' }}>
             <div style={{ width: `${pct}%`, height: '100%', background: full ? T.err : T.orange }} />
           </div>
         )}
@@ -162,8 +162,8 @@
   }
 
   function BillingPanel({ status, catalog, history, error, busy, onUpgrade, onBuyCredits, onManage }) {
-    const card = { background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 6, overflow: 'hidden' };
-    const head = { padding: '14px 20px', borderBottom: '1px solid #f0ebe2', fontFamily: S.mono, fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' };
+    const card = { background: '#fff', border: `1px solid ${T.paperEdge}`, overflow: 'hidden' };
+    const head = { padding: '14px 20px', borderBottom: '1px solid #e2d9cd', fontFamily: S.mono, fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' };
     if (!status) {
       return (
         <div style={{ ...card, padding: 24, fontFamily: S.mono, fontSize: 12, color: error ? T.err : T.textMute }}>
@@ -237,7 +237,7 @@
         </div>
 
         {error && (
-          <div style={{ background: '#fde6dd', color: T.err, border: `1px solid ${T.err}`, borderRadius: 4, padding: '10px 14px', fontSize: 12, fontFamily: S.mono }}>{error}</div>
+          <div style={{ background: '#fde6dd', color: T.err, border: `1px solid ${T.err}`, padding: '10px 14px', fontSize: 12, fontFamily: S.mono }}>{error}</div>
         )}
 
         <div style={card}>
@@ -245,7 +245,7 @@
           {(!history || history.length === 0) ? (
             <div style={{ padding: 20, fontSize: 12, color: T.textMute }}>No credit activity yet.</div>
           ) : history.map(h => (
-            <div key={h.id} style={{ padding: '11px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f0ebe2', gap: 12 }}>
+            <div key={h.id} style={{ padding: '11px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e2d9cd', gap: 12 }}>
               <div>
                 <div style={{ fontSize: 13 }}>{LEDGER_LABEL[h.reason] || h.reason}</div>
                 <div style={{ fontSize: 10, color: T.textMute, fontFamily: S.mono, marginTop: 2 }}>{new Date(h.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>

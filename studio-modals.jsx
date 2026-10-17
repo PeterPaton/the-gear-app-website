@@ -76,13 +76,13 @@
                   return (
                     <button key={s.k} onClick={() => set('status', s.k)} style={{
                       padding: '8px 14px', fontSize: 10, fontFamily: S.mono, fontWeight: 600,
-                      letterSpacing: '0.1em', textTransform: 'uppercase', borderRadius: 999,
+                      letterSpacing: '0.1em', textTransform: 'uppercase',
                       border: active ? 'none' : `1px solid ${T.paperEdge}`,
                       background: active ? c.bg : 'transparent',
                       color: active ? c.fg : T.textMute, cursor: 'pointer',
                       display: 'inline-flex', alignItems: 'center', gap: 6,
                     }}>
-                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: c.fg, opacity: active ? 1 : 0.5 }}></span>
+                      <span style={{ width: 6, height: 6, background: c.fg, opacity: active ? 1 : 0.5 }}></span>
                       {s.l}
                     </button>
                   );
@@ -117,7 +117,7 @@
         </React.Fragment>
       }>
         <div style={{ display: 'flex', gap: 16 }}>
-          <img src={window.GEAR.itemImage(form)} onError={(e) => { e.currentTarget.src = window.GEAR_PLACEHOLDER(form.category || 'Camera'); }} style={{ width: 88, height: 88, background: T.paperLight, borderRadius: 4, objectFit: 'cover', flexShrink: 0 }} alt="" />
+          <img src={window.GEAR.itemImage(form)} onError={(e) => { e.currentTarget.src = window.GEAR_PLACEHOLDER(form.category || 'Camera'); }} style={{ width: 88, height: 88, background: T.paperLight, objectFit: 'cover', flexShrink: 0 }} alt="" />
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
             <label style={S.label}>Item name</label>
             <input style={S.input} value={form.name || ''} onChange={e => set('name', e.target.value)} autoFocus />
@@ -504,7 +504,6 @@
       letterSpacing: '0.06em',
       textTransform: 'uppercase',
       border: `1px solid ${active ? T.orange : T.paperEdge}`,
-      borderRadius: 4,
       background: active ? '#fff3ed' : '#fff',
       color: active ? T.orange : T.ink,
       cursor: 'pointer',
@@ -519,10 +518,10 @@
         <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: '#faf7f2', display: 'flex', flexDirection: 'column' }} role="dialog" aria-label="Export PDF">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: 'calc(env(safe-area-inset-top) + 12px) 16px 12px', background: '#fff', borderBottom: `1px solid ${T.paperEdge}`, flexShrink: 0 }}>
             <div style={{ fontFamily: S.mono, fontSize: 16, fontWeight: 700 }}>Export PDF</div>
-            <button onClick={onClose} disabled={busy} aria-label="Close" style={{ background: T.paperLight, border: 'none', borderRadius: '50%', width: 32, height: 32, fontSize: 18, lineHeight: 1, color: T.textMute, cursor: 'pointer' }}>×</button>
+            <button onClick={onClose} disabled={busy} aria-label="Close" style={{ background: T.paperLight, border: 'none', width: 32, height: 32, fontSize: 18, lineHeight: 1, color: T.textMute, cursor: 'pointer' }}>×</button>
           </div>
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 10, padding: 16 }}>
+            <div style={{ background: '#fff', border: `1px solid ${T.paperEdge}`, padding: 16 }}>
               <div style={{ ...S.label, marginBottom: 6 }}>Full list</div>
               <div style={{ fontFamily: S.mono, fontSize: 22, fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1.15, wordBreak: 'break-word' }}>{project.name}</div>
               {[project.client, project.shoot, project.location].some(Boolean) && (
@@ -541,7 +540,7 @@
               <button style={toggleBtn(!isTight)} onClick={() => setDensity('comfortable')}>≡ Spacious</button>
             </div>
             {error && (
-              <div style={{ background: '#fde6dd', color: T.err, border: `1px solid ${T.err}`, borderRadius: 4, padding: '9px 12px', fontSize: 12, fontFamily: S.mono }}>{error}</div>
+              <div style={{ background: '#fde6dd', color: T.err, border: `1px solid ${T.err}`, padding: '9px 12px', fontSize: 12, fontFamily: S.mono }}>{error}</div>
             )}
             {branding && onUpgrade && (
               <div style={{ fontSize: 11, color: T.textMute, fontFamily: S.mono, lineHeight: 1.5 }}>
@@ -552,11 +551,11 @@
           <div style={{ padding: '12px 16px calc(env(safe-area-inset-bottom) + 12px)', background: '#fff', borderTop: `1px solid ${T.paperEdge}`, display: 'flex', gap: 8, flexShrink: 0 }}>
             {pdf ? (
               <React.Fragment>
-                <a href={pdf.url} target="_blank" rel="noopener" download={pdf.file.name} style={{ ...S.btnG, flex: 1, padding: 13, textAlign: 'center', textDecoration: 'none', borderRadius: 8 }}>Open PDF</a>
-                {canShare && <button style={{ ...S.btnP, flex: 1, padding: 13, borderRadius: 8 }} onClick={sharePdf}>Share PDF</button>}
+                <a href={pdf.url} target="_blank" rel="noopener" download={pdf.file.name} style={{ ...S.btnG, flex: 1, padding: 13, textAlign: 'center', textDecoration: 'none' }}>Open PDF</a>
+                {canShare && <button style={{ ...S.btnP, flex: 1, padding: 13 }} onClick={sharePdf}>Share PDF</button>}
               </React.Fragment>
             ) : (
-              <button style={{ ...S.btnP, flex: 1, padding: 13, borderRadius: 8, opacity: busy ? 0.6 : 1 }} onClick={downloadPDF} disabled={busy}>{busy ? 'Generating…' : 'Create PDF'}</button>
+              <button style={{ ...S.btnP, flex: 1, padding: 13, opacity: busy ? 0.6 : 1 }} onClick={downloadPDF} disabled={busy}>{busy ? 'Generating…' : 'Create PDF'}</button>
             )}
           </div>
         </div>
@@ -595,7 +594,7 @@
         {/* minWidth keeps the sheet at its desktop width on a phone (the
             preview scrolls sideways), so the PDF comes out the same. */}
         <div style={{ overflowX: 'auto' }}>
-        <div ref={sheetRef} style={{ background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 4, padding: '32px 36px', minWidth: 680 }}>
+        <div ref={sheetRef} style={{ background: '#fff', border: `1px solid ${T.paperEdge}`, padding: '32px 36px', minWidth: 680 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, paddingBottom: 16, borderBottom: `2px solid ${T.ink}` }}>
               <div>
                 <div style={{ fontFamily: S.mono, fontSize: 10, color: T.textMute, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>Full list</div>
@@ -603,7 +602,7 @@
                 <div style={{ fontSize: 12, color: T.textMute, marginTop: 6 }}>{[project.client, project.shoot, project.location].filter(Boolean).join(' · ')}</div>
               </div>
               {branding
-                ? <div style={{ fontFamily: S.mono, fontSize: 14, fontWeight: 700 }}>THE GEAR APP</div>
+                ? <div style={{ ...S.wordmark, fontSize: 14 }}>THE GEAR APP</div>
                 : studioName ? <div style={{ fontFamily: S.mono, fontSize: 14, fontWeight: 700, textTransform: 'uppercase' }}>{studioName}</div> : null}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 0, marginBottom: 20, fontSize: 11, fontFamily: S.mono }}>
@@ -624,11 +623,11 @@
                 </thead>
                 {(() => {
                   const renderRow = (pi) => (
-                    <tr key={pi.id} style={{ borderBottom: '1px solid #f0ebe2', pageBreakInside: 'avoid' }}>
+                    <tr key={pi.id} style={{ borderBottom: '1px solid #e2d9cd', pageBreakInside: 'avoid' }}>
                       <td style={{ padding: rowPad, fontFamily: S.mono, fontWeight: 600 }}>{pi.qty}×</td>
                       {showPhotos && (
                         <td style={{ padding: rowPad }}>
-                          <div style={{ width: thumb, height: thumb, background: '#fff', border: '1px solid #e0e0e0', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                          <div style={{ width: thumb, height: thumb, background: '#fff', border: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                             <img src={pi.image_url || window.GEAR_PLACEHOLDER(pi.category)} onError={(e) => { e.currentTarget.src = window.GEAR_PLACEHOLDER(pi.category); }} data-category={pi.category || 'Camera'} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} alt="" />
                           </div>
                         </td>
@@ -654,7 +653,7 @@
               </table>
             )}
             {branding && (
-              <div style={{ marginTop: 22, paddingTop: 10, borderTop: '1px solid #f0ebe2', display: 'flex', justifyContent: 'space-between', fontFamily: S.mono, fontSize: 9, color: T.textMute, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              <div style={{ marginTop: 22, paddingTop: 10, borderTop: '1px solid #e2d9cd', display: 'flex', justifyContent: 'space-between', fontFamily: S.mono, fontSize: 9, color: T.textMute, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                 <span>Made with The Gear App</span>
                 <span>gearapp.io</span>
               </div>
@@ -662,7 +661,7 @@
         </div>
         </div>
         {error && (
-          <div style={{ background: '#fde6dd', color: T.err, border: `1px solid ${T.err}`, borderRadius: 4, padding: '9px 12px', fontSize: 12, fontFamily: S.mono, marginTop: 10 }}>{error}</div>
+          <div style={{ background: '#fde6dd', color: T.err, border: `1px solid ${T.err}`, padding: '9px 12px', fontSize: 12, fontFamily: S.mono, marginTop: 10 }}>{error}</div>
         )}
         {branding && onUpgrade && (
           <div style={{ fontSize: 11, color: T.textMute, fontFamily: S.mono, marginTop: 10 }}>

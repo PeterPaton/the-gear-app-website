@@ -40,7 +40,7 @@
     if (!rect) return null;
     const pad = 6;
     return (
-      <div aria-hidden="true" style={{ position: 'fixed', top: rect.top - pad, left: rect.left - pad, width: rect.width + pad * 2, height: rect.height + pad * 2, border: `2px solid ${T.orange}`, borderRadius: 8, pointerEvents: 'none', zIndex: 400, animation: 'gearTourPulse 1.4s ease-in-out infinite', transition: 'top .2s, left .2s, width .2s, height .2s' }}>
+      <div aria-hidden="true" style={{ position: 'fixed', top: rect.top - pad, left: rect.left - pad, width: rect.width + pad * 2, height: rect.height + pad * 2, border: `2px solid ${T.orange}`, pointerEvents: 'none', zIndex: 400, animation: 'gearTourPulse 1.4s ease-in-out infinite', transition: 'top .2s, left .2s, width .2s, height .2s' }}>
         <style>{'@keyframes gearTourPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,87,12,0.45); } 50% { box-shadow: 0 0 0 8px rgba(255,87,12,0); } }'}</style>
       </div>
     );
@@ -48,7 +48,7 @@
 
   function Tour({ step, name, justDone, onStart, onNext, onSkip, onFinish, onOpen }) {
     const s = STEPS[step];
-    const card = { background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 10, boxShadow: '0 18px 50px rgba(20,16,12,0.28)', color: T.ink };
+    const card = { background: '#fff', border: `1px solid ${T.paperEdge}`, boxShadow: '0 18px 50px rgba(20,16,12,0.28)', color: T.ink };
     const skip = <button onClick={onSkip} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: T.textMute, fontFamily: S.mono, fontSize: 11 }}>Skip tour</button>;
 
     if (s.key === 'welcome' || s.key === 'done') {
@@ -96,7 +96,7 @@
           </div>
           <div style={{ display: 'flex', gap: 4, marginTop: 10 }}>
             {Array.from({ length: TASKS }).map((_, i) => (
-              <div key={i} style={{ flex: 1, height: 3, borderRadius: 2, background: i < n - (justDone ? 0 : 1) ? T.orange : T.paperLight }} />
+              <div key={i} style={{ flex: 1, height: 3, background: i < n - (justDone ? 0 : 1) ? T.orange : T.paperLight }} />
             ))}
           </div>
           <div style={{ fontFamily: S.mono, fontSize: 16, fontWeight: 700, marginTop: 12 }}>
