@@ -57,7 +57,7 @@
     );
 
     return (
-      <div style={{ flex: 1, overflowY: 'auto', background: '#f6f3ee' }}>
+      <div style={{ flex: 1, overflowY: 'auto', background: T.paper }}>
         <div style={{ maxWidth: 1040, margin: '0 auto', padding: compact ? '18px 14px 32px' : '32px 28px 80px' }}>
           <div style={S.label}>Discover</div>
           <h1 style={{ fontFamily: S.mono, fontSize: 26, fontWeight: 700, margin: '6px 0 4px', letterSpacing: '-0.02em' }}>New to the industry</h1>
@@ -70,7 +70,7 @@
           {picks && !picks.length && !error && <div style={{ marginTop: 28, fontFamily: S.mono, fontSize: 12, color: T.textMute }}>Nothing here yet. Check back soon.</div>}
 
           {featured && (
-            <div onClick={() => setOpen(featured)} style={{ marginTop: 24, display: 'flex', flexWrap: 'wrap', background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 8, overflow: 'hidden', cursor: 'pointer' }}>
+            <div onClick={() => setOpen(featured)} style={{ marginTop: 24, display: 'flex', flexWrap: 'wrap', background: '#fff', border: `1px solid ${T.paperEdge}`, overflow: 'hidden', cursor: 'pointer' }}>
               <div style={{ flex: '1 1 380px', minWidth: 0 }}><PickImage pick={featured} height={compact ? 220 : 320} /></div>
               <div style={{ flex: '1 1 360px', padding: '26px 28px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {kindChip(featured)}
@@ -91,7 +91,7 @@
           {rest.length > 0 && (
             <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: 16 }}>
               {rest.map(p => (
-                <div key={p.id} onClick={() => setOpen(p)} style={{ background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 8, overflow: 'hidden', cursor: 'pointer', display: 'flex', flexDirection: 'column' }}>
+                <div key={p.id} onClick={() => setOpen(p)} style={{ background: '#fff', border: `1px solid ${T.paperEdge}`, overflow: 'hidden', cursor: 'pointer', display: 'flex', flexDirection: 'column' }}>
                   <PickImage pick={p} height={190} />
                   <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 7, flex: 1 }}>
                     {kindChip(p)}
@@ -129,7 +129,7 @@
         <div style={{ ...S.modal, width: 720, maxWidth: 'calc(100vw - 32px)' }} onClick={e => e.stopPropagation()} role="dialog" aria-label={pick.title}>
           <div style={{ position: 'relative' }}>
             <PickImage pick={pick} height={240} />
-            <button onClick={onClose} aria-label="Close" style={{ position: 'absolute', top: 12, right: 12, width: 30, height: 30, borderRadius: 4, border: `1px solid ${T.paperEdge}`, background: '#fff', cursor: 'pointer', fontSize: 18, lineHeight: 1, color: T.ink }}>×</button>
+            <button onClick={onClose} aria-label="Close" style={{ position: 'absolute', top: 12, right: 12, width: 30, height: 30, border: `1px solid ${T.paperEdge}`, background: '#fff', cursor: 'pointer', fontSize: 18, lineHeight: 1, color: T.ink }}>×</button>
           </div>
           <div style={{ padding: '22px 28px 26px', overflowY: 'auto', flex: 1, minHeight: 0 }}>
             <div style={{ fontFamily: S.mono, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.orange }}>
@@ -141,7 +141,7 @@
               {paragraphs.map((p, i) => <p key={i} style={{ margin: 0, fontSize: 14, color: T.ink, lineHeight: 1.65 }}>{p}</p>)}
             </div>
             {(pick.highlights || []).length > 0 && (
-              <div style={{ marginTop: 18, background: '#faf7f2', border: `1px solid ${T.paperEdge}`, borderRadius: 6, padding: '14px 16px' }}>
+              <div style={{ marginTop: 18, background: '#faf7f2', border: `1px solid ${T.paperEdge}`, padding: '14px 16px' }}>
                 <div style={{ ...S.label, marginBottom: 8 }}>Key specs</div>
                 {pick.highlights.map(h => <div key={h} style={{ fontSize: 13, color: T.ink, lineHeight: 1.6 }}><span style={{ color: T.orange, fontWeight: 700 }}>✓</span> {h}</div>)}
               </div>

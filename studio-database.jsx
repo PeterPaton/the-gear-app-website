@@ -86,11 +86,9 @@
     const sortHeader = (key, label) => {
       const isActive = sortBy.key === key;
       return (
-        <th style={R.sH} onClick={() => setSortBy(s => ({ key, dir: s.key === key && s.dir === 'asc' ? 'desc' : 'asc' }))}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer', color: isActive ? T.ink : T.textMute }}>
-            {label}{isActive && <span style={{ fontSize: 8 }}>{sortBy.dir === 'asc' ? '▲' : '▼'}</span>}
-          </span>
-        </th>
+        <div style={{ ...R.kitHeadCell, cursor: 'pointer', color: isActive ? T.ink : T.textMute }} onClick={() => setSortBy(s => ({ key, dir: s.key === key && s.dir === 'asc' ? 'desc' : 'asc' }))}>
+          {label}{isActive && <span style={{ fontSize: 8 }}>{sortBy.dir === 'asc' ? '▲' : '▼'}</span>}
+        </div>
       );
     };
 
@@ -103,17 +101,16 @@
         <div style={R.pageHead}>
           <div style={R.pageTitle}>Database</div>
           <div style={R.countChip}>{isLoading ? 'loading…' : `${filtered.length} of ${catalog.length}`}</div>
-          <div style={{ position: 'relative', flex: 1, maxWidth: 380 }}>
-            <input style={{ ...S.input, padding: query ? '8px 30px 8px 32px' : '8px 12px 8px 32px', background: '#f6f3ee' }}
+          <div style={{ position: 'relative', flex: 1, minWidth: 130, maxWidth: 380, marginRight: 'auto' }}>
+            <input style={R.headSearch(!!query)}
                    placeholder="Search catalog..."
                    value={query} onChange={e => setQuery(e.target.value)} />
-            <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: T.textMute, fontSize: 13 }}>⌕</span>
+            <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>⌕</span>
             {query && (
               <button onClick={() => setQuery('')} title="Clear" type="button"
-                      style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 20, height: 20, border: 'none', background: 'rgba(0,0,0,0.08)', color: T.ink, borderRadius: '50%', cursor: 'pointer', fontSize: 12, lineHeight: 1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                      style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 20, height: 20, border: 'none', background: 'rgba(255,255,255,0.12)', color: '#fff', cursor: 'pointer', fontSize: 12, lineHeight: 1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
             )}
           </div>
-          <div style={{ flex: 1 }} />
           <div style={R.densityToggle}>
             <button onClick={() => setDensity('tight')} style={R.densityBtn(density === 'tight')} title="Tight">▤</button>
             <button onClick={() => setDensity('comfortable')} style={R.densityBtn(density === 'comfortable')} title="Comfortable">≡</button>
@@ -128,57 +125,48 @@
           ))}
         </div>
 
-        <div ref={scrollRef} onScroll={onScroll} style={{ flex: 1, overflowY: 'auto', background: '#faf7f2' }}>
+        <div ref={scrollRef} onScroll={onScroll} style={{ flex: 1, overflowY: 'auto', background: T.paper }}>
           {isLoading && catalog.length === 0 ? (
             <SkeletonTable rowH={rowH} />
           ) : (
-            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: 13, tableLayout: 'fixed' }}>
-              <colgroup>
-                <col /><col style={{ width: 160 }} /><col style={{ width: 180 }} />
-              </colgroup>
-              <thead>
-                <tr>
-                  {sortHeader('name', 'Item')}
-                  {sortHeader('category', 'Category')}
-                  <th style={{ ...R.sH, textAlign: 'right' }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {slice.map(it => {
-                  const inInv = inventoryIds.has(it.id);
-                  const rowBg = '#faf7f2';
-                  return (
-                    <tr key={it.id}
-                        draggable
-                        onDragStart={(e) => { setDraggedId(it.id); e.dataTransfer.effectAllowed = 'copy'; }}
-                        onDragEnd={() => { setDraggedId(null); setHoverCart(false); }}
-                        style={{ cursor: 'grab', height: rowH, background: draggedId === it.id ? '#f6f3ee' : rowBg, opacity: draggedId === it.id ? 0.5 : 1, transition: 'background .08s' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = '#f0ebe2'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = rowBg; }}>
-
-                      <td style={{ ...R.tD, padding: 0, height: rowH, verticalAlign: 'middle' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-                          <div style={{ width: rowH, height: rowH, padding: 6, flexShrink: 0 }}>
-                            <div style={{ width: '100%', height: '100%', background: '#fff', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                              <img src={window.GEAR.itemImage(it)} onError={(e) => { e.currentTarget.src = window.GEAR_PLACEHOLDER(it.category); }} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} alt="" loading="lazy" />
-                            </div>
-                          </div>
-                          <div style={{ padding: '0 14px', fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>{it.name}</div>
-                        </div>
-                      </td>
-                      <td style={{ ...R.tD, padding: '0 14px', fontFamily: S.mono, fontSize: 11, color: T.textMute, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.category}</td>
-                      <td style={{ ...R.tD, padding: '0 14px', textAlign: 'right' }}>
-                        {inInv ? (
-                          <span style={{ fontFamily: S.mono, fontSize: 10, color: '#1f8a5b', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, padding: '6px 12px', display: 'inline-block' }}>✓ In Inventory</span>
-                        ) : (
-                          <button data-tour="add-to-inventory" onClick={(e) => { e.stopPropagation(); onAddToInventory(it); }} style={{ background: T.orange, color: '#fff', border: 'none', padding: '6px 12px', fontSize: 10, fontFamily: S.mono, fontWeight: 600, cursor: 'pointer', letterSpacing: '0.06em', borderRadius: 3, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>+ Add to Inventory</button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <div>
+              <div style={{ ...R.kitHeadRow, gridTemplateColumns: R.kitCols(rowH, 170) }}>
+                <div style={R.kitHeadCell}></div>
+                {sortHeader('name', 'Item')}
+                {sortHeader('category', 'Category')}
+                <div style={{ ...R.kitHeadCell, borderRight: 'none' }}></div>
+              </div>
+              {slice.map(it => {
+                const inInv = inventoryIds.has(it.id);
+                const rowBg = T.paper;
+                return (
+                  <div key={it.id}
+                      draggable
+                      onDragStart={(e) => { setDraggedId(it.id); e.dataTransfer.effectAllowed = 'copy'; }}
+                      onDragEnd={() => { setDraggedId(null); setHoverCart(false); }}
+                      style={{ display: 'grid', gridTemplateColumns: R.kitCols(rowH, 170), height: rowH, borderBottom: `1px solid ${T.ink}`, cursor: 'grab', background: draggedId === it.id ? T.paperLight : rowBg, opacity: draggedId === it.id ? 0.5 : 1, transition: 'background .08s' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = '#e2dbd2'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = rowBg; }}>
+                    <div style={R.kitImgCell}>
+                      <img src={window.GEAR.itemImage(it)} onError={(e) => { e.currentTarget.src = window.GEAR_PLACEHOLDER(it.category); }} style={R.kitImg} alt="" loading="lazy" />
+                    </div>
+                    <div style={{ ...R.kitCell, padding: '0 14px' }} title={it.name}>
+                      <span style={R.kitName}>{it.name}</span>
+                    </div>
+                    <div style={{ ...R.kitCell, ...R.kitCat }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.category}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 10px' }}>
+                      {inInv ? (
+                        <span style={{ fontFamily: S.mono, fontSize: 10, color: '#1f8a5b', textTransform: 'uppercase', letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>✓ In Inventory</span>
+                      ) : (
+                        <button data-tour="add-to-inventory" onClick={(e) => { e.stopPropagation(); onAddToInventory(it); }} style={{ background: 'none', color: T.orange, border: 'none', padding: '6px 4px', fontSize: 10, fontFamily: S.mono, cursor: 'pointer', letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>+ Add to Inventory</button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
           {!isLoading && filtered.length === 0 && (
             <div style={{ padding: 60, textAlign: 'center', color: T.textMute, fontFamily: S.mono, fontSize: 13 }}>
@@ -197,7 +185,7 @@
 
   function SkeletonTable({ rowH }) {
     const rows = Array.from({ length: 16 });
-    const skel = { background: 'linear-gradient(90deg,#f1ece2 25%,#f8f5ee 50%,#f1ece2 75%)', backgroundSize: '200% 100%', borderRadius: 3, animation: 'gearSkel 1.2s linear infinite' };
+    const skel = { background: 'linear-gradient(90deg,#f1ece2 25%,#f8f5ee 50%,#f1ece2 75%)', backgroundSize: '200% 100%', animation: 'gearSkel 1.2s linear infinite' };
     return (
       <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
         <tbody>

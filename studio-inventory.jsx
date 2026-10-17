@@ -52,6 +52,8 @@
     }, [editingGroupId]);
 
     const rowH = R.rowH(density);
+    // Photo | item | category | quantity (with − / + while editing).
+    const invCols = `${rowH}px minmax(0, 1fr) 130px ${editMode ? 130 : 64}px`;
 
     const filtered = useMemo(() => {
       const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
@@ -117,7 +119,7 @@
       const ownedQty = it.qty || 1;
       const isSel = editMode && selected.has(it.id);
       const isRowDropTarget = !inGroup && draggedId && draggedId !== it.id && hoverRowId === it.id && !editMode;
-      const rowBg = isSel ? '#fff3ed' : '#faf7f2';
+      const rowBg = isSel ? '#fff3ed' : T.paper;
 
       return (
         <div key={it.id}
@@ -150,10 +152,10 @@
                }
              }}
              style={{
-               display: 'flex',
-               alignItems: 'stretch',
-               borderBottom: '1px solid #f0ebe2',
-               background: isRowDropTarget ? '#fff3ed' : (draggedId === it.id ? '#f6f3ee' : rowBg),
+               display: 'grid',
+               gridTemplateColumns: invCols,
+               borderBottom: `1px solid ${T.ink}`,
+               background: isRowDropTarget ? '#fff3ed' : (draggedId === it.id ? T.paperLight : rowBg),
                opacity: draggedId === it.id ? 0.5 : 1,
                outline: isSel ? `2px solid ${T.orange}` : (isRowDropTarget ? `2px solid ${T.orange}` : 'none'),
                outlineOffset: '-2px',
@@ -161,34 +163,24 @@
                height: rowH,
                transition: 'background .08s, outline-color .08s',
              }}
-             onMouseEnter={(e) => { if (!isSel && !isRowDropTarget) e.currentTarget.style.background = '#f0ebe2'; }}
+             onMouseEnter={(e) => { if (!isSel && !isRowDropTarget) e.currentTarget.style.background = '#e2dbd2'; }}
              onMouseLeave={(e) => { if (!isSel && !isRowDropTarget) e.currentTarget.style.background = rowBg; }}>
 
-          {/* Image with qty badge */}
-          <div style={{ position: 'relative', width: rowH, height: rowH, padding: 6, flexShrink: 0 }}>
-            <div style={{ width: '100%', height: '100%', background: '#fff', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-              <img src={window.GEAR.itemImage(it)} onError={(e) => { e.currentTarget.src = window.GEAR_PLACEHOLDER(it.category); }} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} alt="" />
-            </div>
-            {ownedQty > 1 && (
-              <div style={{ position: 'absolute', bottom: 2, right: 2, background: T.orange, color: '#fff', fontSize: 11, fontFamily: S.mono, fontWeight: 700, padding: '2px 6px', minWidth: 20, textAlign: 'center', lineHeight: 1.3, borderRadius: 4 }}>{ownedQty}</div>
-            )}
+          <div style={R.kitImgCell}>
+            <img src={window.GEAR.itemImage(it)} onError={(e) => { e.currentTarget.src = window.GEAR_PLACEHOLDER(it.category); }} style={R.kitImg} alt="" />
           </div>
-
-          {/* Name + category */}
-          <div style={{ flex: 1, minWidth: 0, padding: '0 14px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: T.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.name}</div>
-            {it.category && <div style={{ fontSize: 10, fontFamily: S.mono, color: T.textMute, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>{it.category}</div>}
+          <div style={{ ...R.kitCell, padding: '0 14px' }} title={it.name}>
+            <span style={R.kitName}>{it.name}</span>
           </div>
-
-          {/* +/- qty pill (edit mode only) */}
-          {editMode && (
-            <div style={{ display: 'flex', alignItems: 'center', paddingRight: 14, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-              <div style={R.qPill(false)}>
-                <button onClick={(e) => { e.stopPropagation(); onChangeInvQty && onChangeInvQty(it.id, -1); }} title={ownedQty <= 1 ? 'Remove from inventory' : 'Decrease'} style={R.qPillBtn(false)}>−</button>
-                <button onClick={(e) => { e.stopPropagation(); onChangeInvQty && onChangeInvQty(it.id, 1); }} style={R.qPillBtn(false)}>+</button>
-              </div>
-            </div>
-          )}
+          <div style={{ ...R.kitCell, ...R.kitCat }}>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.category}</span>
+          </div>
+          {/* ×N, with − and + either side in edit mode */}
+          <div style={{ display: 'grid', gridTemplateColumns: editMode ? '1fr 56px 1fr' : '1fr' }} onClick={editMode ? (e => e.stopPropagation()) : undefined}>
+            {editMode && <button onClick={(e) => { e.stopPropagation(); onChangeInvQty && onChangeInvQty(it.id, -1); }} title={ownedQty <= 1 ? 'Remove from inventory' : 'Decrease'} style={R.kitStepBtn} {...R.kitStepHover}>−</button>}
+            <span style={R.kitCount(editMode)}>×{ownedQty}</span>
+            {editMode && <button onClick={(e) => { e.stopPropagation(); onChangeInvQty && onChangeInvQty(it.id, 1); }} title="Increase" style={R.kitStepBtn} {...R.kitStepHover}>+</button>}
+          </div>
         </div>
       );
     };
@@ -235,7 +227,7 @@
       return (
         <div key={key}
              {...cardDragHandlers}
-             style={{ marginBottom: 8, background: '#fff', borderRadius: 6, border: `1px solid ${T.paperEdge}`, overflow: 'hidden', outline: isCardDropTarget ? `3px solid ${T.orange}` : 'none', outlineOffset: -2, transition: 'outline-color .12s' }}>
+             style={{ background: T.paper, outline: isCardDropTarget ? `3px solid ${T.orange}` : 'none', outlineOffset: -2, transition: 'outline-color .12s' }}>
           {/* Header — clicking the bar (anywhere except the rename input)
               toggles collapse. The chevron button still works as a discrete
               control; both call stopPropagation so we don't double-toggle.
@@ -260,16 +252,16 @@
                  setDraggedGroupId && setDraggedGroupId(null);
                  setHoverCart && setHoverCart(false);
                }}
-               style={{ padding: '10px 14px 10px 18px', background: '#f6f3ee', borderBottom: collapsed ? 'none' : `1px solid ${T.paperEdge}`, display: 'flex', alignItems: 'center', gap: 10, cursor: group && !editMode ? 'grab' : (collapsible ? 'pointer' : 'default'), userSelect: 'none', opacity: draggedGroupId === (group && group.id) ? 0.5 : 1 }}>
+               style={{ ...R.kitBar, padding: '4px 10px 4px 14px', cursor: group && !editMode ? 'grab' : (collapsible ? 'pointer' : 'default'), userSelect: 'none', opacity: draggedGroupId === (group && group.id) ? 0.5 : 1 }}>
             {(() => {
-              if (!group) return <span style={{ flex: 1, fontFamily: S.mono, fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.ink }}>{label}</span>;
+              if (!group) return <span style={{ flex: 1 }}>{label}</span>;
               // Names are only renamable when (a) the group was just created
               // and is waiting for its initial name, or (b) the user has the
               // Edit toggle on. Outside those it renders as plain text so
               // accidental clicks don't put the input into edit mode.
               const editable = editMode || editingGroupId === group.id;
               if (!editable) {
-                return <span style={{ flex: 1, fontFamily: S.mono, fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.ink, padding: '2px 0' }}>{group.name}</span>;
+                return <span style={{ flex: 1, padding: '2px 0' }}>{group.name}</span>;
               }
               return (
                 <input
@@ -289,25 +281,25 @@
                     if (e.key === 'Escape') { e.target.value = group.name; e.target.blur(); }
                   }}
                   // Field styling makes it obvious the name is editable when the user is in Edit mode.
-                  style={{ flex: 1, minWidth: 0, background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 4, outline: 'none', fontFamily: S.mono, fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.ink, padding: '5px 10px' }}
+                  style={{ flex: 1, minWidth: 0, background: '#fff', border: `1px solid ${T.paperEdge}`, outline: 'none', fontFamily: S.mono, fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.ink, padding: '5px 10px' }}
                 />
               );
             })()}
-            <span style={{ fontFamily: S.mono, fontSize: 10, color: T.textMute, fontWeight: 600 }}>{totalQty}</span>
+            <span style={{ fontFamily: S.mono, fontSize: 11, color: T.orange }}>{totalQty}</span>
             {editMode && rows.length > 0 && (
               <button onClick={(e) => { e.stopPropagation(); setSelected(prev => new Set([...prev, ...rows.map(it => it.id)])); }}
                       title="Select every item in this section"
-                      style={{ border: `1px solid ${T.paperEdge}`, background: '#fff', color: T.ink, borderRadius: 4, cursor: 'pointer', fontFamily: S.mono, fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '4px 8px' }}>Select</button>
+                      style={{ border: `1px solid ${T.paperEdge}`, background: '#fff', color: T.ink, cursor: 'pointer', fontFamily: S.mono, fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '4px 8px' }}>Select</button>
             )}
             {group && editMode && (
               <button onClick={(e) => { e.stopPropagation(); if (window.confirm(`Delete group "${group.name}"? Items stay in inventory.`)) onDeleteGroup && onDeleteGroup(group.id); }}
                       title="Delete group"
-                      style={{ width: 22, height: 22, border: 'none', background: 'rgba(196,74,44,0.1)', color: '#c44a2c', borderRadius: 4, cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: 0 }}>×</button>
+                      style={{ width: 22, height: 22, border: 'none', background: 'rgba(196,74,44,0.25)', color: '#ff8a6a', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: 0 }}>×</button>
             )}
             {collapsible && (
               <button onClick={(e) => { e.stopPropagation(); toggleGroupCollapse(cardKey); }}
                       title={collapsed ? 'Expand' : 'Collapse'} aria-expanded={!collapsed}
-                      style={{ width: 22, height: 22, border: 'none', background: 'rgba(0,0,0,0.06)', color: T.ink, borderRadius: 4, cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      style={{ width: 22, height: 22, border: 'none', background: 'rgba(255,255,255,0.1)', color: '#fff', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {/* Chevron: points down when open, right when collapsed. */}
                 <svg width="10" height="10" viewBox="0 0 10 10" style={{ transition: 'transform .15s', transform: collapsed ? 'rotate(-90deg)' : 'none' }}>
                   <path d="M2 3.5 L5 6.5 L8 3.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
@@ -331,17 +323,16 @@
         <div style={R.pageHead}>
           <div style={R.pageTitle}>Inventory</div>
           <div style={R.countChip}>{filtered.length} of {items.length}</div>
-          <div style={{ position: 'relative', flex: 1, maxWidth: 380 }}>
-            <input style={{ ...S.input, padding: query ? '8px 30px 8px 32px' : '8px 12px 8px 32px', background: '#f6f3ee' }}
-                   placeholder="Search inventory..."
+          <div style={{ position: 'relative', flex: 1, minWidth: 130, maxWidth: 380, marginRight: 'auto' }}>
+            <input style={R.headSearch(!!query)}
+                   placeholder="Search..."
                    value={query} onChange={e => setQuery(e.target.value)} />
-            <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: T.textMute, fontSize: 13 }}>⌕</span>
+            <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>⌕</span>
             {query && (
               <button onClick={() => setQuery('')} title="Clear" type="button"
-                      style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 20, height: 20, border: 'none', background: 'rgba(0,0,0,0.08)', color: T.ink, borderRadius: '50%', cursor: 'pointer', fontSize: 12, lineHeight: 1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                      style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 20, height: 20, border: 'none', background: 'rgba(255,255,255,0.12)', color: '#fff', cursor: 'pointer', fontSize: 12, lineHeight: 1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
             )}
           </div>
-          <div style={{ flex: 1 }} />
           <button style={R.editToggleBtn(editMode)} onClick={() => { setEditMode(e => !e); setSelected(new Set()); }}>
             {editMode ? '✕ Done' : '✎ Edit'}
           </button>
@@ -350,7 +341,7 @@
             <button onClick={() => setDensity('comfortable')} style={R.densityBtn(density === 'comfortable')} title="Comfortable">≡</button>
           </div>
           {onExportInventory && (
-            <button style={{ ...S.btnG, padding: '7px 14px', fontSize: 11, fontFamily: S.mono, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }} onClick={onExportInventory}>Export PDF</button>
+            <button style={R.headBtn} onClick={onExportInventory}>Export PDF</button>
           )}
           <button style={S.btnP} onClick={onOpenDatabase}>+ Add Item</button>
         </div>
@@ -373,9 +364,9 @@
                   {groupMenu && (
                     <React.Fragment>
                       <div style={{ position: 'fixed', inset: 0, zIndex: 1 }} onClick={() => setGroupMenu(false)} />
-                      <div role="menu" style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 2, background: '#fff', color: T.ink, border: `1px solid ${T.paperEdge}`, borderRadius: 6, boxShadow: '0 12px 32px rgba(0,0,0,0.18)', minWidth: 240, maxHeight: 320, overflowY: 'auto', padding: 4 }}>
+                      <div role="menu" style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 2, background: '#fff', color: T.ink, border: `1px solid ${T.paperEdge}`, boxShadow: '0 12px 32px rgba(0,0,0,0.18)', minWidth: 240, maxHeight: 320, overflowY: 'auto', padding: 4 }}>
                         <button role="menuitem" style={{ ...menuItem, color: T.orange, fontWeight: 600 }} onClick={newGroupFromSelected}>+ New group…</button>
-                        {groups.length > 0 && <div style={{ height: 1, background: '#f0ebe2', margin: '4px 0' }} />}
+                        {groups.length > 0 && <div style={{ height: 1, background: '#e2d9cd', margin: '4px 0' }} />}
                         {groups.map(g => (
                           <button key={g.id} role="menuitem" style={menuItem} onClick={() => moveSelected(g.id)}>
                             <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.name}</span>
@@ -384,7 +375,7 @@
                         ))}
                         {groups.length > 0 && (
                           <React.Fragment>
-                            <div style={{ height: 1, background: '#f0ebe2', margin: '4px 0' }} />
+                            <div style={{ height: 1, background: '#e2d9cd', margin: '4px 0' }} />
                             <button role="menuitem" style={{ ...menuItem, color: T.textMute }} onClick={() => moveSelected(null)}>Remove from group</button>
                           </React.Fragment>
                         )}
@@ -415,7 +406,7 @@
         </div>
 
         <div
-          style={{ flex: 1, overflowY: 'auto', background: '#faf7f2', padding: '10px 14px', boxShadow: hoverPage ? `inset 0 0 0 3px ${T.orange}` : 'none', transition: 'box-shadow .12s' }}
+          style={{ flex: 1, overflowY: 'auto', background: T.paper, boxShadow: hoverPage ? `inset 0 0 0 3px ${T.orange}` : 'none', transition: 'box-shadow .12s' }}
           onDragOver={(e) => {
             // Page-background drop target. The group cards stopPropagation on
             // their dragover, so we only ever see drags over the empty space
@@ -456,8 +447,14 @@
             <div style={{ padding: '60px 40px', textAlign: 'center', color: T.textMute, fontFamily: S.mono, fontSize: 13 }}>
               No items match. Try clearing filters.
             </div>
-          ) : (
-            query.trim() ? (
+          ) : <React.Fragment>
+            <div style={{ ...R.kitHeadRow, gridTemplateColumns: invCols }}>
+              <div style={R.kitHeadCell}></div>
+              <div style={R.kitHeadCell}>Item</div>
+              <div style={R.kitHeadCell}>Category</div>
+              <div style={{ ...R.kitHeadCell, borderRight: 'none', justifyContent: 'center' }}>Qty</div>
+            </div>
+            {query.trim() ? (
               // Searching: one flat list of matches, no group sections.
               renderSection({ key: '_results', label: `Results · ${filtered.length}`, rows: filtered, collapsible: false })
             ) : <React.Fragment>
@@ -476,16 +473,16 @@
                 label: 'Items',
                 rows: sections.ungrouped,
               })}
-            </React.Fragment>
-          )}
+            </React.Fragment>}
+          </React.Fragment>}
         </div>
       </div>
     );
   }
 
-  const barSolid = { background: T.orange, color: '#fff', border: 'none', padding: '7px 16px', fontSize: 11, fontFamily: S.mono, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.06em', borderRadius: 3, textTransform: 'uppercase' };
+  const barSolid = { background: T.orange, color: '#fff', border: 'none', padding: '7px 16px', fontSize: 11, fontFamily: S.mono, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.06em', textTransform: 'uppercase' };
   const barGhost = { background: 'transparent', color: 'rgba(255,255,255,0.6)', border: 'none', padding: '7px 10px', fontSize: 11, fontFamily: S.mono, cursor: 'pointer', letterSpacing: '0.06em', textTransform: 'uppercase' };
-  const menuItem = { display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', background: 'none', border: 'none', borderRadius: 4, padding: '8px 10px', fontSize: 13, fontFamily: S.sans, color: T.ink, cursor: 'pointer' };
+  const menuItem = { display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: '8px 10px', fontSize: 13, fontFamily: S.sans, color: T.ink, cursor: 'pointer' };
 
   window.STUDIO_INVENTORY = InventoryPage;
 })();

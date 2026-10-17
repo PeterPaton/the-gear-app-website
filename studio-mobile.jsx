@@ -206,10 +206,10 @@
     return (
       <div style={sheetOverlay} onClick={onClose}>
         <div style={sheetBox(tall)} onClick={e => e.stopPropagation()} role="dialog" aria-label={title}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, background: T.paperEdge, margin: '8px auto 0', flexShrink: 0 }} />
+          <div style={{ width: 36, height: 4, background: T.paperEdge, margin: '8px auto 0', flexShrink: 0 }} />
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 16px 8px', flexShrink: 0 }}>
             <div style={{ fontFamily: S.mono, fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</div>
-            <button onClick={onClose} aria-label="Close" style={{ background: T.paperLight, border: 'none', borderRadius: '50%', width: 30, height: 30, fontSize: 18, lineHeight: 1, color: T.textMute, cursor: 'pointer', flexShrink: 0 }}>×</button>
+            <button onClick={onClose} aria-label="Close" style={{ background: T.paperLight, border: 'none', width: 30, height: 30, fontSize: 18, lineHeight: 1, color: T.textMute, cursor: 'pointer', flexShrink: 0 }}>×</button>
           </div>
           <div className="gm-scroll" style={{ flex: 1, minHeight: 0, padding: '0 16px 16px' }}>{children}</div>
           {footer}
@@ -221,7 +221,7 @@
   // ─── Building blocks ────────────────────────────────────────────────
   function Thumb({ it, size = 48 }) {
     return (
-      <div style={{ width: size, height: size, flexShrink: 0, background: '#fff', border: `1px solid ${T.paperLight}`, borderRadius: 6, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: size, height: size, flexShrink: 0, background: '#fff', border: `1px solid ${T.paperLight}`, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <img src={window.GEAR.itemImage(it)} loading="lazy" alt=""
           onError={(e) => { e.currentTarget.src = window.GEAR_PLACEHOLDER(it.category); }}
           style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
@@ -231,7 +231,7 @@
 
   function GearRow({ it, sub, right, onClick, thumb = 48 }) {
     return (
-      <div onClick={onClick} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 14px', background: '#fff', borderBottom: '1px solid #f0ebe2', cursor: onClick ? 'pointer' : 'default' }}>
+      <div onClick={onClick} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 14px', background: '#fff', borderBottom: '1px solid #e2d9cd', cursor: onClick ? 'pointer' : 'default' }}>
         <Thumb it={it} size={thumb} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={rowName}>{it.name}</div>
@@ -244,9 +244,9 @@
 
   function Stepper({ value, onMinus, onPlus }) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${T.paperEdge}`, borderRadius: 6, flexShrink: 0, background: '#fff' }}>
+      <div style={{ display: 'flex', alignItems: 'stretch', border: `1px solid ${T.paperEdge}`, flexShrink: 0, background: '#fff' }}>
         <button onClick={(e) => { e.stopPropagation(); onMinus(); }} aria-label="Decrease" style={stepBtn}>−</button>
-        <span style={{ minWidth: 26, textAlign: 'center', fontFamily: S.mono, fontSize: 14, fontWeight: 600 }}>{value}</span>
+        <span style={{ minWidth: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: S.mono, fontSize: 14, borderLeft: `1px solid ${T.paperEdge}`, borderRight: `1px solid ${T.paperEdge}`, background: value > 1 ? T.orange : '#fff', color: value > 1 ? '#fff' : T.ink }}>{value}</span>
         <button onClick={(e) => { e.stopPropagation(); onPlus(); }} aria-label="Increase" style={stepBtn}>+</button>
       </div>
     );
@@ -256,7 +256,7 @@
     return (
       <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
         <input type="search" value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-          style={{ ...S.input, padding: '10px 34px 10px 12px', borderRadius: 8 }} />
+          style={{ ...S.input, padding: '10px 34px 10px 12px' }} />
         {value && (
           <button onClick={() => onChange('')} aria-label="Clear search"
             style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: T.textMute, fontSize: 18, width: 28, height: 28, cursor: 'pointer' }}>×</button>
@@ -271,7 +271,7 @@
         {options.map(o => {
           const on = o === value;
           return (
-            <button key={o} onClick={() => onChange(o)} style={{ flexShrink: 0, padding: '6px 12px', borderRadius: 999, border: on ? 'none' : `1px solid ${T.paperEdge}`, background: on ? T.ink : '#fff', color: on ? '#fff' : T.ink, fontFamily: S.mono, fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', cursor: 'pointer' }}>{o}</button>
+            <button key={o} onClick={() => onChange(o)} style={{ flexShrink: 0, padding: '6px 12px', border: on ? 'none' : `1px solid ${T.paperEdge}`, background: on ? T.ink : '#fff', color: on ? '#fff' : T.ink, fontFamily: S.mono, fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', cursor: 'pointer' }}>{o}</button>
           );
         })}
       </div>
@@ -280,7 +280,7 @@
 
   function Empty({ title, text, children }) {
     return (
-      <div style={{ margin: '28px 16px', padding: '28px 20px', background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 10, textAlign: 'center' }}>
+      <div style={{ margin: '28px 16px', padding: '28px 20px', background: '#fff', border: `1px solid ${T.paperEdge}`, textAlign: 'center' }}>
         <div style={{ fontFamily: S.mono, fontSize: 16, fontWeight: 700, marginBottom: 6 }}>{title}</div>
         <div style={{ fontSize: 13, color: T.textMute, lineHeight: 1.5, marginBottom: children ? 18 : 0 }}>{text}</div>
         {children && <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{children}</div>}
@@ -318,7 +318,7 @@
       <div className="gm-scroll" style={{ flex: 1, minHeight: 0 }}>
         <div style={{ display: 'flex', gap: 8, padding: '14px 14px 10px' }}>
           <SearchBox value={query} onChange={setQuery} placeholder={`Search ${items.length} item${items.length === 1 ? '' : 's'}`} />
-          <button onClick={onAdd} aria-label="Add gear" style={{ ...S.btnP, padding: '0 16px', fontSize: 20, fontWeight: 400, borderRadius: 8 }}>+</button>
+          <button onClick={onAdd} aria-label="Add gear" style={{ ...S.btnP, padding: '0 16px', fontSize: 20, fontWeight: 400 }}>+</button>
         </div>
         {items.length > 0 && cats.length > 2 && <Chips options={cats} value={cat} onChange={setCat} />}
         {items.length > 0 && (
@@ -340,11 +340,11 @@
           <div style={emptyLine}>Nothing matches “{query || cat}”.</div>
         ) : sections.map(sec => (
           <div key={sec.key} style={{ marginBottom: 12 }}>
-            {sec.name && <div style={sectionLabel}>{sec.name} · {sec.rows.length}</div>}
             <div style={listCard}>
+              {sec.name && <div style={cardBar}><span>{sec.name}</span><span style={{ color: T.orange }}>{totalQty(sec.rows)}</span></div>}
               {sec.rows.map(it => (
                 <GearRow key={it.id} it={it} onClick={() => onOpenItem(it)}
-                  right={<span style={qtyChip}>×{it.qty || 1}</span>} />
+                  right={<span style={(it.qty || 1) > 1 ? { ...qtyChip, background: T.orange, color: '#fff' } : qtyChip}>×{it.qty || 1}</span>} />
               ))}
             </div>
           </div>
@@ -363,7 +363,7 @@
           <span style={{ ...S.label }}>
             {projects.length} project{projects.length === 1 ? '' : 's'}{limit != null ? ` · ${limit} on ${billing.plan_name}` : ''}
           </span>
-          <button style={{ ...S.btnP, padding: '9px 14px', borderRadius: 8 }} onClick={onNew}>+ New project</button>
+          <button style={{ ...S.btnP, padding: '9px 14px' }} onClick={onNew}>+ New project</button>
         </div>
         {projects.length === 0 ? (
           <Empty title="No projects yet" text="A project is the kit list for one shoot. Create one, then add gear from your inventory or the database.">
@@ -375,7 +375,7 @@
               const rows = projectItems[p.id];
               const c = window.GEAR.statusColor[p.status] || window.GEAR.statusColor.planning;
               return (
-                <div key={p.id} onClick={() => onOpen(p.id)} style={{ background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 10, padding: 14, cursor: 'pointer' }}>
+                <div key={p.id} onClick={() => onOpen(p.id)} style={{ background: '#fff', border: `1px solid ${T.paperEdge}`, padding: 14, cursor: 'pointer' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                     <span style={S.pill(c.bg, c.fg)}>{p.status}</span>
                     <span style={{ fontFamily: S.mono, fontSize: 11, color: T.textMute }}>{rows ? `${totalQty(rows)} item${totalQty(rows) === 1 ? '' : 's'}` : '…'}</span>
@@ -420,28 +420,27 @@
     return (
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <div className="gm-scroll" style={{ flex: 1, minHeight: 0 }}>
-          <div style={{ background: T.ink, color: '#fff', padding: '18px 16px 20px' }}>
-            <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
-              {['planning', 'active', 'wrapped'].map(s => {
-                const on = project.status === s;
+          <div style={{ background: '#fff', borderBottom: `1px solid ${T.paperEdge}` }}>
+            <div onClick={rename} style={{ padding: '16px 16px 12px', fontFamily: S.mono, fontSize: 26, letterSpacing: '0.01em', lineHeight: 1.1, wordBreak: 'break-word', cursor: 'pointer' }}>
+              {project.name} <span style={{ fontSize: 14, color: T.textMute }}>✎</span>
+            </div>
+            <div style={{ display: 'flex', margin: '0 16px 14px', border: `1px solid ${T.paperEdge}` }}>
+              {['planning', 'active', 'wrapped'].map((st, i) => {
+                const on = project.status === st;
                 return (
-                  <button key={s} onClick={() => onStatus(s)} style={{ padding: '6px 12px', borderRadius: 999, border: on ? `1px solid ${T.orange}` : '1px solid rgba(255,255,255,0.18)', background: on ? 'rgba(255,87,12,0.16)' : 'transparent', color: on ? T.orange : 'rgba(255,255,255,0.6)', fontFamily: S.mono, fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
-                    ● {s}
+                  <button key={st} onClick={() => onStatus(st)} style={{ flex: 1, height: 36, border: 'none', borderLeft: i ? `1px solid ${T.paperEdge}` : 'none', background: on ? T.orange : '#fff', color: on ? '#fff' : T.textMute, fontFamily: S.mono, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                    {st}
                   </button>
                 );
               })}
             </div>
-            <div onClick={rename} style={{ fontFamily: S.mono, fontSize: 28, fontWeight: 400, letterSpacing: '-0.03em', lineHeight: 1.05, wordBreak: 'break-word', cursor: 'pointer' }}>
-              {project.name} <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>✎</span>
-            </div>
-            {[project.client, project.shoot, project.location].some(Boolean) && (
-              <div style={{ fontSize: 11, fontFamily: S.mono, color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 10, lineHeight: 1.6 }}>
-                {[project.client, project.shoot, project.location].filter(Boolean).join(' · ')}
-              </div>
-            )}
-            <div style={{ display: 'flex', gap: 28, fontFamily: S.mono, marginTop: 16 }}>
-              <div><div style={heroStatLabel}>Items</div><div style={{ fontSize: 22, fontWeight: 600 }}>{totalQty(list)}</div></div>
-              <div><div style={heroStatLabel}>Unique</div><div style={{ fontSize: 22, fontWeight: 600 }}>{list.length}</div></div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: `1px solid ${T.line}` }}>
+              {[['Client', project.client], ['Shoot', project.shoot]].map(([k, v]) => (
+                <div key={k} style={{ ...factCell, borderRight: k === 'Client' ? `1px solid ${T.line}` : 'none' }}><div style={factKey}>{k}</div><div style={factVal}>{v || '—'}</div></div>
+              ))}
+              <div style={{ ...factCell, gridColumn: 'span 2' }}><div style={factKey}>Location</div><div style={factVal}>{project.location || '—'}</div></div>
+              <div style={{ ...factCell, borderRight: `1px solid ${T.line}`, borderBottom: 'none' }}><div style={factKey}>Items</div><div style={{ ...factVal, fontSize: 20, color: T.orange }}>{totalQty(list)}</div></div>
+              <div style={{ ...factCell, borderBottom: 'none' }}><div style={factKey}>Unique</div><div style={{ ...factVal, fontSize: 20, color: T.orange }}>{list.length}</div></div>
             </div>
           </div>
 
@@ -451,10 +450,8 @@
             <Empty title="Empty kit list" text="Add gear from your inventory or the database." />
           ) : cats.map(cat => (
             <div key={cat} style={{ marginTop: 12 }}>
-              <div style={{ ...sectionLabel, display: 'flex', justifyContent: 'space-between' }}>
-                <span>{cat}</span><span>{totalQty(byCat[cat])}</span>
-              </div>
               <div style={listCard}>
+                <div style={cardBar}><span>{cat}</span><span style={{ color: T.orange }}>{totalQty(byCat[cat])}</span></div>
                 {byCat[cat].map(pi => (
                   <GearRow key={pi.id} it={pi} thumb={44} sub={null}
                     right={<Stepper value={pi.qty} onMinus={() => minus(pi)} onPlus={() => onChangeQty(pi.id, 1)} />} />
@@ -468,7 +465,7 @@
           </div>
         </div>
         <div style={{ padding: '10px 14px', background: '#fff', borderTop: `1px solid ${T.paperEdge}`, flexShrink: 0 }}>
-          <button onClick={onAddGear} style={{ ...S.btnP, width: '100%', padding: 13, fontSize: 12, borderRadius: 8 }}>+ Add gear</button>
+          <button onClick={onAddGear} style={{ ...S.btnP, width: '100%', padding: 13, fontSize: 12 }}>+ Add gear</button>
         </div>
       </div>
     );
@@ -520,7 +517,7 @@
                   right={have ? (
                     <span style={{ ...qtyChip, color: T.ok, background: '#e3efe5' }}>✓ Owned</span>
                   ) : (
-                    <button onClick={(e) => { e.stopPropagation(); onAddToInventory(it); }} style={{ ...S.btnP, padding: '8px 10px', fontSize: 10, flexShrink: 0, borderRadius: 6 }}>+ Add</button>
+                    <button onClick={(e) => { e.stopPropagation(); onAddToInventory(it); }} style={{ ...S.btnP, padding: '8px 10px', fontSize: 10, flexShrink: 0 }}>+ Add</button>
                   )} />
               );
             })}
@@ -555,7 +552,7 @@
 
     return (
       <Sheet title={gear.category || 'Gear'} onClose={onClose}>
-        <div style={{ height: 170, background: '#fff', border: `1px solid ${T.paperLight}`, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: 12 }}>
+        <div style={{ height: 170, background: '#fff', border: `1px solid ${T.paperLight}`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: 12 }}>
           <img src={window.GEAR.itemImage(gear)} alt="" onError={(e) => { e.currentTarget.src = window.GEAR_PLACEHOLDER(gear.category); }}
             style={{ maxWidth: '88%', maxHeight: '88%', objectFit: 'contain' }} />
         </div>
@@ -584,14 +581,14 @@
                   onMoveToGroup(invRow.id, v || null);
                 }
               }}
-              style={{ ...S.input, flex: 1, minWidth: 0, borderRadius: 6 }}>
+              style={{ ...S.input, flex: 1, minWidth: 0 }}>
               <option value="">No group</option>
               {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
               <option value="__new">+ New group…</option>
             </select>
           </div>
         ) : (
-          <button onClick={onAddToInventory} style={{ ...S.btnP, width: '100%', padding: 13, borderRadius: 8, marginBottom: 14 }}>+ Add to inventory</button>
+          <button onClick={onAddToInventory} style={{ ...S.btnP, width: '100%', padding: 13, marginBottom: 14 }}>+ Add to inventory</button>
         )}
 
         <div style={{ ...S.label, margin: '18px 0 8px' }}>Add to a project</div>
@@ -601,16 +598,16 @@
             <button onClick={onNewProject} style={{ ...S.btnG, background: '#fff' }}>+ New project</button>
           </div>
         ) : (
-          <div style={{ border: `1px solid ${T.paperEdge}`, borderRadius: 10, overflow: 'hidden' }}>
+          <div style={{ border: `1px solid ${T.paperEdge}`, overflow: 'hidden' }}>
             {projects.map(p => {
               const n = inProject(p.id);
               const c = window.GEAR.statusColor[p.status] || window.GEAR.statusColor.planning;
               return (
-                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderBottom: '1px solid #f0ebe2', background: '#fff' }}>
-                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: c.fg === '#ffffff' ? T.orange : c.fg, flexShrink: 0 }} />
+                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderBottom: '1px solid #e2d9cd', background: '#fff' }}>
+                  <span style={{ width: 7, height: 7, background: c.fg === '#ffffff' ? T.orange : c.fg, flexShrink: 0 }} />
                   <span style={{ flex: 1, minWidth: 0, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
                   {n > 0 && <span style={{ ...qtyChip, color: T.orange, background: '#fff3ed' }}>×{n} in list</span>}
-                  <button onClick={() => onAddToProject(p.id, invRow)} aria-label={`Add to ${p.name}`} style={{ ...S.btnDark, padding: '7px 12px', fontSize: 14, borderRadius: 6, flexShrink: 0 }}>+</button>
+                  <button onClick={() => onAddToProject(p.id, invRow)} aria-label={`Add to ${p.name}`} style={{ ...S.btnDark, padding: '7px 12px', fontSize: 14, flexShrink: 0 }}>+</button>
                 </div>
               );
             })}
@@ -635,9 +632,9 @@
 
     return (
       <Sheet title={`Add to ${project.name}`} onClose={onClose} tall>
-        <div style={{ display: 'flex', background: T.paperLight, borderRadius: 8, padding: 3, marginBottom: 10 }}>
+        <div style={{ display: 'flex', background: T.paperLight, padding: 3, marginBottom: 10 }}>
           {[['inventory', `My gear · ${items.length}`], ['catalog', 'Database']].map(([k, l]) => (
-            <button key={k} onClick={() => setSource(k)} style={{ flex: 1, padding: '8px 0', border: 'none', borderRadius: 6, background: source === k ? '#fff' : 'transparent', boxShadow: source === k ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', fontFamily: S.mono, fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', color: T.ink, cursor: 'pointer' }}>{l}</button>
+            <button key={k} onClick={() => setSource(k)} style={{ flex: 1, padding: '8px 0', border: 'none', background: source === k ? '#fff' : 'transparent', boxShadow: source === k ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', fontFamily: S.mono, fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', color: T.ink, cursor: 'pointer' }}>{l}</button>
           ))}
         </div>
         <div style={{ marginBottom: 10 }}>
@@ -648,7 +645,7 @@
             {source === 'inventory' && items.length === 0 ? 'Your inventory is empty. Try the Database tab.' : 'Nothing matches that search.'}
           </div>
         ) : (
-          <div style={{ border: `1px solid ${T.paperEdge}`, borderRadius: 10, overflow: 'hidden' }}>
+          <div style={{ border: `1px solid ${T.paperEdge}`, overflow: 'hidden' }}>
             {results.map(it => {
               const n = countFor(it);
               return (
@@ -656,7 +653,7 @@
                   right={
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                       {n > 0 && <span style={{ ...qtyChip, color: T.orange, background: '#fff3ed' }}>×{n}</span>}
-                      <span style={{ ...S.btnDark, padding: '7px 12px', fontSize: 14, borderRadius: 6 }}>+</span>
+                      <span style={{ ...S.btnDark, padding: '7px 12px', fontSize: 14 }}>+</span>
                     </div>
                   } />
               );
@@ -694,7 +691,7 @@
         </div>
         <div className="gm-scroll" style={{ flex: 1, minHeight: 0, padding: '18px 14px calc(env(safe-area-inset-bottom) + 24px)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
-            <div style={{ width: 56, height: 56, borderRadius: '50%', background: T.orange, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700, fontFamily: S.mono, flexShrink: 0 }}>
+            <div style={{ width: 56, height: 56, background: T.orange, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700, fontFamily: S.mono, flexShrink: 0 }}>
               {(user.name || 'U').charAt(0).toUpperCase()}
             </div>
             <div style={{ minWidth: 0 }}>
@@ -707,7 +704,7 @@
           <div style={{ ...sheetCard, display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
             <div style={S.field}><label style={S.label}>Full name</label><input style={S.input} value={name} onChange={e => setName(e.target.value)} /></div>
             <div style={S.field}><label style={S.label}>Studio / company</label><input style={S.input} value={studio} onChange={e => setStudio(e.target.value)} placeholder="e.g. Atlas Films" /></div>
-            <button style={{ ...S.btnP, padding: 11, borderRadius: 6 }} onClick={save}>{saved ? 'Saved ✓' : 'Save changes'}</button>
+            <button style={{ ...S.btnP, padding: 11 }} onClick={save}>{saved ? 'Saved ✓' : 'Save changes'}</button>
           </div>
 
           {window.STUDIO_BILLING && (
@@ -749,21 +746,25 @@
   const root = { position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', background: '#f6f3ee', overflow: 'hidden' };
   const topBar = { background: T.ink, color: '#fff', padding: 'calc(env(safe-area-inset-top) + 10px) 14px 10px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, minHeight: 52 };
   const backBtn = { background: 'none', border: 'none', color: '#fff', fontFamily: S.mono, fontSize: 13, fontWeight: 600, padding: '6px 4px', cursor: 'pointer' };
-  const topAction = { background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)', color: '#fff', borderRadius: 6, padding: '6px 11px', fontFamily: S.mono, fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', cursor: 'pointer' };
-  const guideBtn = { width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', fontFamily: S.mono, fontWeight: 700, fontSize: 14, cursor: 'pointer', flexShrink: 0 };
-  const avatarBtn = { width: 32, height: 32, borderRadius: '50%', background: T.orange, color: '#fff', border: 'none', fontWeight: 700, fontSize: 13, cursor: 'pointer', flexShrink: 0 };
-  const tabBar = { background: T.ink, display: 'flex', paddingBottom: 'env(safe-area-inset-bottom)', borderTop: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 };
-  const tabBtn = (a) => ({ flex: 1, minWidth: 0, background: 'none', border: 'none', color: a ? T.orange : 'rgba(255,255,255,0.6)', padding: '9px 0 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, cursor: 'pointer', minHeight: 54 });
+  const topAction = { background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)', color: '#fff', padding: '6px 11px', fontFamily: S.mono, fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', cursor: 'pointer' };
+  const guideBtn = { width: 32, height: 32, background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', fontFamily: S.mono, fontWeight: 700, fontSize: 14, cursor: 'pointer', flexShrink: 0 };
+  const avatarBtn = { width: 32, height: 32, background: T.orange, color: '#fff', border: 'none', fontFamily: S.mono, fontSize: 14, cursor: 'pointer', flexShrink: 0 };
+  const tabBar = { background: T.ink, display: 'flex', paddingBottom: 'env(safe-area-inset-bottom)', borderTop: '1px solid #000', flexShrink: 0 };
+  const tabBtn = (a) => ({ flex: 1, minWidth: 0, background: a ? T.orange : 'none', border: 'none', borderRight: '1px solid #000', color: a ? '#fff' : 'rgba(255,255,255,0.6)', padding: '9px 0 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, cursor: 'pointer', minHeight: 56 });
   const sheetOverlay = { position: 'fixed', inset: 0, background: 'rgba(20,16,12,0.45)', zIndex: 60, animation: 'gmFadeIn .18s ease-out' };
-  const sheetBox = (tall) => ({ position: 'absolute', left: 0, right: 0, bottom: 0, height: tall ? '88%' : 'auto', maxHeight: '88%', background: '#faf7f2', borderRadius: '14px 14px 0 0', display: 'flex', flexDirection: 'column', paddingBottom: 'env(safe-area-inset-bottom)', animation: 'gmSheetIn .22s ease-out', boxShadow: '0 -8px 30px rgba(0,0,0,0.2)' });
-  const sheetCard = { background: '#fff', border: `1px solid ${T.paperEdge}`, borderRadius: 10, padding: 14 };
-  const listCard = { margin: '0 14px', border: `1px solid ${T.paperEdge}`, borderRadius: 10, overflow: 'hidden' };
-  const sectionLabel = { ...S.label, padding: '4px 18px 8px' };
+  const sheetBox = (tall) => ({ position: 'absolute', left: 0, right: 0, bottom: 0, height: tall ? '88%' : 'auto', maxHeight: '88%', background: '#faf7f2', display: 'flex', flexDirection: 'column', paddingBottom: 'env(safe-area-inset-bottom)', animation: 'gmSheetIn .22s ease-out', boxShadow: '0 -8px 30px rgba(0,0,0,0.2)' });
+  const sheetCard = { background: '#fff', border: `1px solid ${T.paperEdge}`, padding: 14 };
+  const listCard = { margin: '0 14px', border: `1px solid ${T.paperEdge}`, overflow: 'hidden', background: '#fff' };
+  const sectionLabel = { ...S.label, padding: '4px 16px 8px' };
+  // Category / group header bar inside a list card.
+  const cardBar = { display: 'flex', alignItems: 'center', gap: 10, height: 32, padding: '0 14px', background: T.bar, borderBottom: `1px solid ${T.paperEdge}`, fontFamily: S.mono, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.ink };
   const rowName = { fontSize: 14, fontWeight: 500, color: T.ink, lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' };
   const rowSub = { fontSize: 10, fontFamily: S.mono, color: T.textMute, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 3 };
-  const qtyChip = { fontFamily: S.mono, fontSize: 11, fontWeight: 600, color: T.ink, background: '#f1ece2', borderRadius: 4, padding: '3px 7px', flexShrink: 0, whiteSpace: 'nowrap' };
-  const stepBtn = { width: 36, height: 34, background: 'none', border: 'none', fontSize: 18, color: T.ink, cursor: 'pointer' };
-  const heroStatLabel = { fontSize: 9, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 4 };
+  const qtyChip = { fontFamily: S.mono, fontSize: 12, color: T.ink, background: T.bar, padding: '4px 8px', flexShrink: 0, whiteSpace: 'nowrap' };
+  const stepBtn = { width: 34, height: 34, background: 'none', border: 'none', fontSize: 18, color: T.ink, cursor: 'pointer' };
+  const factCell = { padding: '8px 16px', borderBottom: `1px solid ${T.line}`, minWidth: 0 };
+  const factKey = { fontFamily: S.mono, fontSize: 9, letterSpacing: '0.12em', color: T.textMute, textTransform: 'uppercase' };
+  const factVal = { fontFamily: S.mono, fontSize: 13, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
   const emptyLine = { margin: '24px 16px', textAlign: 'center', fontFamily: S.mono, fontSize: 12, color: T.textMute, lineHeight: 1.5 };
 
   window.STUDIO_MOBILE = { MobileApp };
