@@ -8,6 +8,9 @@
 //
 //   generate { prompt, candidates }                          1 credit
 //   refine   { prompt, instruction, kit, candidates }        1 credit
+//   clarify  { prompt, answers? }                            free: one round of
+//                                                            questions when the
+//                                                            brief is too thin
 //   revise   { run_id, prompt, kit, issues, candidates,      free: the automatic
 //              instruction? }                                fix-up pass that each
 //                                                            charged run includes
@@ -65,6 +68,54 @@ When asked to change an existing kit, apply the change and carry its consequence
 
 Keep the kit realistic for the brief (usually 8–18 line items). "reason" is a few words a camera assistant would write. Use "notes" for assumptions and anything the crew must check on the day (crop modes, mount swaps, firmware).`;
 
+// Clarify: before spending a credit, check whether the brief is enough to plan
+// a kit. Adapted from Matt Pocock's "grilling" skill (MIT,
+// github.com/mattpocock/skills): ask every question that can be answered now
+// in one round, each with a recommended answer, and only build once the
+// decisions that change the kit are settled.
+const CLARIFY_SYSTEM = `You help a camera department plan a kit list. Before a kit is built, decide whether the shoot brief settles the decisions that most change the kit.
+
+Decisions that matter (only where the brief leaves them open):
+- Location: interior, exterior, or both; available light
+- Cameras: how many bodies / angles; any body or mount the crew must use
+- Look and lenses: primes vs zooms, cinematic vs run-and-gun
+- Sound: lavs, boom/shotgun, or both; how many speakers
+- Lighting: none, a key light, or a full setup; power available
+- Movement and support: tripod, gimbal, slider, handheld
+- Budget tier: budget-conscious, mid, or top tier
+- Length: number of shoot days (drives batteries and media)
+
+Rules:
+- Lean towards asking. Most briefs are one line and leave the kit-changing decisions open; a good camera assistant would ask before packing.
+- Set ready=true only if the brief already settles location, sound, the number of cameras and the budget tier, or if PREVIOUS ANSWERS settle them.
+- Otherwise ask the questions you can ask now, at most 5, most kit-changing first. Don't ask about anything the brief or earlier answers already settle.
+- Each question: a short title, the question in one plain sentence, 2–4 short options, and your recommended option (must be one of the options) for a typical shoot like this.
+- Never ask more than 2 rounds in total. If PREVIOUS ANSWERS are given and round 2 is done, set ready=true.`;
+
+const CLARIFY_SCHEMA = {
+  type: "object",
+  properties: {
+    ready: { type: "boolean" },
+    questions: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          title: { type: "string" },
+          question: { type: "string" },
+          options: { type: "array", items: { type: "string" } },
+          recommended: { type: "string" },
+        },
+        required: ["id", "title", "question", "options", "recommended"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["ready", "questions"],
+  additionalProperties: false,
+};
+
 const KIT_SCHEMA = {
   type: "object",
   properties: {
@@ -89,7 +140,7 @@ const KIT_SCHEMA = {
   additionalProperties: false,
 };
 
-type Mode = "generate" | "refine" | "revise";
+type Mode = "generate" | "refine" | "revise" | "clarify";
 type KitLine = { ref: string; qty: number; reason: string };
 type Payload = {
   mode?: Mode;
@@ -99,6 +150,8 @@ type Payload = {
   kit?: KitLine[];
   issues?: string[];
   run_id?: string;
+  answers?: { question?: string; answer?: string }[];
+  round?: number;
 };
 type Credits = { monthly: number; bonus: number };
 
@@ -147,7 +200,50 @@ Deno.serve(async (req: Request) => {
     return json({ error: "Invalid JSON body" }, 400);
   }
   const mode: Mode = payload.mode ?? "generate";
-  if (!["generate", "refine", "revise"].includes(mode)) return json({ error: "Unknown mode" }, 400);
+  if (!["generate", "refine", "revise", "clarify"].includes(mode)) return json({ error: "Unknown mode" }, 400);
+
+  // Clarify is free and needs no catalog: one quick call, no credits.
+  if (mode === "clarify") {
+    const brief = String(payload.prompt || "").trim().slice(0, 2000);
+    if (!brief) return json({ error: "Missing prompt" }, 400);
+    const answers = (Array.isArray(payload.answers) ? payload.answers : []).slice(0, 12)
+      .map((a) => `- ${String(a?.question || "").slice(0, 200)}: ${String(a?.answer || "").slice(0, 200)}`);
+    const round = Math.max(1, Math.min(2, Number(payload.round) || 1));
+    if (round > 1 && !answers.length) return json({ ready: true, questions: [] });
+    try {
+      const msg = await new Anthropic({ apiKey }).beta.messages.create({
+        model: "claude-opus-5-5",
+        max_tokens: 4000,
+        betas: ["server-side-fallback-2026-07-01"],
+        fallbacks: "default",
+        output_config: { effort: "low", format: { type: "json_schema", schema: CLARIFY_SCHEMA } },
+        system: CLARIFY_SYSTEM,
+        messages: [{
+          role: "user",
+          content: `SHOOT BRIEF:\n${brief}` +
+            (answers.length ? `\n\nPREVIOUS ANSWERS:\n${answers.join("\n")}` : "") +
+            `\n\nThis is round ${round} of at most 2.`,
+        }],
+      });
+      if (msg.stop_reason !== "end_turn") {
+        console.warn("clarify: stop_reason", msg.stop_reason);
+        return json({ ready: true, questions: [] }); // don't block the build
+      }
+      const parsed = JSON.parse(msg.content.map((b) => (b.type === "text" ? b.text : "")).join(""));
+      const questions = (Array.isArray(parsed.questions) ? parsed.questions : []).slice(0, 5)
+        .map((q: Record<string, unknown>, i: number) => {
+          const options = (Array.isArray(q.options) ? q.options : []).map(String).filter(Boolean).slice(0, 4);
+          const rec = String(q.recommended || "");
+          return { id: String(q.id || `q${i + 1}`), title: String(q.title || ""), question: String(q.question || ""), options, recommended: options.includes(rec) ? rec : options[0] || "" };
+        })
+        .filter((q: { question: string; options: string[] }) => q.question && q.options.length >= 2);
+      console.log("clarify:", JSON.stringify({ round, ready: !!parsed.ready, asked: questions.length }));
+      return json({ ready: !!parsed.ready || !questions.length, questions });
+    } catch (e) {
+      console.error("clarify failed:", e instanceof Anthropic.APIError ? `${e.status} ${e.message}` : (e as Error)?.message || String(e));
+      return json({ ready: true, questions: [] }); // a failed check never stops the user building
+    }
+  }
 
   const prompt = String(payload.prompt || "").trim().slice(0, 2000);
   const instruction = String(payload.instruction || "").trim().slice(0, 1000);
