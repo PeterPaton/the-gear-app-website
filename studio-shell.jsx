@@ -188,7 +188,7 @@
   }
 
   // ─── Left sidebar nav ───────────────────────────────────────────────
-  function Sidebar({ page, setPage, items, projects, collapsed, setCollapsed, user, planName, onUpgrade, onOpenAccount, onOpenProject }) {
+  function Sidebar({ page, setPage, items, projects, collapsed, setCollapsed, user, planName, onUpgrade, onOpenAccount, onOpenProject, onFeedback }) {
     return (
       <div style={sideRoot(collapsed)}>
         <div style={brand}>
@@ -218,6 +218,14 @@
             <button onClick={onUpgrade} style={{ width: '100%', background: 'rgba(255,87,12,0.14)', border: `1px solid ${T.orange}`, color: '#fff', padding: '9px 10px', cursor: 'pointer', fontFamily: S.mono, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
               ✦ Upgrade to Pro
             </button>
+          </div>
+        )}
+        {onFeedback && (
+          <div onClick={onFeedback} title="Leave feedback" style={feedbackRow(collapsed)}
+               onMouseEnter={(e) => { e.currentTarget.style.color = '#fff'; }}
+               onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.72)'; }}>
+            <span style={{ width: 16, fontSize: 14, textAlign: 'center', flexShrink: 0, color: T.orange }}>✎</span>
+            {!collapsed && <span>Leave feedback</span>}
           </div>
         )}
         <div style={{ ...userBar(collapsed), cursor: 'pointer', transition: 'background .12s' }}
@@ -256,6 +264,7 @@
   const collapseBtn = { background: 'rgba(255,255,255,0.06)', border: 'none', color: 'rgba(255,255,255,0.6)', width: 22, height: 22, cursor: 'pointer', fontSize: 12 };
   const navItem = (a, col) => ({ display: 'flex', alignItems: 'center', gap: 10, height: 40, borderBottom: '1px solid #000', padding: col ? 0 : '0 16px', fontFamily: S.mono, fontSize: 13, letterSpacing: '0.04em', color: a ? '#fff' : 'rgba(255,255,255,0.72)', background: a ? T.orange : 'transparent', cursor: 'pointer', justifyContent: col ? 'center' : 'flex-start' });
   const recentRow = { display: 'flex', alignItems: 'center', gap: 10, padding: '6px 16px 6px 23px', fontSize: 12, color: 'rgba(255,255,255,0.6)' };
+  const feedbackRow = (col) => ({ display: 'flex', alignItems: 'center', gap: 10, height: 40, padding: col ? 0 : '0 16px', justifyContent: col ? 'center' : 'flex-start', borderTop: '1px solid #000', fontFamily: S.mono, fontSize: 12, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.72)', cursor: 'pointer', transition: 'color .12s' });
   const userBar = (col) => ({ display: 'flex', alignItems: 'center', gap: 10, padding: 14, borderTop: '1px solid #000', justifyContent: col ? 'center' : 'flex-start' });
 
   const DIM = '#8a827b';

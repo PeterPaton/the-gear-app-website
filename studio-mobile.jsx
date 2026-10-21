@@ -722,6 +722,7 @@
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 20 }}>
             {onGuide && <button style={{ ...S.btnG, background: '#fff', padding: 12 }} onClick={onGuide}>How it works</button>}
+            {app.openFeedback && <button style={{ ...S.btnG, background: '#fff', padding: 12 }} onClick={app.openFeedback}>Leave feedback</button>}
             <button style={{ ...S.btnG, background: '#fff', padding: 12 }} onClick={() => { onBack(); app.signOut(); }}>Sign out</button>
             <button style={{ ...S.btnG, background: '#fff', padding: 12, color: '#B33A06', borderColor: '#f3d9d0' }} onClick={() => setDeleting(true)}>Delete account</button>
           </div>
