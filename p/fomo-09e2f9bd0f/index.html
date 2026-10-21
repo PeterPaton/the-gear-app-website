@@ -129,10 +129,6 @@ body { background: var(--paper); color: var(--ink); font-family: var(--body); fo
       <h1>Send a kit list to a rental house</h1>
       <p>Plan the shoot in The Gear App, then send the list in one tap. The rental house gets a clean, itemised request, matched to their own stock.</p>
     </div>
-    <label class="house-field" for="house">
-      <span class="label">Rental house name (for the demo)</span>
-      <input id="house" value="FOMO Rentals" maxlength="40">
-    </label>
   </header>
 
   <nav class="steps" aria-label="Steps">
@@ -188,7 +184,7 @@ body { background: var(--paper); color: var(--ink); font-family: var(--body); fo
   const state = { step: 1, house: null, mode: 'collect', out: '2026-11-17', back: '2026-11-18', notes: 'Two-camera interview, Bristol warehouse. Happy with a like-for-like swap on the 75mm.' };
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const houseName = () => esc(($('house').value || 'FOMO Rentals').trim() || 'FOMO Rentals');
+  const houseName = () => 'FOMO Rentals';
   const fmt = (d) => new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
   const days = () => Math.max(1, Math.round((new Date(state.back) - new Date(state.out)) / 864e5) + 1);
 
@@ -306,7 +302,6 @@ body { background: var(--paper); color: var(--ink); font-family: var(--body); fo
     on('ask', 'click', () => { $('flash').textContent = 'Message thread opened with Peter (concept only).'; });
   }
   for (let i = 1; i <= 4; i++) $('s' + i).addEventListener('click', () => go(i));
-  $('house').addEventListener('input', () => { const a = document.activeElement; render(); a && a.id === 'house' && a.focus(); });
   render();
 })();
 </script>
