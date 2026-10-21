@@ -708,7 +708,7 @@
             <div style={{ ...S.modalBody, alignItems: 'flex-start' }}>
               <div style={{ fontFamily: S.mono, fontSize: 20 }}>Thanks — got it.</div>
               <div style={{ fontSize: 13, color: T.textMute, lineHeight: 1.5 }}>
-                Every message is read. {canContact && email ? `If we need more detail we’ll reply to ${email}.` : ''}
+                Every message is read. {canContact && email ? 'If we need more detail we’ll get in touch by email.' : ''}
               </div>
               <button style={S.btnP} onClick={onClose}>Done</button>
             </div>
@@ -736,7 +736,7 @@
                 {email && (
                   <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: T.ink, cursor: 'pointer' }}>
                     <input type="checkbox" checked={canContact} onChange={e => setCanContact(e.target.checked)} style={{ accentColor: T.orange, width: 15, height: 15 }} />
-                    You can reply to me at {email}
+                    It’s OK to reply to me by email
                   </label>
                 )}
                 {error && <div style={{ fontSize: 12, color: T.err }}>{error}</div>}
