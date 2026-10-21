@@ -161,7 +161,7 @@
                       <img src={pi.image_url || window.GEAR_PLACEHOLDER(pi.category)} onError={(e) => { e.currentTarget.src = window.GEAR_PLACEHOLDER(pi.category); }} style={{ position: 'absolute', top: 4, left: 4, width: 'calc(100% - 8px)', height: 'calc(100% - 8px)', objectFit: 'contain' }} alt="" />
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', padding: '0 10px', minWidth: 0 }} title={pi.name}>
-                      <span style={{ fontSize: 12.5, color: '#e8e2d8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pi.name}</span>
+                      <span style={{ fontFamily: S.mono, fontSize: 12, color: '#e8e2d8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pi.name}</span>
                     </div>
                     {/* ×N; hovering the row brings up − and + either side */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 38px 1fr', borderLeft: '1px solid #000' }}>

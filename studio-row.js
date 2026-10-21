@@ -7,7 +7,8 @@
   // Shared row height constants
   window.GEAR_ROW = {
     // Heights
-    rowH: (density) => density === 'tight' ? 44 : 52,
+    // List row heights: compact rows vs large rows with bigger photos.
+    rowH: (density) => density === 'tight' ? 38 : 68,
 
     // ── Shared static styles ──────────────────────────────────────────────
     sH: {
@@ -215,7 +216,8 @@
       objectFit: 'contain',
     },
     kitName: {
-      fontSize: 13.5,
+      fontFamily: S.mono,
+      fontSize: 13,
       color: T.ink,
       lineHeight: 1.3,
       overflow: 'hidden',
