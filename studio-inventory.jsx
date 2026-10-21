@@ -10,7 +10,7 @@
     density, setDensity,
     onEditItem, onAddToCart, onChangeInvQty,
     groups = [], onCombineIntoGroup, onRenameGroup, onDeleteGroup, onMoveItemToGroup, onMoveItemsToGroup,
-    onOpenDatabase, onExportInventory,
+    onOpenDatabase, onSearchDatabase, onExportInventory,
     draggedId, setDraggedId, draggedGroupId, setDraggedGroupId,
     hoverCart, setHoverCart,
   }) {
@@ -460,7 +460,12 @@
             </div>
           ) : filtered.length === 0 ? (
             <div style={{ padding: '60px 40px', textAlign: 'center', color: T.textMute, fontFamily: S.mono, fontSize: 13 }}>
-              No items match. Try clearing filters.
+              {query.trim() ? `Nothing in your inventory matches “${query.trim()}”.` : 'No items match. Try clearing filters.'}
+              {query.trim() && onSearchDatabase && (
+                <div style={{ marginTop: 16 }}>
+                  <button style={S.btnP} onClick={() => onSearchDatabase(query.trim())}>Search the database for “{query.trim()}” →</button>
+                </div>
+              )}
             </div>
           ) : <React.Fragment>
             <div style={{ ...R.kitHeadRow, gridTemplateColumns: invCols }}>
