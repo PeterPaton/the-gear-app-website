@@ -314,7 +314,6 @@
 
     const tabs = [
       { k: 'profile', label: 'Profile' },
-      { k: 'workspace', label: 'Workspace' },
       { k: 'billing', label: 'Billing' },
       { k: 'security', label: 'Security' },
     ];
@@ -363,15 +362,6 @@
                     <button style={S.btnG}>Cancel</button>
                   </div>
                 </div>
-              </div>
-            )}
-            {section === 'workspace' && (
-              <div style={card}>
-                <div style={cardHead}>Workspace</div>
-                <Row label="Default location" value="Studio · LA" />
-                <Row label="Currency" value="USD" />
-                <Row label="Date format" value="MMM D, YYYY" />
-                <Row label="Theme" value="Paper (light)" />
               </div>
             )}
             {section === 'billing' && window.STUDIO_BILLING && (
