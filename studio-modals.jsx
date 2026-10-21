@@ -672,5 +672,87 @@
     );
   }
 
-  window.STUDIO_MODALS = { NewProjectModal, EditItemModal, ExportPDFModal };
+  // ─── Leave feedback ─────────────────────────────────────────────────
+  function FeedbackModal({ email, page, onClose, onSend }) {
+    const kinds = [['idea', 'Idea'], ['problem', 'Problem'], ['praise', 'Praise'], ['other', 'Other']];
+    const [kind, setKind] = useState('idea');
+    const [message, setMessage] = useState('');
+    const [canContact, setCanContact] = useState(true);
+    const [state, setState] = useState('idle'); // idle | sending | sent
+    const [error, setError] = useState('');
+    const send = async () => {
+      if (!message.trim() || state === 'sending') return;
+      setState('sending'); setError('');
+      try {
+        await onSend({ kind, message: message.trim(), canContact: canContact && !!email, email, page });
+        setState('sent');
+      } catch (e) {
+        setError(e.message || 'Could not send. Try again.');
+        setState('idle');
+      }
+    };
+    const placeholder = {
+      idea: 'What would make The Gear App more useful on your shoots?',
+      problem: 'What went wrong, and what were you trying to do?',
+      praise: 'What’s working well for you?',
+      other: 'Tell us anything.',
+    }[kind];
+    return (
+      <div style={S.modalOverlay} onClick={onClose}>
+        <div style={{ ...S.modal, width: 520 }} onClick={e => e.stopPropagation()}>
+          <div style={S.modalHead}>
+            <div style={S.modalTitle}>Leave feedback</div>
+            <button onClick={onClose} aria-label="Close" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: T.textMute, padding: 0, width: 30, height: 30, lineHeight: 1 }}>×</button>
+          </div>
+          {state === 'sent' ? (
+            <div style={{ ...S.modalBody, alignItems: 'flex-start' }}>
+              <div style={{ fontFamily: S.mono, fontSize: 20 }}>Thanks — got it.</div>
+              <div style={{ fontSize: 13, color: T.textMute, lineHeight: 1.5 }}>
+                Every message is read. {canContact && email ? `If we need more detail we’ll reply to ${email}.` : ''}
+              </div>
+              <button style={S.btnP} onClick={onClose}>Done</button>
+            </div>
+          ) : (
+            <React.Fragment>
+              <div style={S.modalBody}>
+                <div style={S.field}>
+                  <label style={S.label}>What’s it about?</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', border: `1px solid ${T.ink}`, alignSelf: 'flex-start' }}>
+                    {kinds.map(([k, l], i) => (
+                      <button key={k} onClick={() => setKind(k)}
+                        style={{ padding: '8px 14px', border: 'none', borderLeft: i ? `1px solid ${T.ink}` : 'none', background: kind === k ? T.orange : '#fff', color: kind === k ? '#fff' : T.ink, fontFamily: S.mono, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div style={S.field}>
+                  <label htmlFor="feedback-message" style={S.label}>Your feedback</label>
+                  <textarea id="feedback-message" autoFocus value={message} onChange={e => setMessage(e.target.value.slice(0, 5000))}
+                    onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send(); }}
+                    placeholder={placeholder} rows={6}
+                    style={{ ...S.input, resize: 'vertical', lineHeight: 1.5, fontSize: 14, minHeight: 130 }} />
+                </div>
+                {email && (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: T.ink, cursor: 'pointer' }}>
+                    <input type="checkbox" checked={canContact} onChange={e => setCanContact(e.target.checked)} style={{ accentColor: T.orange, width: 15, height: 15 }} />
+                    You can reply to me at {email}
+                  </label>
+                )}
+                {error && <div style={{ fontSize: 12, color: T.err }}>{error}</div>}
+              </div>
+              <div style={S.modalFoot}>
+                <button style={S.btnG} onClick={onClose}>Cancel</button>
+                <button style={{ ...S.btnP, opacity: message.trim() && state !== 'sending' ? 1 : 0.5 }} disabled={!message.trim() || state === 'sending'} onClick={send}>
+                  {state === 'sending' ? 'Sending…' : 'Send feedback'}
+                </button>
+              </div>
+            </React.Fragment>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  window.STUDIO_MODALS = { NewProjectModal, EditItemModal, ExportPDFModal, FeedbackModal };
 })();

@@ -642,6 +642,7 @@ function App() {
   const [modalExport, setModalExport] = useState(null);      // project or null
   const [openProjectId, setOpenProjectId] = useState(null);  // for "Open project" full-screen view
   const [showAccount, setShowAccount] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
 
   // Load items for whichever project the user opens full-screen, even if it
   // isn't the currently-active one — otherwise the detail view shows empty.
@@ -1191,6 +1192,14 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
   // desktop studio and the phone layout.
   const overlays = (
     <React.Fragment>
+      {showFeedback && (
+        <window.STUDIO_MODALS.FeedbackModal
+          email={(session && session.user && session.user.email) || (user && user.email) || ''}
+          page={openProject ? 'project' : page}
+          onClose={() => setShowFeedback(false)}
+          onSend={(fb) => window.GEAR_DB.sendFeedback(fb, session)}
+        />
+      )}
       {modalNewProject && (
         <window.STUDIO_MODALS.NewProjectModal
           onClose={() => setModalNewProject(false)}
@@ -1251,6 +1260,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
           deleteProject, renameProject, changeProjectStatus,
           openNewProject, openUpgrade, startCheckout, openBillingPortal, refreshBilling,
           signOut, deleteAccount, updateUser,
+          openFeedback: () => setShowFeedback(true),
           editItem: setModalEditItem,
           exportProject: setModalExport,
           suggestProps: {
@@ -1283,6 +1293,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
         planName={billing ? billing.plan_name : null}
         onUpgrade={billing && billing.plan !== 'pro' ? () => openUpgrade() : null}
         onOpenAccount={() => setShowAccount(true)}
+        onFeedback={() => setShowFeedback(true)}
         onOpenProject={(id) => {
           // Recent-projects row: same project = no-op (stay in current view),
           // different project = swap the open project view.

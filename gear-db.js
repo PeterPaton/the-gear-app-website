@@ -341,6 +341,22 @@ window.SUPABASE_CONFIG = __stored || {
       return data ? { id: data.id, name: data.name, itemIds: data.item_ids || [] } : group;
     },
 
+    // ── Feedback (insert-only; read in the Supabase dashboard) ──────────
+    async sendFeedback(fb, session) {
+      if (!isEnabled() || !session) throw new Error('Sign in to send feedback.');
+      const sb = makeClient(session);
+      const { error } = await sb.from('feedback').insert({
+        user_id: session.user.id,
+        kind: fb.kind,
+        message: fb.message,
+        email: fb.canContact ? (fb.email || null) : null,
+        can_contact: !!fb.canContact,
+        page: fb.page || null,
+        user_agent: (navigator.userAgent || '').slice(0, 300),
+      });
+      if (error) throw new Error(error.message);
+    },
+
     async deleteGroup(groupId, session) {
       if (!isEnabled() || !session) return;
       const sb = makeClient(session);
