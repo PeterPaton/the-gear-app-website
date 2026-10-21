@@ -194,8 +194,7 @@
     const totalQty = items.reduce((s, pi) => s + (pi.qty || 0), 0);
     const uniqueCount = items.length;
     const isTight = density === 'tight';
-    const rowPad = isTight ? '4px 0' : '10px 0';
-    const thumb = isTight ? 26 : 42;
+    const thumb = isTight ? 28 : 44;
 
     // Group items into named sections for the subheader render path.
     // Project: category. Inventory: group name (or "Items" if ungrouped).
@@ -223,6 +222,11 @@
     }, [showSubheaders, items, mode, groups]);
 
     const colCount = showPhotos ? 4 : 3;
+    // Print-friendly gridded sheet: ink rules and light fills only.
+    const pdfLabel = { fontFamily: S.mono, fontSize: 8, letterSpacing: '0.12em', textTransform: 'uppercase', color: T.textMute };
+    const pdfFact = { padding: '8px 16px', borderRight: `1px solid ${T.ink}`, minWidth: 0 };
+    const pdfHead = { textAlign: 'left', padding: '7px 12px', fontFamily: S.mono, fontSize: 8, fontWeight: 400, letterSpacing: '0.12em', textTransform: 'uppercase', color: T.textMute, borderRight: `1px solid ${T.ink}`, borderBottom: `1px solid ${T.ink}` };
+    const pdfCell = { borderRight: `1px solid ${T.ink}`, borderBottom: `1px solid ${T.ink}`, verticalAlign: 'middle' };
 
     // Inline every <img> as a data: URL before html2canvas runs. html2canvas
     // can only bake cross-origin images into the canvas when the source
@@ -338,14 +342,21 @@
     const buildPhonePdf = async () => {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ unit: 'pt', format: 'letter' });
-      const W = 612, H = 792, M = 40, right = W - M;
-      const ink = [25, 25, 25], mute = [122, 113, 106], rule = [232, 226, 216];
+      // Same ruled grid as the desktop sheet: ink lines, light fills only.
+      const W = 612, H = 792, M = 36, right = W - M, TW = right - M;
+      const ink = [25, 25, 25], mute = [122, 113, 106], orange = [255, 87, 12];
+      const bar = [235, 229, 220], head = [244, 240, 234], many = [255, 233, 222];
       const th = showPhotos ? (isTight ? 22 : 34) : 0;
-      const pad = isTight ? 4 : 8;
-      const qtyX = M, photoX = M + 36, nameX = photoX + (th ? th + 12 : 0), catX = right - 100, nameW = catX - nameX - 12;
+      const pad = isTight ? 5 : 9;
+      const photoW = th ? th + 10 : 0, qtyW = 44, catW = 96;
+      const nameX = M + photoW, catX = right - qtyW - catW, qtyX = right - qtyW, nameW = catX - nameX - 16;
       let y = M;
-      const ensure = (h) => { if (y + h > H - M - 20) { doc.addPage(); y = M; } };
-      const hline = (color, width) => { doc.setDrawColor(...color); doc.setLineWidth(width); doc.line(M, y, right, y); };
+      const box = (x, yy, w, h, fill) => {
+        doc.setDrawColor(...ink); doc.setLineWidth(0.75);
+        if (fill) { doc.setFillColor(...fill); doc.rect(x, yy, w, h, 'FD'); } else doc.rect(x, yy, w, h);
+      };
+      const vline = (x, y1, y2) => { doc.setDrawColor(...ink); doc.setLineWidth(0.75); doc.line(x, y1, x, y2); };
+      const label = (t, x, yy) => { doc.setFont('courier', 'normal'); doc.setFontSize(7); doc.setTextColor(...mute); doc.text(String(t).toUpperCase(), x, yy); };
 
       const thumbs = new Map();
       if (th) {
@@ -360,73 +371,100 @@
         await Promise.all([worker(), worker(), worker()]);
       }
 
-      // Header: title, details, branding, totals.
-      doc.setFont('courier', 'normal'); doc.setFontSize(8); doc.setTextColor(...mute);
-      doc.text('FULL LIST', M, y + 8);
+      // Header box: title (+ mark), then a ruled facts row.
       const mark = branding ? 'THE GEAR APP' : (studioName ? String(studioName).toUpperCase() : '');
-      if (mark) { doc.setFont('courier', 'bold'); doc.setFontSize(11); doc.setTextColor(...ink); doc.text(mark, right, y + 8, { align: 'right' }); }
-      y += 20;
-      doc.setFont('courier', 'bold'); doc.setFontSize(22); doc.setTextColor(...ink);
-      const titleLines = doc.splitTextToSize(project.name || 'Kit list', W - 2 * M - 120);
-      titleLines.forEach(line => { y += 22; doc.text(line, M, y); });
-      const meta = [project.client, project.shoot, project.location].filter(Boolean).join(' · ');
-      if (meta) { y += 16; doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...mute); doc.text(doc.splitTextToSize(meta, W - 2 * M)[0], M, y); }
-      y += 12; hline(ink, 1.5);
-      y += 18;
-      doc.setFont('courier', 'normal'); doc.setFontSize(7); doc.setTextColor(...mute);
-      doc.text('ITEMS', M, y); doc.text('UNIQUE', W / 2, y);
-      y += 16; doc.setFontSize(14); doc.setTextColor(...ink);
-      doc.text(String(totalQty), M, y); doc.text(String(uniqueCount), W / 2, y);
-      y += 20;
+      doc.setFont('courier', 'bold'); doc.setFontSize(10);
+      const markW = mark ? doc.getTextWidth(mark) + 24 : 0;
+      doc.setFontSize(20);
+      const titleLines = doc.splitTextToSize(project.name || 'Kit list', TW - markW - 24);
+      const titleH = 30 + titleLines.length * 22;
+      box(M, y, TW, titleH);
+      label(mode === 'inventory' ? 'Inventory' : 'Kit list', M + 12, y + 16);
+      doc.setFont('courier', 'bold'); doc.setFontSize(20); doc.setTextColor(...ink);
+      titleLines.forEach((line, i) => doc.text(line, M + 12, y + 38 + i * 22));
+      if (mark) {
+        vline(right - markW, y, y + titleH);
+        doc.setFont('courier', 'bold'); doc.setFontSize(10); doc.text(mark, right - markW / 2, y + titleH / 2 + 3, { align: 'center' });
+      }
+      y += titleH;
+      const facts = mode === 'inventory'
+        ? [['Exported', new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })]]
+        : [['Client', project.client], ['Shoot', project.shoot], ['Location', project.location]];
+      const numW = 66, factW = (TW - numW * 2) / facts.length, factH = 38;
+      box(M, y, TW, factH);
+      facts.forEach(([k, v], i) => {
+        const x = M + i * factW;
+        if (i) vline(x, y, y + factH);
+        label(k, x + 10, y + 13);
+        doc.setFont('courier', 'normal'); doc.setFontSize(10); doc.setTextColor(...ink);
+        doc.text(doc.splitTextToSize(v || '—', factW - 20)[0] || '—', x + 10, y + 29);
+      });
+      [['Items', totalQty], ['Unique', uniqueCount]].forEach(([k, v], i) => {
+        const x = right - numW * (2 - i);
+        vline(x, y, y + factH);
+        label(k, x + 10, y + 13);
+        doc.setFont('courier', 'bold'); doc.setFontSize(14); doc.setTextColor(...orange);
+        doc.text(String(v), x + 10, y + 31);
+      });
+      y += factH + 14;
 
       if (items.length === 0) {
         doc.setFont('courier', 'normal'); doc.setFontSize(9); doc.setTextColor(...mute);
-        doc.text('NO ITEMS IN THIS PROJECT', W / 2, y + 30, { align: 'center' });
+        doc.text('NO ITEMS IN THIS LIST', W / 2, y + 30, { align: 'center' });
       } else {
-        doc.setFont('courier', 'bold'); doc.setFontSize(7); doc.setTextColor(...ink);
-        doc.text('QTY', qtyX, y); doc.text('ITEM', nameX, y); doc.text('CATEGORY', catX, y);
-        y += 6; hline(ink, 0.75);
+        const colHead = () => {
+          box(M, y, TW, 18, head);
+          if (th) vline(nameX, y, y + 18);
+          vline(catX, y, y + 18); vline(qtyX, y, y + 18);
+          label('Item', nameX + 8, y + 12); label('Category', catX + 8, y + 12); label('Qty', qtyX + qtyW / 2 - 6, y + 12);
+          y += 18;
+        };
+        // New page: repeat the column heads so each page reads on its own.
+        const ensure = (h) => { if (y + h > H - M - 20) { doc.addPage(); y = M; colHead(); } };
+        colHead();
         (sections || [{ name: null, rows: items }]).forEach(sec => {
           if (sec.name) {
-            ensure(24 + Math.max(th, 12) + pad * 2); // keep the heading with its first row
-            y += 18;
+            ensure(20 + Math.max(th, 12) + pad * 2); // keep the bar with its first row
+            box(M, y, TW, 20, bar);
             doc.setFont('courier', 'bold'); doc.setFontSize(8); doc.setTextColor(...ink);
-            doc.text(String(sec.name).toUpperCase(), M, y);
-            doc.setFont('courier', 'normal'); doc.setTextColor(...mute);
-            doc.text(String(sec.rows.reduce((n, pi) => n + (pi.qty || 0), 0)), M + doc.getTextWidth(String(sec.name).toUpperCase()) + 10, y);
-            y += 6; hline(ink, 0.75);
+            doc.text(String(sec.name).toUpperCase(), M + 10, y + 13);
+            doc.setTextColor(...orange);
+            doc.text(String(sec.rows.reduce((n, pi) => n + (pi.qty || 0), 0)), right - 10, y + 13, { align: 'right' });
+            y += 20;
           }
           sec.rows.forEach(pi => {
-            doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+            doc.setFont('courier', 'normal'); doc.setFontSize(9.5);
             const lines = doc.splitTextToSize(pi.name || '', nameW);
-            const h = Math.max(th, lines.length * 12) + pad * 2;
+            const h = Math.max(th + 8, lines.length * 12 + pad * 2);
             ensure(h);
             const mid = y + h / 2;
-            doc.setFont('courier', 'bold'); doc.setFontSize(10); doc.setTextColor(...ink);
-            doc.text(`${pi.qty}x`, qtyX, mid + 3);
+            box(M, y, TW, h);
+            if (pi.qty > 1) { doc.setFillColor(...many); doc.rect(qtyX, y, qtyW, h, 'F'); box(M, y, TW, h); }
             if (th) {
-              doc.setDrawColor(224, 224, 224); doc.setLineWidth(0.5);
-              doc.roundedRect(photoX, y + pad, th, th, 3, 3);
+              vline(nameX, y, y + h);
               const t = thumbs.get(pi.id);
               if (t) {
-                const k = Math.min((th - 4) / t.w, (th - 4) / t.h);
+                const k = Math.min(th / t.w, (h - 8) / t.h, th / t.h);
                 const w = t.w * k, ih = t.h * k;
-                doc.addImage(t.data, 'JPEG', photoX + (th - w) / 2, y + pad + (th - ih) / 2, w, ih);
+                doc.addImage(t.data, 'JPEG', M + (photoW - w) / 2, mid - ih / 2, w, ih);
               }
             }
-            doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(...ink);
+            vline(catX, y, y + h); vline(qtyX, y, y + h);
+            doc.setFont('courier', 'normal'); doc.setFontSize(9.5); doc.setTextColor(...ink);
             const top = mid - (lines.length * 12) / 2 + 9;
-            lines.forEach((line, i) => doc.text(line, nameX, top + i * 12));
-            doc.setFont('courier', 'normal'); doc.setFontSize(8); doc.setTextColor(...mute);
-            doc.text(doc.splitTextToSize(pi.category || '', right - catX)[0] || '', catX, mid + 3);
-            y += h; hline(rule, 0.5);
+            lines.forEach((line, i) => doc.text(line, nameX + 8, top + i * 12));
+            doc.setFontSize(7); doc.setTextColor(...mute);
+            doc.text((doc.splitTextToSize(String(pi.category || '').toUpperCase(), catW - 16)[0]) || '', catX + 8, mid + 3);
+            doc.setFont('courier', 'bold'); doc.setFontSize(10); doc.setTextColor(...(pi.qty > 1 ? orange : ink));
+            doc.text(`x${pi.qty}`, qtyX + qtyW / 2, mid + 3, { align: 'center' });
+            y += h;
           });
         });
       }
 
       if (branding) {
-        ensure(30);
-        y += 22;
+        if (y + 30 > H - M) { doc.addPage(); y = M; }
+        y += 18;
         doc.setFont('courier', 'normal'); doc.setFontSize(7); doc.setTextColor(...mute);
         doc.text('MADE WITH THE GEAR APP', M, y);
         doc.text('GEARAPP.IO', right, y, { align: 'right' });
@@ -594,54 +632,69 @@
         {/* minWidth keeps the sheet at its desktop width on a phone (the
             preview scrolls sideways), so the PDF comes out the same. */}
         <div style={{ overflowX: 'auto' }}>
-        <div ref={sheetRef} style={{ background: '#fff', border: `1px solid ${T.paperEdge}`, padding: '32px 36px', minWidth: 680 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, paddingBottom: 16, borderBottom: `2px solid ${T.ink}` }}>
-              <div>
-                <div style={{ fontFamily: S.mono, fontSize: 10, color: T.textMute, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>Full list</div>
-                <div style={{ fontFamily: S.mono, fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1 }}>{project.name}</div>
-                <div style={{ fontSize: 12, color: T.textMute, marginTop: 6 }}>{[project.client, project.shoot, project.location].filter(Boolean).join(' · ')}</div>
+        <div ref={sheetRef} style={{ background: '#fff', padding: '28px 32px', minWidth: 680, color: T.ink }}>
+            {/* Header: title + mark, then the shoot facts as a ruled grid */}
+            <div style={{ border: `1.5px solid ${T.ink}` }}>
+              <div style={{ display: 'flex', alignItems: 'stretch', borderBottom: `1px solid ${T.ink}` }}>
+                <div style={{ flex: 1, minWidth: 0, padding: '14px 16px' }}>
+                  <div style={{ ...pdfLabel, marginBottom: 6 }}>{mode === 'inventory' ? 'Inventory' : 'Kit list'}</div>
+                  <div style={{ fontFamily: S.mono, fontSize: 26, lineHeight: 1.1, letterSpacing: '0.01em', wordBreak: 'break-word' }}>{project.name}</div>
+                </div>
+                {(branding || studioName) && (
+                  <div style={{ display: 'flex', alignItems: 'center', padding: '0 16px', borderLeft: `1px solid ${T.ink}`, fontFamily: S.mono, fontSize: 12, letterSpacing: '0.06em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                    {branding ? 'The Gear App' : studioName}
+                  </div>
+                )}
               </div>
-              {branding
-                ? <div style={{ ...S.wordmark, fontSize: 14 }}>THE GEAR APP</div>
-                : studioName ? <div style={{ fontFamily: S.mono, fontSize: 14, fontWeight: 700, textTransform: 'uppercase' }}>{studioName}</div> : null}
+              <div style={{ display: 'grid', gridTemplateColumns: mode === 'inventory' ? '1fr 90px 90px' : 'repeat(3, minmax(0, 1fr)) 90px 90px' }}>
+                {mode !== 'inventory' && [['Client', project.client], ['Shoot', project.shoot], ['Location', project.location]].map(([k, v]) => (
+                  <div key={k} style={pdfFact}>
+                    <div style={pdfLabel}>{k}</div>
+                    <div style={{ fontFamily: S.mono, fontSize: 12, marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v || '—'}</div>
+                  </div>
+                ))}
+                {mode === 'inventory' && <div style={pdfFact}><div style={pdfLabel}>Exported</div><div style={{ fontFamily: S.mono, fontSize: 12, marginTop: 4 }}>{new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</div></div>}
+                <div style={pdfFact}><div style={pdfLabel}>Items</div><div style={{ fontFamily: S.mono, fontSize: 18, marginTop: 2, color: T.orange }}>{totalQty}</div></div>
+                <div style={{ ...pdfFact, borderRight: 'none' }}><div style={pdfLabel}>Unique</div><div style={{ fontFamily: S.mono, fontSize: 18, marginTop: 2, color: T.orange }}>{uniqueCount}</div></div>
+              </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 0, marginBottom: 20, fontSize: 11, fontFamily: S.mono }}>
-              <div><div style={{ color: T.textMute, textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 9 }}>Items</div><div style={{ fontSize: 18, marginTop: 4 }}>{totalQty}</div></div>
-              <div><div style={{ color: T.textMute, textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 9 }}>Unique</div><div style={{ fontSize: 18, marginTop: 4 }}>{uniqueCount}</div></div>
-            </div>
+
             {items.length === 0 ? (
-              <div style={{ padding: '40px 0', textAlign: 'center', fontFamily: S.mono, fontSize: 11, color: T.textMute, textTransform: 'uppercase', letterSpacing: '0.08em' }}>No items in this project</div>
+              <div style={{ marginTop: 16, padding: '40px 0', textAlign: 'center', border: `1px dashed ${T.ink}`, fontFamily: S.mono, fontSize: 11, color: T.textMute, textTransform: 'uppercase', letterSpacing: '0.08em' }}>No items in this list</div>
             ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 16, fontSize: 12, border: `1.5px solid ${T.ink}` }}>
                 <thead>
-                  <tr style={{ borderBottom: `1px solid ${T.ink}` }}>
-                    <th style={{ textAlign: 'left', padding: '8px 0', fontFamily: S.mono, fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', width: 50 }}>Qty</th>
-                    {showPhotos && <th style={{ width: thumb + 12, padding: '8px 0' }}></th>}
-                    <th style={{ textAlign: 'left', padding: '8px 0', fontFamily: S.mono, fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Item</th>
-                    <th style={{ textAlign: 'left', padding: '8px 0', fontFamily: S.mono, fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Category</th>
+                  <tr style={{ background: '#f4f0ea' }}>
+                    {showPhotos && <th style={{ ...pdfHead, width: thumb + 12 }}></th>}
+                    <th style={pdfHead}>Item</th>
+                    <th style={{ ...pdfHead, width: 120 }}>Category</th>
+                    <th style={{ ...pdfHead, width: 56, textAlign: 'center', borderRight: 'none' }}>Qty</th>
                   </tr>
                 </thead>
                 {(() => {
                   const renderRow = (pi) => (
-                    <tr key={pi.id} style={{ borderBottom: '1px solid #e2d9cd', pageBreakInside: 'avoid' }}>
-                      <td style={{ padding: rowPad, fontFamily: S.mono, fontWeight: 600 }}>{pi.qty}×</td>
+                    <tr key={pi.id} style={{ pageBreakInside: 'avoid' }}>
                       {showPhotos && (
-                        <td style={{ padding: rowPad }}>
-                          <div style={{ width: thumb, height: thumb, background: '#fff', border: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                        <td style={{ ...pdfCell, padding: 4, width: thumb + 12 }}>
+                          <div style={{ width: thumb, height: thumb, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                             <img src={pi.image_url || window.GEAR_PLACEHOLDER(pi.category)} onError={(e) => { e.currentTarget.src = window.GEAR_PLACEHOLDER(pi.category); }} data-category={pi.category || 'Camera'} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} alt="" />
                           </div>
                         </td>
                       )}
-                      <td style={{ padding: rowPad }}>{pi.name}</td>
-                      <td style={{ padding: rowPad, fontFamily: S.mono, fontSize: 11, color: T.textMute }}>{pi.category}</td>
+                      <td style={{ ...pdfCell, padding: isTight ? '5px 10px' : '10px 12px', fontFamily: S.mono, fontSize: 12 }}>{pi.name}</td>
+                      <td style={{ ...pdfCell, padding: '0 10px', fontFamily: S.mono, fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textMute }}>{pi.category}</td>
+                      <td style={{ ...pdfCell, borderRight: 'none', textAlign: 'center', fontFamily: S.mono, fontSize: 13, background: pi.qty > 1 ? '#ffe9de' : '#fff', color: pi.qty > 1 ? T.orange : T.ink }}>×{pi.qty}</td>
                     </tr>
                   );
                   if (sections) {
                     return sections.map(sec => (
                       <tbody key={sec.name}>
-                        <tr>
-                          <td colSpan={colCount} style={{ padding: '14px 0 6px', fontFamily: S.mono, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: T.ink, borderBottom: `1px solid ${T.ink}` }}>
-                            {sec.name}<span style={{ color: T.textMute, marginLeft: 10, fontWeight: 400 }}>{sec.rows.reduce((s, pi) => s + (pi.qty || 0), 0)}</span>
+                        <tr style={{ pageBreakAfter: 'avoid' }}>
+                          <td colSpan={colCount} style={{ padding: '6px 12px', background: '#ebe5dc', borderTop: `1px solid ${T.ink}`, borderBottom: `1px solid ${T.ink}`, fontFamily: S.mono, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                            <span style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span>{sec.name}</span>
+                              <span style={{ color: T.orange }}>{sec.rows.reduce((s, pi) => s + (pi.qty || 0), 0)}</span>
+                            </span>
                           </td>
                         </tr>
                         {sec.rows.map(renderRow)}
@@ -653,7 +706,7 @@
               </table>
             )}
             {branding && (
-              <div style={{ marginTop: 22, paddingTop: 10, borderTop: '1px solid #e2d9cd', display: 'flex', justifyContent: 'space-between', fontFamily: S.mono, fontSize: 9, color: T.textMute, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', fontFamily: S.mono, fontSize: 9, color: T.textMute, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                 <span>Made with The Gear App</span>
                 <span>gearapp.io</span>
               </div>
