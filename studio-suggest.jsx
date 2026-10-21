@@ -60,6 +60,10 @@
   // `compact` is the phone layout: tighter margins, no keyboard hint.
   function SuggestPage({ userId, catalog = [], supabaseUrl, anonKey, accessToken, projects = [], activeProjectId, billing, onCreditsChange, onUpgrade, onAddKitToProject, onCreateProjectFromKit, compact }) {
     const [prompt, setPrompt] = useState('');
+    // Clarifying questions asked before a vague brief is built (free; adapted
+    // from Matt Pocock's "grilling" skill). { brief, round, questions, picks, other, answered }
+    const [clarify, setClarify] = useState(null);
+    const [asking, setAsking] = useState(false);
     const [stage, setStage] = useState(''); // '' when idle, otherwise a progress label
     const [busyMode, setBusyMode] = useState(null); // 'generate' | 'refine' while working
     const [error, setError] = useState('');
@@ -225,12 +229,63 @@
       return true;
     }
 
+    // Generate: first check whether the brief is enough (free). If not, show a
+    // round of questions with recommended answers already picked.
     async function generate() {
       if (outOfCredits) { onUpgrade && onUpgrade('credits'); return; }
       const q = prompt.trim();
       if (!q) { setError('Describe what you’re shooting first.'); return; }
       if (!catalog.length) { setError('No equipment catalog is loaded yet.'); return; }
       setError('');
+      const qs = await askQuestions(q, 1, []);
+      if (qs) { setClarify({ brief: q, round: 1, questions: qs, picks: recommendedPicks(qs), other: {}, answered: [] }); return; }
+      build(q);
+    }
+
+    const recommendedPicks = (qs) => Object.fromEntries(qs.map(x => [x.id, x.recommended]));
+
+    // Returns questions to ask, or null to go straight to building.
+    async function askQuestions(brief, round, answers) {
+      if (!supabaseUrl || !anonKey || !accessToken) return null;
+      setAsking(true);
+      try {
+        const data = await callFunction({ mode: 'clarify', prompt: brief, round, answers });
+        return !data.ready && data.questions && data.questions.length ? data.questions : null;
+      } catch (e) {
+        return null; // never block building on the check
+      } finally {
+        setAsking(false);
+      }
+    }
+
+    // Answers so far as "question: answer" pairs.
+    const collectAnswers = (c) => [...c.answered, ...c.questions.map(x => ({
+      question: x.title || x.question,
+      answer: (c.other[x.id] || '').trim() || c.picks[x.id] || x.recommended,
+    }))];
+    const briefWith = (brief, answers) => answers.length
+      ? `${brief}\n\nDetails:\n${answers.map(a => `- ${a.question}: ${a.answer}`).join('\n')}`
+      : brief;
+
+    async function continueClarify() {
+      const c = clarify;
+      if (c.round >= 2 && outOfCredits) { onUpgrade && onUpgrade('credits'); return; }
+      const answers = collectAnswers(c);
+      if (c.round < 2) {
+        const qs = await askQuestions(c.brief, 2, answers);
+        if (qs) { setClarify({ brief: c.brief, round: 2, questions: qs, picks: recommendedPicks(qs), other: {}, answered: answers }); return; }
+      }
+      setClarify(null);
+      build(briefWith(c.brief, answers));
+    }
+
+    function skipClarify() {
+      const c = clarify;
+      setClarify(null);
+      build(briefWith(c.brief, c.answered));
+    }
+
+    async function build(q) {
       setPrompt('');
       setResult(null);
       setHistory([]);
@@ -406,11 +461,19 @@
               <span style={{ fontSize: 11, color: T.textMute, fontFamily: S.mono }}>
                 {catalog.length ? `${catalog.length.toLocaleString()} items in catalog` : 'Catalog loading…'}{compact ? '' : ' · ⌘↵ to generate'}
               </span>
-              <button onClick={() => generate()} disabled={working} style={{ ...S.btnP, opacity: working ? 0.6 : 1, padding: '10px 18px' }}>
-                {busyMode === 'generate' ? 'Working…' : outOfCredits ? 'Get more credits' : 'Generate kit list · 1 credit'}
+              <button onClick={() => generate()} disabled={working || asking || !!clarify} style={{ ...S.btnP, opacity: working || asking || clarify ? 0.6 : 1, padding: '10px 18px' }}>
+                {asking && !clarify ? 'Checking the brief…' : busyMode === 'generate' ? 'Working…' : outOfCredits ? 'Get more credits' : 'Generate kit list · 1 credit'}
               </button>
             </div>
           </div>
+
+          {clarify && (
+            <ClarifyCard c={clarify} compact={compact} busy={asking}
+              onPick={(id, v) => setClarify(c => ({ ...c, picks: { ...c.picks, [id]: v }, other: { ...c.other, [id]: '' } }))}
+              onOther={(id, v) => setClarify(c => ({ ...c, other: { ...c.other, [id]: v } }))}
+              onContinue={continueClarify} onSkip={skipClarify}
+              outOfCredits={outOfCredits} />
+          )}
 
           {error && (
             <div style={{ marginTop: 14, background: '#fde6dd', color: T.err, border: `1px solid ${T.err}`, padding: '10px 14px', fontSize: 13, fontFamily: S.mono, display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
@@ -584,6 +647,53 @@
       if (options.length) out.push({ for: k, options });
     });
     return out.slice(0, 8);
+  }
+
+  // One round of clarifying questions. The recommended answer is pre-picked,
+  // so "Build" with no changes accepts every recommendation.
+  function ClarifyCard({ c, compact, busy, onPick, onOther, onContinue, onSkip, outOfCredits }) {
+    const last = c.round >= 2;
+    return (
+      <div style={{ marginTop: 14, background: '#fff', border: `1px solid ${T.ink}` }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '10px 14px', background: T.ink, color: '#fff', fontFamily: S.mono, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+          <span>A few quick questions</span>
+          <span style={{ color: T.orange }}>{c.round === 1 ? 'Free' : 'Round 2 · free'}</span>
+        </div>
+        <div style={{ padding: compact ? '4px 12px' : '4px 16px' }}>
+          <div style={{ fontSize: 12, color: T.textMute, padding: '10px 0 2px', lineHeight: 1.5 }}>
+            Your brief leaves a few things open. The recommended answers are already picked, so change only what’s different.
+          </div>
+          {c.questions.map((q, i) => {
+            const otherVal = c.other[q.id] || '';
+            return (
+              <div key={q.id} style={{ padding: '12px 0', borderTop: i ? `1px solid ${T.line}` : 'none' }}>
+                <div style={{ fontFamily: S.mono, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.textMute, marginBottom: 3 }}>{i + 1}. {q.title}</div>
+                <div style={{ fontSize: 14, color: T.ink, marginBottom: 8, lineHeight: 1.4 }}>{q.question}</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {q.options.map(o => {
+                    const on = !otherVal.trim() && c.picks[q.id] === o;
+                    return (
+                      <button key={o} onClick={() => onPick(q.id, o)}
+                        style={{ padding: '7px 11px', border: `1px solid ${on ? T.orange : T.ink}`, background: on ? T.orange : '#fff', color: on ? '#fff' : T.ink, fontFamily: S.mono, fontSize: 11, cursor: 'pointer', textAlign: 'left' }}>
+                        {o}{o === q.recommended && <span style={{ marginLeft: 6, fontSize: 9, letterSpacing: '0.08em', opacity: 0.75 }}>★ REC</span>}
+                      </button>
+                    );
+                  })}
+                  <input value={otherVal} onChange={e => onOther(q.id, e.target.value)} placeholder="Other…"
+                    style={{ ...S.input, width: compact ? '100%' : 160, flex: compact ? '1 1 100%' : '0 0 auto', padding: '7px 10px', fontSize: 12, border: `1px solid ${otherVal.trim() ? T.orange : T.paperEdge}` }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap', padding: '10px 14px', borderTop: `1px solid ${T.ink}`, background: '#faf7f2' }}>
+          <button onClick={onSkip} disabled={busy} style={{ ...S.btnG, background: '#fff' }}>Skip, build now</button>
+          <button onClick={onContinue} disabled={busy} style={{ ...S.btnP, opacity: busy ? 0.6 : 1 }}>
+            {busy ? 'Checking…' : last ? (outOfCredits ? 'Get more credits' : 'Build kit list · 1 credit') : 'Continue →'}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   function SidePanel({ notes, alternatives, onSwap, compact }) {
