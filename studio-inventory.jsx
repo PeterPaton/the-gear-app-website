@@ -155,12 +155,12 @@
                display: 'grid',
                gridTemplateColumns: invCols,
                borderBottom: `1px solid ${T.ink}`,
+               height: rowH,
                background: isRowDropTarget ? '#fff3ed' : (draggedId === it.id ? T.paperLight : rowBg),
                opacity: draggedId === it.id ? 0.5 : 1,
                outline: isSel ? `2px solid ${T.orange}` : (isRowDropTarget ? `2px solid ${T.orange}` : 'none'),
                outlineOffset: '-2px',
                cursor: editMode ? 'pointer' : 'grab',
-               height: rowH,
                transition: 'background .08s, outline-color .08s',
              }}
              onMouseEnter={(e) => { if (!isSel && !isRowDropTarget) e.currentTarget.style.background = '#e2dbd2'; }}
@@ -337,8 +337,8 @@
             {editMode ? '✕ Done' : '✎ Edit'}
           </button>
           <div style={R.densityToggle}>
-            <button onClick={() => setDensity('tight')} style={R.densityBtn(density === 'tight')} title="Tight">▤</button>
-            <button onClick={() => setDensity('comfortable')} style={R.densityBtn(density === 'comfortable')} title="Comfortable">≡</button>
+            <button onClick={() => setDensity('tight')} style={R.densityBtn(density === 'tight')} title="Compact list">≡</button>
+            <button onClick={() => setDensity('comfortable')} style={R.densityBtn(density === 'comfortable')} title="Large list">▤</button>
           </div>
           {onExportInventory && (
             <button style={R.headBtn} onClick={onExportInventory}>Export PDF</button>

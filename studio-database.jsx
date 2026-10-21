@@ -112,8 +112,8 @@
             )}
           </div>
           <div style={R.densityToggle}>
-            <button onClick={() => setDensity('tight')} style={R.densityBtn(density === 'tight')} title="Tight">▤</button>
-            <button onClick={() => setDensity('comfortable')} style={R.densityBtn(density === 'comfortable')} title="Comfortable">≡</button>
+            <button onClick={() => setDensity('tight')} style={R.densityBtn(density === 'tight')} title="Compact list">≡</button>
+            <button onClick={() => setDensity('comfortable')} style={R.densityBtn(density === 'comfortable')} title="Large list">▤</button>
           </div>
         </div>
 
@@ -139,14 +139,22 @@
               {slice.map(it => {
                 const inInv = inventoryIds.has(it.id);
                 const rowBg = T.paper;
+                const action = inInv ? (
+                  <span style={{ fontFamily: S.mono, fontSize: 10, color: '#1f8a5b', textTransform: 'uppercase', letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>✓ In Inventory</span>
+                ) : (
+                  <button data-tour="add-to-inventory" onClick={(e) => { e.stopPropagation(); onAddToInventory(it); }} style={{ background: 'none', color: T.orange, border: 'none', padding: '6px 4px', fontSize: 10, fontFamily: S.mono, cursor: 'pointer', letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>+ Add to Inventory</button>
+                );
+                const drag = {
+                  draggable: true,
+                  onDragStart: (e) => { setDraggedId(it.id); e.dataTransfer.effectAllowed = 'copy'; },
+                  onDragEnd: () => { setDraggedId(null); setHoverCart(false); },
+                  onMouseEnter: (e) => { e.currentTarget.style.background = '#e2dbd2'; },
+                  onMouseLeave: (e) => { e.currentTarget.style.background = rowBg; },
+                };
                 return (
-                  <div key={it.id}
-                      draggable
-                      onDragStart={(e) => { setDraggedId(it.id); e.dataTransfer.effectAllowed = 'copy'; }}
-                      onDragEnd={() => { setDraggedId(null); setHoverCart(false); }}
+                  <div key={it.id} {...drag}
                       style={{ display: 'grid', gridTemplateColumns: R.kitCols(rowH, 170), height: rowH, borderBottom: `1px solid ${T.ink}`, cursor: 'grab', background: draggedId === it.id ? T.paperLight : rowBg, opacity: draggedId === it.id ? 0.5 : 1, transition: 'background .08s' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = '#e2dbd2'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = rowBg; }}>
+                    >
                     <div style={R.kitImgCell}>
                       <img src={window.GEAR.itemImage(it)} onError={(e) => { e.currentTarget.src = window.GEAR_PLACEHOLDER(it.category); }} style={R.kitImg} alt="" loading="lazy" />
                     </div>
@@ -157,11 +165,7 @@
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.category}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 10px' }}>
-                      {inInv ? (
-                        <span style={{ fontFamily: S.mono, fontSize: 10, color: '#1f8a5b', textTransform: 'uppercase', letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>✓ In Inventory</span>
-                      ) : (
-                        <button data-tour="add-to-inventory" onClick={(e) => { e.stopPropagation(); onAddToInventory(it); }} style={{ background: 'none', color: T.orange, border: 'none', padding: '6px 4px', fontSize: 10, fontFamily: S.mono, cursor: 'pointer', letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>+ Add to Inventory</button>
-                      )}
+                      {action}
                     </div>
                   </div>
                 );
