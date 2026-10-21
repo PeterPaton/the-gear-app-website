@@ -496,7 +496,7 @@
                       <div style={{ ...S.label, marginBottom: 5 }}>{group.category} · {group.items.length}</div>
                       <div style={{ display: 'flex', flexDirection: 'column', border: `1px solid ${T.paperEdge}`, borderBottom: 'none' }}>
                         {group.items.map(it => (
-                          <ItemRow key={it.id} it={it} full={catById.get(it.id)} res={check.items[it.id]}
+                          <ItemRow key={it.id} it={it} full={catById.get(it.id)} res={check.items[it.id]} compact={compact}
                             onQty={d => bumpQty(it.id, d)} onRemove={() => removeItem(it.id)} />
                         ))}
                       </div>
@@ -505,7 +505,7 @@
                 </div>
 
                 {/* Notes and alternatives, tabbed on the right */}
-                <SidePanel notes={result.notes || []} alternatives={alternatives} onSwap={swapItem} />
+                <SidePanel notes={result.notes || []} alternatives={alternatives} onSwap={swapItem} compact={compact} />
                 </div>
 
                 <div style={{ marginTop: 22, display: 'flex', gap: 12, justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -586,11 +586,14 @@
     return out.slice(0, 8);
   }
 
-  function SidePanel({ notes, alternatives, onSwap }) {
+  function SidePanel({ notes, alternatives, onSwap, compact }) {
     const [tab, setTab] = useState(notes.length ? 'notes' : 'alts');
     const tabs = [['notes', `Notes · ${notes.length}`], ['alts', `Alternatives · ${alternatives.length}`]];
     return (
-      <div style={{ flex: '0 1 320px', minWidth: 260, marginTop: 14, position: 'sticky', top: 16, background: '#fff', border: `1px solid ${T.paperEdge}` }}>
+      <div style={compact
+        // Phones: full width under the list, not a narrow sticky column.
+        ? { flex: '1 1 100%', minWidth: 0, marginTop: 6, background: '#fff', border: `1px solid ${T.paperEdge}` }
+        : { flex: '0 1 320px', minWidth: 260, marginTop: 14, position: 'sticky', top: 16, background: '#fff', border: `1px solid ${T.paperEdge}` }}>
         <div style={{ display: 'flex', borderBottom: `1px solid ${T.paperEdge}` }}>
           {tabs.map(([id, label]) => (
             <button key={id} onClick={() => setTab(id)}
@@ -683,7 +686,7 @@
   }
 
   // One line per item; reason, compatibility notes and specs in a dropdown.
-  function ItemRow({ it, full, res, onQty, onRemove }) {
+  function ItemRow({ it, full, res, onQty, onRemove, compact }) {
     const [open, setOpen] = useState(false);
     const st = res && STATUS[res.status];
     const tags = C.describe(C.specOf(full));
@@ -691,6 +694,40 @@
     const firstNote = res && res.notes.find(n => n.status !== 'ok');
     return (
       <div style={{ background: '#fff', borderBottom: `1px solid ${T.paperEdge}`, borderLeft: `3px solid ${st && res.status === 'conflict' ? T.err : 'transparent'}` }}>
+        {compact ? (
+          // Phones: photo and the full name on top, controls on their own line.
+          <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }} onClick={() => hasDetails && setOpen(o => !o)}>
+              <div style={{ width: 40, height: 40, flexShrink: 0, background: '#fff', border: `1px solid ${T.paperLight}`, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <img src={window.GEAR.itemImage(full || it)} alt=""
+                  onError={e => { e.currentTarget.src = window.GEAR_PLACEHOLDER(full ? full.category : 'Camera'); }}
+                  style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: S.mono, fontSize: 13, lineHeight: 1.3, color: T.ink, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                  {st && <span style={{ ...badge(st), marginRight: 6, verticalAlign: 'middle' }} title={st.label}>{st.icon}</span>}{it.name}
+                </div>
+                {!open && firstNote && (
+                  <div style={{ fontSize: 10, fontFamily: S.mono, color: (STATUS[firstNote.status] || STATUS.ok).fg, marginTop: 3, lineHeight: 1.35 }}>{firstNote.text}</div>
+                )}
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 50 }}>
+              {hasDetails ? (
+                <button onClick={() => setOpen(o => !o)} aria-expanded={open}
+                  style={{ background: 'none', border: 'none', padding: '4px 0', color: T.textMute, fontFamily: S.mono, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}>{open ? '▴ Hide details' : '▾ Details'}</button>
+              ) : <span />}
+              <div style={{ flex: 1 }} />
+              <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, border: `1px solid ${T.paperEdge}` }}>
+                <button onClick={() => onQty(-1)} style={{ ...stepBtn, width: 34, height: 32 }}>−</button>
+                <span style={{ minWidth: 28, textAlign: 'center', fontFamily: S.mono, fontSize: 13 }}>{it.qty}</span>
+                <button onClick={() => onQty(+1)} style={{ ...stepBtn, width: 34, height: 32 }}>+</button>
+              </div>
+              <button onClick={onRemove} title="Remove from list" aria-label="Remove from list"
+                style={{ background: 'transparent', border: 'none', color: T.textMute, cursor: 'pointer', fontSize: 16, padding: '4px 2px', flexShrink: 0 }}>×</button>
+            </div>
+          </div>
+        ) : (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 8px' }}>
           <div style={{ width: 30, height: 30, flexShrink: 0, background: T.paperLight, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <img src={window.GEAR.itemImage(full || it)} alt=""
@@ -716,8 +753,9 @@
           <button onClick={onRemove} title="Remove from list"
             style={{ background: 'transparent', border: 'none', color: T.textMute, cursor: 'pointer', fontSize: 15, padding: '2px 4px', flexShrink: 0 }}>×</button>
         </div>
+        )}
         {open && (
-          <div style={{ padding: '0 12px 8px 58px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div style={{ padding: compact ? '0 10px 10px 60px' : '0 12px 8px 58px', display: 'flex', flexDirection: 'column', gap: 2 }}>
             {it.reason && <div style={{ fontSize: 11, color: T.textMute }}>{it.reason}</div>}
             {res && res.notes.map((n, i) => (
               <div key={i} style={{ fontSize: 11, fontFamily: S.mono, color: (STATUS[n.status] || STATUS.ok).fg, lineHeight: 1.4 }}>{n.text}</div>

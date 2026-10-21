@@ -223,7 +223,7 @@
   // ─── Building blocks ────────────────────────────────────────────────
   function Thumb({ it, size = 48 }) {
     return (
-      <div style={{ width: size, height: size, flexShrink: 0, background: '#fff', border: `1px solid ${T.paperLight}`, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: size, height: size, flexShrink: 0, background: '#fff', border: `1px solid ${T.ink}`, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <img src={window.GEAR.itemImage(it)} loading="lazy" alt=""
           onError={(e) => { e.currentTarget.src = window.GEAR_PLACEHOLDER(it.category); }}
           style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
@@ -231,24 +231,31 @@
     );
   }
 
-  function GearRow({ it, sub, right, onClick, thumb = 48 }) {
+  // One gear row, in the web's kit-grid style: a flush white photo cell,
+  // the name, and a ruled cell on the right for the count or action.
+  function GearRow({ it, sub, right, onClick, thumb = 56, rightWidth = 52 }) {
+    const showSub = sub !== null && (sub !== undefined ? sub : it.category);
     return (
-      <div onClick={onClick} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 14px', background: '#fff', borderBottom: '1px solid #e2d9cd', cursor: onClick ? 'pointer' : 'default' }}>
-        <Thumb it={it} size={thumb} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={rowName}>{it.name}</div>
-          <div style={rowSub}>{sub !== undefined ? sub : it.category}</div>
+      <div onClick={onClick} style={{ display: 'flex', alignItems: 'stretch', minHeight: thumb, background: T.paper, borderBottom: `1px solid ${T.ink}`, cursor: onClick ? 'pointer' : 'default' }}>
+        <div style={{ position: 'relative', width: thumb, flexShrink: 0, background: '#fff', borderRight: `1px solid ${T.ink}` }}>
+          <img src={window.GEAR.itemImage(it)} loading="lazy" alt=""
+            onError={(e) => { e.currentTarget.src = window.GEAR_PLACEHOLDER(it.category); }}
+            style={{ position: 'absolute', top: 4, left: 4, width: 'calc(100% - 8px)', height: 'calc(100% - 8px)', objectFit: 'contain' }} />
         </div>
-        {right}
+        <div style={{ flex: 1, minWidth: 0, padding: '7px 10px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <div style={rowName}>{it.name}</div>
+          {showSub && <div style={rowSub}>{sub !== undefined ? sub : it.category}</div>}
+        </div>
+        {right && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: rightWidth, padding: '0 8px', borderLeft: `1px solid ${T.ink}`, flexShrink: 0 }}>{right}</div>}
       </div>
     );
   }
 
   function Stepper({ value, onMinus, onPlus }) {
     return (
-      <div style={{ display: 'flex', alignItems: 'stretch', border: `1px solid ${T.paperEdge}`, flexShrink: 0, background: '#fff' }}>
+      <div style={{ display: 'flex', alignItems: 'stretch', border: `1px solid ${T.ink}`, flexShrink: 0, background: '#fff' }}>
         <button onClick={(e) => { e.stopPropagation(); onMinus(); }} aria-label="Decrease" style={stepBtn}>−</button>
-        <span style={{ minWidth: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: S.mono, fontSize: 14, borderLeft: `1px solid ${T.paperEdge}`, borderRight: `1px solid ${T.paperEdge}`, background: value > 1 ? T.orange : '#fff', color: value > 1 ? '#fff' : T.ink }}>{value}</span>
+        <span style={{ minWidth: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: S.mono, fontSize: 14, borderLeft: `1px solid ${T.ink}`, borderRight: `1px solid ${T.ink}`, background: value > 1 ? T.orange : '#fff', color: value > 1 ? '#fff' : T.ink }}>{value}</span>
         <button onClick={(e) => { e.stopPropagation(); onPlus(); }} aria-label="Increase" style={stepBtn}>+</button>
       </div>
     );
@@ -258,7 +265,7 @@
     return (
       <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
         <input type="search" value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-          style={{ ...S.input, padding: '10px 34px 10px 12px' }} />
+          style={{ ...S.input, padding: '9px 34px 9px 12px', border: `1px solid ${T.ink}` }} />
         {value && (
           <button onClick={() => onChange('')} aria-label="Clear search"
             style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: T.textMute, fontSize: 18, width: 28, height: 28, cursor: 'pointer' }}>×</button>
@@ -269,11 +276,11 @@
 
   function Chips({ options, value, onChange }) {
     return (
-      <div className="gm-chips" style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '0 14px 10px', flexShrink: 0 }}>
+      <div className="gm-chips" style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '0 10px 8px', flexShrink: 0 }}>
         {options.map(o => {
           const on = o === value;
           return (
-            <button key={o} onClick={() => onChange(o)} style={{ flexShrink: 0, padding: '6px 12px', border: on ? 'none' : `1px solid ${T.paperEdge}`, background: on ? T.ink : '#fff', color: on ? '#fff' : T.ink, fontFamily: S.mono, fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', cursor: 'pointer' }}>{o}</button>
+            <button key={o} onClick={() => onChange(o)} style={{ flexShrink: 0, padding: '6px 11px', border: `1px solid ${on ? T.orange : T.ink}`, background: on ? T.orange : '#fff', color: on ? '#fff' : T.ink, fontFamily: S.mono, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}>{o}</button>
           );
         })}
       </div>
@@ -318,7 +325,8 @@
 
     return (
       <div className="gm-scroll" style={{ flex: 1, minHeight: 0 }}>
-        <div style={{ display: 'flex', gap: 8, padding: '14px 14px 10px' }}>
+        <div style={headBand}>
+        <div style={{ display: 'flex', gap: 6, padding: '10px 10px 8px' }}>
           <SearchBox value={query} onChange={setQuery} placeholder={`Search ${items.length} item${items.length === 1 ? '' : 's'}`} />
           <button onClick={onAdd} aria-label="Add gear" style={{ ...S.btnP, padding: '0 16px', fontSize: 20, fontWeight: 400 }}>+</button>
         </div>
@@ -333,6 +341,7 @@
             )}
           </div>
         )}
+        </div>
 
         {items.length === 0 ? (
           <Empty title="No gear yet" text="Add the kit you own so you can pull it into projects and kit lists.">
@@ -346,12 +355,12 @@
             )}
           </div>
         ) : sections.map(sec => (
-          <div key={sec.key} style={{ marginBottom: 12 }}>
+          <div key={sec.key}>
             <div style={listCard}>
               {sec.name && <div style={cardBar}><span>{sec.name}</span><span style={{ color: T.orange }}>{totalQty(sec.rows)}</span></div>}
               {sec.rows.map(it => (
                 <GearRow key={it.id} it={it} onClick={() => onOpenItem(it)}
-                  right={<span style={(it.qty || 1) > 1 ? { ...qtyChip, background: T.orange, color: '#fff' } : qtyChip}>×{it.qty || 1}</span>} />
+                  right={<span style={(it.qty || 1) > 1 ? { ...qtyChip, color: T.orange } : qtyChip}>×{it.qty || 1}</span>} />
               ))}
             </div>
           </div>
@@ -366,7 +375,7 @@
     const limit = billing && billing.max_projects != null ? billing.max_projects : null;
     return (
       <div className="gm-scroll" style={{ flex: 1, minHeight: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '14px 14px 10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 10px 8px' }}>
           <span style={{ ...S.label }}>
             {projects.length} project{projects.length === 1 ? '' : 's'}{limit != null ? ` · ${limit} on ${billing.plan_name}` : ''}
           </span>
@@ -377,12 +386,12 @@
             <button style={{ ...S.btnP, padding: 12 }} onClick={onNew}>Create a project</button>
           </Empty>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0 14px 16px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 10px 16px' }}>
             {projects.map(p => {
               const rows = projectItems[p.id];
               const c = window.GEAR.statusColor[p.status] || window.GEAR.statusColor.planning;
               return (
-                <div key={p.id} onClick={() => onOpen(p.id)} style={{ background: '#fff', border: `1px solid ${T.paperEdge}`, padding: 14, cursor: 'pointer' }}>
+                <div key={p.id} onClick={() => onOpen(p.id)} style={{ background: '#fff', border: `1px solid ${T.ink}`, padding: 12, cursor: 'pointer' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                     <span style={S.pill(c.bg, c.fg)}>{p.status}</span>
                     <span style={{ fontFamily: S.mono, fontSize: 11, color: T.textMute }}>{rows ? `${totalQty(rows)} item${totalQty(rows) === 1 ? '' : 's'}` : '…'}</span>
@@ -427,26 +436,26 @@
     return (
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <div className="gm-scroll" style={{ flex: 1, minHeight: 0 }}>
-          <div style={{ background: '#fff', borderBottom: `1px solid ${T.paperEdge}` }}>
-            <div onClick={rename} style={{ padding: '16px 16px 12px', fontFamily: S.mono, fontSize: 26, letterSpacing: '0.01em', lineHeight: 1.1, wordBreak: 'break-word', cursor: 'pointer' }}>
+          <div style={{ background: '#fff', borderBottom: `1px solid ${T.ink}` }}>
+            <div onClick={rename} style={{ padding: '12px 12px 10px', fontFamily: S.mono, fontSize: 24, letterSpacing: '0.01em', lineHeight: 1.1, wordBreak: 'break-word', cursor: 'pointer' }}>
               {project.name} <span style={{ fontSize: 14, color: T.textMute }}>✎</span>
             </div>
-            <div style={{ display: 'flex', margin: '0 16px 14px', border: `1px solid ${T.paperEdge}` }}>
+            <div style={{ display: 'flex', margin: '0 12px 12px', border: `1px solid ${T.ink}` }}>
               {['planning', 'active', 'wrapped'].map((st, i) => {
                 const on = project.status === st;
                 return (
-                  <button key={st} onClick={() => onStatus(st)} style={{ flex: 1, height: 36, border: 'none', borderLeft: i ? `1px solid ${T.paperEdge}` : 'none', background: on ? T.orange : '#fff', color: on ? '#fff' : T.textMute, fontFamily: S.mono, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                  <button key={st} onClick={() => onStatus(st)} style={{ flex: 1, height: 36, border: 'none', borderLeft: i ? `1px solid ${T.ink}` : 'none', background: on ? T.orange : '#fff', color: on ? '#fff' : T.textMute, fontFamily: S.mono, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>
                     {st}
                   </button>
                 );
               })}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: `1px solid ${T.line}` }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: `1px solid ${T.ink}` }}>
               {[['Client', project.client], ['Shoot', project.shoot]].map(([k, v]) => (
-                <div key={k} style={{ ...factCell, borderRight: k === 'Client' ? `1px solid ${T.line}` : 'none' }}><div style={factKey}>{k}</div><div style={factVal}>{v || '—'}</div></div>
+                <div key={k} style={{ ...factCell, borderRight: k === 'Client' ? `1px solid ${T.ink}` : 'none' }}><div style={factKey}>{k}</div><div style={factVal}>{v || '—'}</div></div>
               ))}
               <div style={{ ...factCell, gridColumn: 'span 2' }}><div style={factKey}>Location</div><div style={factVal}>{project.location || '—'}</div></div>
-              <div style={{ ...factCell, borderRight: `1px solid ${T.line}`, borderBottom: 'none' }}><div style={factKey}>Items</div><div style={{ ...factVal, fontSize: 20, color: T.orange }}>{totalQty(list)}</div></div>
+              <div style={{ ...factCell, borderRight: `1px solid ${T.ink}`, borderBottom: 'none' }}><div style={factKey}>Items</div><div style={{ ...factVal, fontSize: 20, color: T.orange }}>{totalQty(list)}</div></div>
               <div style={{ ...factCell, borderBottom: 'none' }}><div style={factKey}>Unique</div><div style={{ ...factVal, fontSize: 20, color: T.orange }}>{list.length}</div></div>
             </div>
           </div>
@@ -456,11 +465,11 @@
           ) : list.length === 0 ? (
             <Empty title="Empty kit list" text="Add gear from your inventory or the database." />
           ) : cats.map(cat => (
-            <div key={cat} style={{ marginTop: 12 }}>
+            <div key={cat}>
               <div style={listCard}>
                 <div style={cardBar}><span>{cat}</span><span style={{ color: T.orange }}>{totalQty(byCat[cat])}</span></div>
                 {byCat[cat].map(pi => (
-                  <GearRow key={pi.id} it={pi} thumb={44} sub={null}
+                  <GearRow key={pi.id} it={pi} thumb={52} sub={null}
                     right={<Stepper value={pi.qty} onMinus={() => minus(pi)} onPlus={() => onChangeQty(pi.id, 1)} />} />
                 ))}
               </div>
@@ -508,12 +517,14 @@
 
     return (
       <div className="gm-scroll" style={{ flex: 1, minHeight: 0 }}>
-        <div style={{ padding: '14px 14px 10px' }}>
-          <SearchBox value={query} onChange={setQuery} placeholder={catalog.length ? `Search ${catalog.length.toLocaleString()} items` : 'Search the database'} />
-        </div>
-        <Chips options={cats} value={cat} onChange={setCat} />
-        <div style={sectionLabel}>
-          {loading ? (dbStatus.msg || 'Loading…') : `${filtered.length.toLocaleString()} result${filtered.length === 1 ? '' : 's'}`}
+        <div style={headBand}>
+          <div style={{ padding: '10px 10px 8px' }}>
+            <SearchBox value={query} onChange={setQuery} placeholder={catalog.length ? `Search ${catalog.length.toLocaleString()} items` : 'Search the database'} />
+          </div>
+          <Chips options={cats} value={cat} onChange={setCat} />
+          <div style={sectionLabel}>
+            {loading ? (dbStatus.msg || 'Loading…') : `${filtered.length.toLocaleString()} result${filtered.length === 1 ? '' : 's'}`}
+          </div>
         </div>
         {filtered.length === 0 && !loading ? (
           <div style={emptyLine}>{dbStatus && dbStatus.state === 'error' ? `Couldn’t load the database: ${dbStatus.msg}` : 'Nothing matches that search.'}</div>
@@ -522,11 +533,11 @@
             {filtered.slice(0, visible).map(it => {
               const have = owned.has(it.id);
               return (
-                <GearRow key={it.id} it={it} onClick={() => onOpenItem(it)}
+                <GearRow key={it.id} it={it} rightWidth={76} onClick={() => onOpenItem(it)}
                   right={have ? (
-                    <span style={{ ...qtyChip, color: T.ok, background: '#e3efe5' }}>✓ Owned</span>
+                    <span style={{ ...qtyChip, color: T.ok, fontSize: 10, letterSpacing: '0.06em' }}>✓ OWNED</span>
                   ) : (
-                    <button onClick={(e) => { e.stopPropagation(); onAddToInventory(it); }} style={{ ...S.btnP, padding: '8px 10px', fontSize: 10, flexShrink: 0 }}>+ Add</button>
+                    <button onClick={(e) => { e.stopPropagation(); onAddToInventory(it); }} style={{ background: 'none', border: 'none', color: T.orange, fontFamily: S.mono, fontSize: 10, letterSpacing: '0.08em', padding: '10px 4px', cursor: 'pointer', whiteSpace: 'nowrap' }}>+ ADD</button>
                   )} />
               );
             })}
@@ -654,14 +665,14 @@
             {source === 'inventory' && items.length === 0 ? 'Your inventory is empty. Try the Database tab.' : 'Nothing matches that search.'}
           </div>
         ) : (
-          <div style={{ border: `1px solid ${T.paperEdge}`, overflow: 'hidden' }}>
+          <div style={{ borderTop: `1px solid ${T.ink}`, overflow: 'hidden' }}>
             {results.map(it => {
               const n = countFor(it);
               return (
-                <GearRow key={it.id} it={it} thumb={44} onClick={() => onAdd(it.id)}
+                <GearRow key={it.id} it={it} thumb={52} onClick={() => onAdd(it.id)}
                   right={
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                      {n > 0 && <span style={{ ...qtyChip, color: T.orange, background: '#fff3ed' }}>×{n}</span>}
+                      {n > 0 && <span style={{ ...qtyChip, color: T.orange }}>×{n}</span>}
                       <span style={{ ...S.btnDark, padding: '7px 12px', fontSize: 14 }}>+</span>
                     </div>
                   } />
@@ -753,7 +764,7 @@
     .gm-chips::-webkit-scrollbar { display: none; }
     input[type="search"]::-webkit-search-cancel-button { display: none; }
   `;
-  const root = { position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', background: '#f6f3ee', overflow: 'hidden' };
+  const root = { position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', background: T.paper, overflow: 'hidden' };
   const topBar = { background: T.ink, color: '#fff', padding: 'calc(env(safe-area-inset-top) + 10px) 14px 10px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, minHeight: 52 };
   const backBtn = { background: 'none', border: 'none', color: '#fff', fontFamily: S.mono, fontSize: 13, fontWeight: 600, padding: '6px 4px', cursor: 'pointer' };
   const topAction = { background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)', color: '#fff', padding: '6px 11px', fontFamily: S.mono, fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', cursor: 'pointer' };
@@ -764,15 +775,17 @@
   const sheetOverlay = { position: 'fixed', inset: 0, background: 'rgba(20,16,12,0.45)', zIndex: 60, animation: 'gmFadeIn .18s ease-out' };
   const sheetBox = (tall) => ({ position: 'absolute', left: 0, right: 0, bottom: 0, height: tall ? '88%' : 'auto', maxHeight: '88%', background: '#faf7f2', display: 'flex', flexDirection: 'column', paddingBottom: 'env(safe-area-inset-bottom)', animation: 'gmSheetIn .22s ease-out', boxShadow: '0 -8px 30px rgba(0,0,0,0.2)' });
   const sheetCard = { background: '#fff', border: `1px solid ${T.paperEdge}`, padding: 14 };
-  const listCard = { margin: '0 14px', border: `1px solid ${T.paperEdge}`, overflow: 'hidden', background: '#fff' };
-  const sectionLabel = { ...S.label, padding: '4px 16px 8px' };
+  const listCard = { background: T.paper, overflow: 'hidden' };
+  // Search, filters and the count, like the web's filter bar.
+  const headBand = { background: T.paperLight, borderBottom: `1px solid ${T.ink}` };
+  const sectionLabel = { ...S.label, padding: '2px 12px 8px' };
   // Category / group header bar inside a list card.
-  const cardBar = { display: 'flex', alignItems: 'center', gap: 10, height: 32, padding: '0 14px', background: T.bar, borderBottom: `1px solid ${T.paperEdge}`, fontFamily: S.mono, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.ink };
-  const rowName = { fontSize: 14, fontWeight: 500, color: T.ink, lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' };
-  const rowSub = { fontSize: 10, fontFamily: S.mono, color: T.textMute, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 3 };
-  const qtyChip = { fontFamily: S.mono, fontSize: 12, color: T.ink, background: T.bar, padding: '4px 8px', flexShrink: 0, whiteSpace: 'nowrap' };
+  const cardBar = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 30, padding: '0 12px', background: T.ink, borderBottom: `1px solid ${T.ink}`, fontFamily: S.mono, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#fff' };
+  const rowName = { fontFamily: S.mono, fontSize: 13, color: T.ink, lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' };
+  const rowSub = { fontSize: 9, fontFamily: S.mono, color: T.textMute, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 3 };
+  const qtyChip = { fontFamily: S.mono, fontSize: 12, color: T.textMute, flexShrink: 0, whiteSpace: 'nowrap' };
   const stepBtn = { width: 34, height: 34, background: 'none', border: 'none', fontSize: 18, color: T.ink, cursor: 'pointer' };
-  const factCell = { padding: '8px 16px', borderBottom: `1px solid ${T.line}`, minWidth: 0 };
+  const factCell = { padding: '7px 12px', borderBottom: `1px solid ${T.ink}`, minWidth: 0 };
   const factKey = { fontFamily: S.mono, fontSize: 9, letterSpacing: '0.12em', color: T.textMute, textTransform: 'uppercase' };
   const factVal = { fontFamily: S.mono, fontSize: 13, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
   const emptyLine = { margin: '24px 16px', textAlign: 'center', fontFamily: S.mono, fontSize: 12, color: T.textMute, lineHeight: 1.5 };
