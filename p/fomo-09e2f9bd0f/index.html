@@ -298,7 +298,7 @@ body { background: var(--paper); color: var(--ink); font-family: var(--body); fo
     on('back', 'change', e => { state.back = e.target.value < state.out ? state.out : (e.target.value || state.back); render(); });
     on('notes', 'input', e => { state.notes = e.target.value; });
     on('go4', 'click', () => go(4));
-    on('quote', 'click', () => { $('flash').textContent = 'Quote sent to Peter: £1,284 + VAT for ' + days() + ' day' + (days() > 1 ? 's' : '') + ' (example figure).'; });
+    on('quote', 'click', () => { $('flash').textContent = 'Quote sent to ' + houseName() + '.'; });
     on('ask', 'click', () => { $('flash').textContent = 'Message thread opened with Peter (concept only).'; });
   }
   for (let i = 1; i <= 4; i++) $('s' + i).addEventListener('click', () => go(i));
