@@ -178,6 +178,9 @@
     const [showSubheaders, setShowSubheaders] = useState(true);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
+    // The PDF's title; starts as the project name and can be edited for this export.
+    const [title, setTitle] = useState(project.name || '');
+    const docTitle = title.trim() || project.name || 'Kit list';
     // Phones: the finished PDF, handed over by Share / Open. iOS ignores a
     // scripted download (and share() needs a fresh tap), so it's two steps.
     const [pdf, setPdf] = useState(null); // { blob, url, file }
@@ -189,7 +192,7 @@
     const sheetRef = React.useRef(null);
     const dropPdf = () => setPdf(p => { if (p) URL.revokeObjectURL(p.url); return null; });
     React.useEffect(() => dropPdf, []);
-    React.useEffect(() => { dropPdf(); }, [showPhotos, density, showSubheaders]);
+    React.useEffect(() => { dropPdf(); }, [showPhotos, density, showSubheaders, docTitle]);
 
     const totalQty = items.reduce((s, pi) => s + (pi.qty || 0), 0);
     const uniqueCount = items.length;
@@ -226,6 +229,7 @@
     const pdfLabel = { fontFamily: S.mono, fontSize: 8, letterSpacing: '0.12em', textTransform: 'uppercase', color: T.textMute };
     const pdfFact = { padding: '8px 16px', borderRight: `1px solid ${T.ink}`, minWidth: 0 };
     const pdfHead = { textAlign: 'left', padding: '7px 12px', fontFamily: S.mono, fontSize: 8, fontWeight: 400, letterSpacing: '0.12em', textTransform: 'uppercase', color: T.textMute, borderRight: `1px solid ${T.ink}`, borderBottom: `1px solid ${T.ink}` };
+    const pdfTitle = { fontFamily: S.mono, fontSize: 26, lineHeight: 1.1, letterSpacing: '0.01em', wordBreak: 'break-word' };
     const pdfCell = { borderRight: `1px solid ${T.ink}`, borderBottom: `1px solid ${T.ink}`, verticalAlign: 'middle' };
 
     // Inline every <img> as a data: URL before html2canvas runs. html2canvas
@@ -371,20 +375,26 @@
         await Promise.all([worker(), worker(), worker()]);
       }
 
-      // Header box: title (+ mark), then a ruled facts row.
-      const mark = branding ? 'THE GEAR APP' : (studioName ? String(studioName).toUpperCase() : '');
+      // Header box: title (+ logo or studio name), then a ruled facts row.
+      const logo = branding ? await thumbFor('app-icon.jpg') : null;
+      const mark = !branding && studioName ? String(studioName).toUpperCase() : '';
       doc.setFont('courier', 'bold'); doc.setFontSize(10);
-      const markW = mark ? doc.getTextWidth(mark) + 24 : 0;
+      const markW = branding ? 64 : (mark ? doc.getTextWidth(mark) + 24 : 0);
       doc.setFontSize(20);
-      const titleLines = doc.splitTextToSize(project.name || 'Kit list', TW - markW - 24);
+      const titleLines = doc.splitTextToSize(docTitle, TW - markW - 24);
       const titleH = 30 + titleLines.length * 22;
       box(M, y, TW, titleH);
       label(mode === 'inventory' ? 'Inventory' : 'Kit list', M + 12, y + 16);
       doc.setFont('courier', 'bold'); doc.setFontSize(20); doc.setTextColor(...ink);
       titleLines.forEach((line, i) => doc.text(line, M + 12, y + 38 + i * 22));
-      if (mark) {
+      if (markW) {
         vline(right - markW, y, y + titleH);
-        doc.setFont('courier', 'bold'); doc.setFontSize(10); doc.text(mark, right - markW / 2, y + titleH / 2 + 3, { align: 'center' });
+        if (logo) {
+          const k = Math.min(36 / logo.w, 36 / logo.h);
+          doc.addImage(logo.data, 'JPEG', right - markW / 2 - (logo.w * k) / 2, y + titleH / 2 - (logo.h * k) / 2, logo.w * k, logo.h * k);
+        } else if (mark) {
+          doc.setFont('courier', 'bold'); doc.setFontSize(10); doc.setTextColor(...ink); doc.text(mark, right - markW / 2, y + titleH / 2 + 3, { align: 'center' });
+        }
       }
       y += titleH;
       const facts = mode === 'inventory'
@@ -475,7 +485,7 @@
     const downloadPDF = async () => {
       const node = sheetRef.current;
       if (busy || (!isPhone && !node)) return;
-      const filename = `${project.name.replace(/[^a-z0-9_\- ]/gi, '_').trim() || 'pull-list'}.pdf`;
+      const filename = `${docTitle.replace(/[^a-z0-9_\- ]/gi, '_').trim() || 'pull-list'}.pdf`;
 
       if (isPhone) {
         if (!window.jspdf) { setError('The PDF tool didn’t load. Check your connection and try again.'); return; }
@@ -530,7 +540,7 @@
 
     const canShare = !!(pdf && navigator.canShare && navigator.canShare({ files: [pdf.file] }));
     const sharePdf = async () => {
-      try { await navigator.share({ files: [pdf.file], title: project.name }); }
+      try { await navigator.share({ files: [pdf.file], title: docTitle }); }
       catch (err) { if (err && err.name !== 'AbortError') setError('Sharing didn’t work. Use Open PDF instead.'); }
     };
 
@@ -561,7 +571,10 @@
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ background: '#fff', border: `1px solid ${T.paperEdge}`, padding: 16 }}>
               <div style={{ ...S.label, marginBottom: 6 }}>Full list</div>
-              <div style={{ fontFamily: S.mono, fontSize: 22, fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1.15, wordBreak: 'break-word' }}>{project.name}</div>
+              <input value={title} onChange={e => setTitle(e.target.value)} onBlur={() => { if (!title.trim()) setTitle(project.name || ''); }}
+                     aria-label="PDF title" placeholder={project.name || 'Kit list'}
+                     style={{ ...S.input, fontFamily: S.mono, fontSize: 20, padding: '8px 10px' }} />
+              <div style={{ fontSize: 10, color: T.textMute, fontFamily: S.mono, marginTop: 4, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Title on the PDF · tap to edit</div>
               {[project.client, project.shoot, project.location].some(Boolean) && (
                 <div style={{ fontSize: 12, color: T.textMute, marginTop: 4 }}>{[project.client, project.shoot, project.location].filter(Boolean).join(' · ')}</div>
               )}
@@ -638,13 +651,23 @@
               <div style={{ display: 'flex', alignItems: 'stretch', borderBottom: `1px solid ${T.ink}` }}>
                 <div style={{ flex: 1, minWidth: 0, padding: '14px 16px' }}>
                   <div style={{ ...pdfLabel, marginBottom: 6 }}>{mode === 'inventory' ? 'Inventory' : 'Kit list'}</div>
-                  <div style={{ fontFamily: S.mono, fontSize: 26, lineHeight: 1.1, letterSpacing: '0.01em', wordBreak: 'break-word' }}>{project.name}</div>
+                  {busy ? (
+                    <div style={pdfTitle}>{docTitle}</div>
+                  ) : (
+                    <input value={title} onChange={e => setTitle(e.target.value)} onBlur={() => { if (!title.trim()) setTitle(project.name || ''); }}
+                           aria-label="PDF title" title="Click to edit the title" placeholder={project.name || 'Kit list'}
+                           style={{ ...pdfTitle, display: 'block', width: '100%', border: 'none', borderBottom: '1px dashed #c2b7a9', background: 'transparent', padding: '0 0 2px', outline: 'none', color: T.ink }} />
+                  )}
                 </div>
-                {(branding || studioName) && (
-                  <div style={{ display: 'flex', alignItems: 'center', padding: '0 16px', borderLeft: `1px solid ${T.ink}`, fontFamily: S.mono, fontSize: 12, letterSpacing: '0.06em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
-                    {branding ? 'The Gear App' : studioName}
+                {branding ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 84, borderLeft: `1px solid ${T.ink}` }}>
+                    <img src="app-icon.jpg" alt="The Gear App" style={{ width: 44, height: 44, display: 'block' }} />
                   </div>
-                )}
+                ) : studioName ? (
+                  <div style={{ display: 'flex', alignItems: 'center', padding: '0 16px', borderLeft: `1px solid ${T.ink}`, fontFamily: S.mono, fontSize: 12, letterSpacing: '0.06em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                    {studioName}
+                  </div>
+                ) : null}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: mode === 'inventory' ? '1fr 90px 90px' : 'repeat(3, minmax(0, 1fr)) 90px 90px' }}>
                 {mode !== 'inventory' && [['Client', project.client], ['Shoot', project.shoot], ['Location', project.location]].map(([k, v]) => (
