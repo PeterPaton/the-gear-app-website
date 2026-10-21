@@ -628,6 +628,9 @@ function App() {
   // workspace; kept in-memory only so a refresh resets to the default.
   const [cartWidth, setCartWidth] = useState(400);
   const [density, setDensity] = useState('comfortable');
+  // Search text handed from Inventory to Database; a new object each time so
+  // the same search can be sent twice.
+  const [dbSearch, setDbSearch] = useState(null);
 
   // Drag-to-cart. `draggedGroupId` is set when the user drags an inventory
   // group's header bar (a whole group can be dropped on the cart panel to
@@ -1342,6 +1345,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
                 onMoveItemToGroup={moveItemToGroup}
                 onMoveItemsToGroup={moveItemsToGroup}
                 onOpenDatabase={() => setPage('database')}
+                onSearchDatabase={(q) => { setDbSearch({ q }); setPage('database'); }}
                 onExportInventory={() => setModalExport({ name: (user && user.name) ? `${user.name}'s Inventory` : 'Inventory', client: '', shoot: '', location: '' })}
                 draggedId={draggedId} setDraggedId={setDraggedId}
                 draggedGroupId={draggedGroupId} setDraggedGroupId={setDraggedGroupId}
@@ -1379,6 +1383,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
             {window.STUDIO_DATABASE && (
               <div style={{ ...pageWin, display: page === 'database' ? 'flex' : 'none' }}>
                 <window.STUDIO_DATABASE
+                  searchRequest={dbSearch}
                   catalog={catalog} items={items}
                   dbStatus={dbStatus}
                   onAddToInventory={saveItem}

@@ -38,6 +38,7 @@
     const [showGuide, setShowGuide] = useState(false);
     // { kind: 'gear', id, source: 'inventory' | 'catalog' } | { kind: 'addGear', projectId }
     const [sheet, setSheet] = useState(null);
+    const [dbSearch, setDbSearch] = useState(null); // search handed from Inventory to Database
 
     const go = (k) => {
       if (k === tab && k === 'projects') setOpenProjectId(null); // tapping Projects again pops back to the list
@@ -79,6 +80,7 @@
               items={items} groups={groups} billing={billing}
               onOpenItem={(it) => setSheet({ kind: 'gear', id: it.id, source: 'inventory' })}
               onAdd={() => go('database')}
+              onSearchDatabase={(q) => { setDbSearch({ q }); go('database'); }}
               onUpgrade={() => app.openUpgrade('inventory')}
             />
           </Pane>
@@ -112,7 +114,7 @@
           {visited.has('database') && (
             <Pane show={tab === 'database'}>
               <CatalogScreen
-                catalog={catalog} items={items} dbStatus={app.dbStatus}
+                catalog={catalog} items={items} dbStatus={app.dbStatus} searchRequest={dbSearch}
                 onOpenItem={(it) => setSheet({ kind: 'gear', id: it.id, source: 'catalog' })}
                 onAddToInventory={app.saveItem}
               />
@@ -289,7 +291,7 @@
   }
 
   // ─── Inventory ──────────────────────────────────────────────────────
-  function InventoryScreen({ items, groups, billing, onOpenItem, onAdd, onUpgrade }) {
+  function InventoryScreen({ items, groups, billing, onOpenItem, onAdd, onUpgrade, onSearchDatabase }) {
     const [query, setQuery] = useState('');
     const [cat, setCat] = useState('All');
     const tokens = tokensOf(query);
@@ -337,7 +339,12 @@
             <button style={{ ...S.btnP, padding: 12 }} onClick={onAdd}>Add your first item</button>
           </Empty>
         ) : sections.every(s => s.rows.length === 0) ? (
-          <div style={emptyLine}>Nothing matches “{query || cat}”.</div>
+          <div style={emptyLine}>
+            Nothing matches “{query || cat}”.
+            {query.trim() && onSearchDatabase && (
+              <button style={{ ...S.btnP, display: 'block', margin: '14px auto 0', padding: '11px 14px' }} onClick={() => onSearchDatabase(query.trim())}>Search the database →</button>
+            )}
+          </div>
         ) : sections.map(sec => (
           <div key={sec.key} style={{ marginBottom: 12 }}>
             <div style={listCard}>
@@ -472,9 +479,11 @@
   }
 
   // ─── Database ───────────────────────────────────────────────────────
-  function CatalogScreen({ catalog, items, dbStatus, onOpenItem, onAddToInventory }) {
+  function CatalogScreen({ catalog, items, dbStatus, onOpenItem, onAddToInventory, searchRequest }) {
     const [query, setQuery] = useState('');
     const [cat, setCat] = useState('All');
+    // A search handed over from Inventory.
+    useEffect(() => { if (searchRequest) { setQuery(searchRequest.q); setCat('All'); } }, [searchRequest]);
     const [visible, setVisible] = useState(PAGE);
     const tokens = tokensOf(query);
     useEffect(() => { setVisible(PAGE); }, [query, cat]);

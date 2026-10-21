@@ -8,9 +8,11 @@
 
   const PAGE = 80;
 
-  function DatabasePage({ catalog, items, onAddToInventory, onAddToCart, draggedId, setDraggedId, hoverCart, setHoverCart, density, setDensity, dbStatus = { state: 'idle' } }) {
+  function DatabasePage({ catalog, items, onAddToInventory, onAddToCart, draggedId, setDraggedId, hoverCart, setHoverCart, density, setDensity, dbStatus = { state: 'idle' }, searchRequest }) {
     const [query, setQuery] = useState('');
     const [cat, setCat] = useState('All');
+    // A search handed over from Inventory ("Search the database for …").
+    useEffect(() => { if (searchRequest) { setQuery(searchRequest.q); setCat('All'); } }, [searchRequest]);
     // Default sort is a stable random shuffle so the same item doesn't always
     // greet you at the top. Clicking a column header still switches to name /
     // category sorting; clicking it again toggles direction.
