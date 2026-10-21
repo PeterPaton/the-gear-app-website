@@ -29,6 +29,10 @@
     const groupInputRefs = useRef({});
     // Group ids the user has manually collapsed (in-memory, per page mount).
     const [collapsedGroups, setCollapsedGroups] = useState(new Set());
+    // Every collapsible section: each group plus the ungrouped Items bucket.
+    const sectionKeys = [...groups.map(g => g.id), '_ungrouped'];
+    const allCollapsed = sectionKeys.every(k => collapsedGroups.has(k));
+    const toggleAllSections = () => setCollapsedGroups(allCollapsed ? new Set() : new Set(sectionKeys));
     const toggleGroupCollapse = (id) => setCollapsedGroups(prev => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
@@ -403,6 +407,17 @@
               {c}<span style={{ marginLeft: 6, opacity: 0.6, fontFamily: S.mono, fontSize: 9 }}>{items.filter(i => i.category === c).length}</span>
             </button>
           ))}
+          {/* Collapse or expand every section at once (hidden while searching,
+              when results are one flat list). */}
+          {!query.trim() && sectionKeys.length > 0 && (
+            <button onClick={toggleAllSections} title={allCollapsed ? 'Expand all groups' : 'Collapse all groups'}
+                    style={{ ...R.catChip(false), marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+              <svg width="10" height="10" viewBox="0 0 10 10" style={{ transition: 'transform .15s', transform: allCollapsed ? 'rotate(-90deg)' : 'none' }}>
+                <path d="M2 3.5 L5 6.5 L8 3.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {allCollapsed ? 'Expand all' : 'Collapse all'}
+            </button>
+          )}
         </div>
 
         <div
