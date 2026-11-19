@@ -233,7 +233,7 @@
 
   // One gear row, in the web's kit-grid style: a flush white photo cell,
   // the name, and a ruled cell on the right for the count or action.
-  function GearRow({ it, sub, right, onClick, thumb = 56, rightWidth = 52 }) {
+  function GearRow({ it, sub, right, onClick, thumb = 56, rightWidth = 52, flushRight = false }) {
     const showSub = sub !== null && (sub !== undefined ? sub : it.category);
     return (
       <div onClick={onClick} style={{ display: 'flex', alignItems: 'stretch', minHeight: thumb, background: T.paper, borderBottom: `1px solid ${T.ink}`, cursor: onClick ? 'pointer' : 'default' }}>
@@ -246,7 +246,9 @@
           <div style={rowName}>{it.name}</div>
           {showSub && <div style={rowSub}>{sub !== undefined ? sub : it.category}</div>}
         </div>
-        {right && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: rightWidth, padding: '0 8px', borderLeft: `1px solid ${T.ink}`, flexShrink: 0 }}>{right}</div>}
+        {right && (flushRight
+          ? <div style={{ display: 'flex', alignItems: 'stretch', flexShrink: 0 }}>{right}</div>
+          : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: rightWidth, padding: '0 8px', borderLeft: `1px solid ${T.ink}`, flexShrink: 0 }}>{right}</div>)}
       </div>
     );
   }
@@ -709,12 +711,12 @@
             {results.map(it => {
               const n = countFor(it);
               return (
-                <GearRow key={it.id} it={it} thumb={52} onClick={() => onAdd(it.id)}
+                <GearRow key={it.id} it={it} thumb={52} flushRight onClick={() => onAdd(it.id)}
                   right={
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                      {n > 0 && <span style={{ ...qtyChip, color: T.orange }}>×{n}</span>}
-                      <span style={{ ...S.btnDark, padding: '7px 12px', fontSize: 14 }}>+</span>
-                    </div>
+                    <>
+                      {n > 0 && <span style={{ ...qtyChip, color: T.orange, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 40, borderLeft: `1px solid ${T.ink}` }}>×{n}</span>}
+                      <span style={{ width: 52, display: 'flex', alignItems: 'center', justifyContent: 'center', background: T.ink, color: '#fff', fontFamily: S.mono, fontSize: 20, lineHeight: 1, borderLeft: `1px solid ${T.ink}` }}>+</span>
+                    </>
                   } />
               );
             })}
