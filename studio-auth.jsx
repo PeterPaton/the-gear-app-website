@@ -20,23 +20,30 @@
     return m;
   }
 
-  // Desktop sign-in backdrop: two set photos that crossfade every 30s. The
-  // starting photo is random on each load. Sits behind the panel's content.
+  // Sign-in backdrop (desktop and phone): two set photos that crossfade every
+  // 30s, random starting photo on each load. The photo sits in the top-right
+  // and dissolves into black through a radial mask. `pos` is the background
+  // position (desktop / phone) that keeps each photo's subject in view.
   const LOGIN_BACKDROPS = [
-    { src: 'login-bg-mars.jpg', shade: 'linear-gradient(90deg, rgba(15,8,4,0.78) 0%, rgba(15,8,4,0.35) 55%, rgba(15,8,4,0.15) 100%), linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0.7) 100%)' },
-    { src: 'login-bg-set.jpg', shade: 'linear-gradient(90deg, rgba(8,3,1,0.6) 0%, rgba(8,3,1,0.28) 55%, rgba(8,3,1,0) 100%), linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0) 35%, rgba(0,0,0,0.6) 100%)' },
+    { src: 'login-bg-mars.jpg', pos: { desk: '75% 0', phone: '42% 0' } },
+    { src: 'login-bg-set.jpg',  pos: { desk: '70% 0', phone: '50% 0' } },
   ];
   const BACKDROP_MS = 30000;
-  function LoginBackdrop() {
+  function LoginBackdrop({ phone = false }) {
     const [idx, setIdx] = useState(() => Math.floor(Math.random() * LOGIN_BACKDROPS.length));
     useEffect(() => {
       const t = setInterval(() => setIdx(i => (i + 1) % LOGIN_BACKDROPS.length), BACKDROP_MS);
       return () => clearInterval(t);
     }, []);
+    const mask = phone
+      ? 'radial-gradient(ellipse 120% 115% at 100% 0%, #000 0%, #000 28%, rgba(0,0,0,0.55) 55%, transparent 88%)'
+      : 'radial-gradient(ellipse 115% 105% at 100% 0%, #000 0%, #000 42%, rgba(0,0,0,0.6) 68%, transparent 96%)';
     return (
       <React.Fragment>
         {LOGIN_BACKDROPS.map((b, i) => (
-          <div key={b.src} aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', opacity: i === idx ? 1 : 0, transition: 'opacity 1.6s ease-in-out', background: `${b.shade}, #0c0c0c url(${b.src}) center / cover no-repeat` }} />
+          <div key={b.src} aria-hidden="true" style={{ position: 'absolute', inset: 0, background: '#000', pointerEvents: 'none', opacity: i === idx ? 1 : 0, transition: 'opacity 1.6s ease-in-out' }}>
+            <div style={{ position: 'absolute', top: 0, right: 0, width: '100%', height: phone ? '100%' : '86%', background: `url(${b.src}) ${phone ? b.pos.phone : b.pos.desk} / cover no-repeat`, WebkitMaskImage: mask, maskImage: mask }} />
+          </div>
         ))}
       </React.Fragment>
     );
@@ -207,16 +214,17 @@
     if (isMobile) {
       return (
         <div style={{ position: 'fixed', inset: 0, overflowY: 'auto', background: '#fff', color: T.ink }}>
-          <div style={{ minHeight: 280, padding: 'calc(env(safe-area-inset-top) + 24px) 24px 40px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 40, color: '#fff', background: 'linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.25) 45%, rgba(0,0,0,0.85) 100%), #0c0c0c url(login-bg.jpg) center / cover no-repeat' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ position: 'relative', overflow: 'hidden', minHeight: 280, padding: 'calc(env(safe-area-inset-top) + 24px) 24px 40px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 40, color: '#fff', background: '#000' }}>
+            <LoginBackdrop phone />
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 10 }}>
               <img src="app-icon.jpg" alt="Gear" style={{ width: 30, height: 30, borderRadius: 7 }} />
               <div style={{ ...S.wordmark, fontSize: 15 }}>THE GEAR APP</div>
             </div>
-            <div>
+            <div style={{ position: 'relative' }}>
               <div style={{ fontFamily: S.sans, fontSize: 'clamp(32px, 9vw, 46px)', fontWeight: 700, letterSpacing: '-0.025em', lineHeight: 1.05, marginBottom: 10 }}>
                 All your gear,<br />in one place.
               </div>
-              <div style={{ fontSize: 14, lineHeight: 1.5, color: 'rgba(255,255,255,0.75)' }}>
+              <div style={{ fontSize: 14, lineHeight: 1.5, color: 'rgba(255,255,255,0.82)', textShadow: '0 1px 12px rgba(0,0,0,0.5)' }}>
                 Organise your equipment, track your inventory and prep for every shoot.
               </div>
               {window.STUDIO_GUIDE && (
