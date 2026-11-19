@@ -5,7 +5,7 @@
 // from the public.plans and public.credit_packs tables, so editing those rows
 // changes checkout too. Payments are applied by the stripe-webhook function.
 //
-//   POST { action: "checkout", product: <plans.id: "pro" | "pro_ai"> | <credit_packs.id>, return_url }
+//   POST { action: "checkout", product: <plans.id: "pro" | "pro_ai"> | <credit_packs.id>, interval?: "month" | "year", return_url }
 //   POST { action: "portal", return_url }
 //   → { url }   the browser redirects there
 //
@@ -69,7 +69,7 @@ Deno.serve(async (req: Request) => {
   if (!stripeKey) return json({ error: "Payments aren't set up yet", code: "billing-not-configured" }, 503);
   const stripe = new Stripe(stripeKey, { httpClient: Stripe.createFetchHttpClient() });
 
-  let body: { action?: string; product?: string; return_url?: string };
+  let body: { action?: string; product?: string; interval?: string; return_url?: string };
   try {
     body = await req.json();
   } catch {
@@ -110,21 +110,31 @@ Deno.serve(async (req: Request) => {
         "unlimited projects and inventory",
         "unbranded PDF exports",
       ].join(", ");
-      const priceData = { currency: plan.currency, unit_amount: plan.price_pence, recurring: { interval: "month" as const } };
-      const meta = { user_id: user.id, plan: plan.id };
+      const yearly = body.interval === "year";
+      if (yearly && !plan.annual_price_pence) return json({ error: `${plan.name} has no annual price`, code: "no-annual" }, 400);
+      const interval = yearly ? "year" as const : "month" as const;
+      const priceData = {
+        currency: plan.currency,
+        unit_amount: yearly ? plan.annual_price_pence : plan.price_pence,
+        recurring: { interval },
+      };
+      const meta = { user_id: user.id, plan: plan.id, interval };
+      const back = `billing=success&product=${encodeURIComponent(plan.id)}&interval=${interval}`;
 
       if (ent.stripe_subscription_id && ent.plan !== "free") {
-        if (ent.plan === plan.id) return json({ error: `You're already on ${plan.name}`, code: "already-subscribed" }, 409);
+        if (ent.plan === plan.id && ent.billing_interval === interval) {
+          return json({ error: `You're already on ${plan.name}`, code: "already-subscribed" }, 409);
+        }
         // Switch tier on the existing subscription (prorated) instead of
         // starting a second one. The webhook applies the change.
         const sub = await stripe.subscriptions.retrieve(ent.stripe_subscription_id);
-        const stripeProduct = await stripe.products.create({ name: `The Gear App ${plan.name}`, description: features });
+        const stripeProduct = await stripe.products.create({ name: `The Gear App ${plan.name}${yearly ? " (annual)" : ""}`, description: features });
         await stripe.subscriptions.update(sub.id, {
           items: [{ id: sub.items.data[0].id, price_data: { ...priceData, product: stripeProduct.id } }],
           metadata: meta,
           proration_behavior: "create_prorations",
         });
-        return json({ url: `${returnUrl}?billing=success&product=${encodeURIComponent(plan.id)}` });
+        return json({ url: `${returnUrl}?${back}` });
       }
 
       const session = await stripe.checkout.sessions.create({
@@ -133,12 +143,12 @@ Deno.serve(async (req: Request) => {
         client_reference_id: user.id,
         line_items: [{
           quantity: 1,
-          price_data: { ...priceData, product_data: { name: `The Gear App ${plan.name}`, description: features } },
+          price_data: { ...priceData, product_data: { name: `The Gear App ${plan.name}${yearly ? " (annual)" : ""}`, description: features } },
         }],
         subscription_data: { metadata: meta },
         metadata: { ...meta, product: plan.id },
         allow_promotion_codes: true,
-        success_url: `${returnUrl}?billing=success&product=${encodeURIComponent(plan.id)}`,
+        success_url: `${returnUrl}?${back}`,
         cancel_url: `${returnUrl}?billing=cancelled`,
       });
       return json({ url: session.url });

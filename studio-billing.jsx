@@ -45,9 +45,17 @@
     const isPro = B().isPaid(status);
     const comped = isPro && !status.subscription_status; // Pro granted without a Stripe subscription
     const copy = reasonCopy(reason, status);
+    // Open on the billing period the user already pays, otherwise offer annual first.
+    const [interval, setInterval_] = React.useState(status && isPro && status.billing_interval ? status.billing_interval : 'year');
+    const yearly = interval === 'year';
+    const saving = Math.max(B().annualSavingPct(pro), B().annualSavingPct(proAi));
 
     const planCard = (plan, highlight) => {
-      const current = status ? status.plan === plan.id : plan.id === 'free';
+      const paid = plan.price_pence != null;
+      const showYear = paid && yearly && plan.annual_price_pence;
+      const shownInterval = showYear ? 'year' : 'month';
+      const current = status ? status.plan === plan.id && (!paid || (status.billing_interval || 'month') === shownInterval || !!comped) : plan.id === 'free';
+      const samePlan = !!status && status.plan === plan.id;
       return (
         <div style={{ flex: '1 1 260px', border: `${highlight ? 2 : 1}px solid ${highlight ? T.orange : T.paperEdge}`, padding: 20, background: highlight ? '#fff8f4' : '#fff', display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
@@ -55,9 +63,14 @@
             {current && <span style={S.pill(T.paperLight, T.ink)}>Current plan</span>}
           </div>
           <div style={{ fontFamily: S.mono, display: 'flex', alignItems: 'baseline', gap: 6 }}>
-            <span style={{ fontSize: 30, fontWeight: 700, letterSpacing: '-0.02em' }}>{plan.price_pence ? B().money(plan.price_pence, plan.currency) : B().money(0, plan.currency)}</span>
-            <span style={{ fontSize: 12, color: T.textMute }}>{plan.price_pence ? '/ month' : 'forever'}</span>
+            <span style={{ fontSize: 30, fontWeight: 700, letterSpacing: '-0.02em' }}>{showYear ? B().money(plan.annual_price_pence, plan.currency) : paid ? B().money(plan.price_pence, plan.currency) : B().money(0, plan.currency)}</span>
+            <span style={{ fontSize: 12, color: T.textMute }}>{showYear ? '/ year' : paid ? '/ month' : 'forever'}</span>
           </div>
+          {showYear && (
+            <div style={{ fontSize: 12, color: T.ok, fontFamily: S.mono, marginTop: -8 }}>
+              {B().money(B().annualPerMonth(plan), plan.currency)}/mo · save {B().annualSavingPct(plan)}%
+            </div>
+          )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 7, flex: 1 }}>
             {planFeatures(plan).map(f => (
               <div key={f} style={{ display: 'flex', gap: 8, fontSize: 13, color: T.ink, lineHeight: 1.35 }}>
@@ -70,8 +83,8 @@
           ) : current ? (
             <button onClick={onManage} disabled={!!busy} style={{ ...S.btnDark, padding: 12 }}>{busy === 'portal' ? 'Opening…' : 'Manage subscription'}</button>
           ) : comped ? null : (
-            <button onClick={() => onCheckout(plan.id)} disabled={!!busy} style={{ ...S.btnP, padding: 12, opacity: busy ? 0.6 : 1 }}>
-              {busy === plan.id ? 'Opening checkout…' : `${isPro ? 'Switch to' : 'Get'} ${plan.name} · ${B().money(plan.price_pence, plan.currency)}/mo`}
+            <button onClick={() => onCheckout(plan.id, shownInterval)} disabled={!!busy} style={{ ...S.btnP, padding: 12, opacity: busy ? 0.6 : 1 }}>
+              {busy === plan.id ? 'Opening checkout…' : `${isPro ? 'Switch to' : 'Get'} ${plan.name}${samePlan ? (showYear ? ' annual' : ' monthly') : ''} · ${showYear ? `${B().money(plan.annual_price_pence, plan.currency)}/yr` : `${B().money(plan.price_pence, plan.currency)}/mo`}`}
             </button>
           ))}
         </div>
@@ -90,6 +103,18 @@
             <button onClick={onClose} disabled={!!busy} aria-label="Close" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: T.textMute, padding: 0, width: 30, height: 30, lineHeight: 1, flexShrink: 0 }}>×</button>
           </div>
           <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+            {saving > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <div style={{ display: 'inline-flex', border: `1px solid ${T.paperEdge}`, fontFamily: S.mono, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  {[['month', 'Monthly'], ['year', `Annual · save ${saving}%`]].map(([k, label]) => (
+                    <button key={k} onClick={() => setInterval_(k)} aria-pressed={interval === k}
+                      style={{ padding: '9px 16px', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'inherit', textTransform: 'inherit', letterSpacing: 'inherit', background: interval === k ? T.ink : '#fff', color: interval === k ? '#fff' : T.ink }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
               {planCard(free, false)}
               {pro && planCard(pro, false)}
@@ -189,6 +214,7 @@
     } else if (isPro) {
       if (status.subscription_status === 'past_due') planLine = `Your last payment didn't go through. Update your card to keep ${plan.name}.`;
       else if (status.cancel_at_period_end) planLine = `Cancelled. ${plan.name} stays active until ${B().shortDate(status.current_period_end)}.`;
+      else if (status.billing_interval === 'year' && plan.annual_price_pence) planLine = `${B().money(plan.annual_price_pence, plan.currency)} / year · renews ${B().shortDate(status.current_period_end)}`;
       else planLine = `${B().money(plan.price_pence, plan.currency)} / month · renews ${B().shortDate(status.current_period_end)}`;
     }
 
