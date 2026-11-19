@@ -711,12 +711,12 @@
             {results.map(it => {
               const n = countFor(it);
               return (
-                <GearRow key={it.id} it={it} thumb={52} flushRight onClick={() => onAdd(it.id)}
+                <GearRow key={it.id} it={it} rightWidth={76} onClick={() => onAdd(it.id)}
                   right={
-                    <>
-                      {n > 0 && <span style={{ ...qtyChip, color: T.orange, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 40, borderLeft: `1px solid ${T.ink}` }}>×{n}</span>}
-                      <span style={{ width: 52, display: 'flex', alignItems: 'center', justifyContent: 'center', background: T.ink, color: '#fff', fontFamily: S.mono, fontSize: 20, lineHeight: 1, borderLeft: `1px solid ${T.ink}` }}>+</span>
-                    </>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, fontFamily: S.mono, color: T.orange, letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: 10 }}>+ ADD</span>
+                      {n > 0 && <span style={{ fontSize: 10, color: T.textMute }}>×{n} ADDED</span>}
+                    </div>
                   } />
               );
             })}
