@@ -1,33 +1,60 @@
-// Studio Projects page — card grid with kit-strip preview.
+// Studio Projects page — folder-style cards with a thumbnail grid.
 (function () {
   const { useState } = React;
   const S = window.STUDIO_STYLES;
   const T = S.T;
 
+  // Project card in the folder style: status + date, the name in spaced caps,
+  // a big orange item count, then a 5-column grid of white thumbnail tiles
+  // split by 1px black rules. The dot texture lives on this card only.
   function ProjectCard({ p, items, editMode, onOpen, onDelete, onRename }) {
-    const sCol = window.GEAR.statusColor[p.status];
+    const [hot, setHot] = useState(false);
     const totalQty = items.reduce((s, pi) => s + (pi.qty || 0), 0);
     const handleDelete = (e) => {
       e.stopPropagation();
       if (window.confirm(`Delete "${p.name}"? This removes the project and its kit list.`)) onDelete(p.id);
     };
     const meta = [p.client, p.location].filter(Boolean).join(' · ');
-    const shown = items.slice(0, items.length > 4 ? 3 : 4);
     // Ink card: status reads on dark (active stays brand orange).
     const tag = p.status === 'active'
       ? { background: T.orange, color: '#fff', border: `1px solid ${T.orange}` }
       : { background: 'rgba(255,255,255,0.12)', color: '#fff', border: '1px solid rgba(255,255,255,0.28)' };
+
+    // Two rows of tiles, three once there are more than ten items. When there
+    // are more items than tiles the last tile reads +N.
+    const n = items.length;
+    const cells = n > 10 ? 15 : 10;
+    const cap = n > cells ? cells - 1 : cells;
+    const tiles = [];
+    for (let i = 0; i < cells; i++) {
+      const pi = items[i];
+      if (i < cap && pi) {
+        tiles.push(
+          <div key={pi.id || i} style={tile} title={pi.name}>
+            <img src={pi.image_url || window.GEAR_PLACEHOLDER(pi.category)} onError={(e) => { e.currentTarget.src = window.GEAR_PLACEHOLDER(pi.category); }} style={{ position: 'absolute', inset: 4, width: 'calc(100% - 8px)', height: 'calc(100% - 8px)', objectFit: 'contain' }} alt="" />
+            {pi.qty > 1 && (
+              <div style={{ position: 'absolute', bottom: 0, right: 0, background: T.orange, color: '#fff', fontSize: 10, padding: '1px 5px', fontFamily: S.mono }}>{pi.qty}</div>
+            )}
+          </div>
+        );
+      } else if (i === cells - 1 && n > cells) {
+        tiles.push(<div key="more" style={{ ...tile, background: T.paperLight, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: S.mono, fontSize: 13, color: T.textMute }}>+{n - cap}</div>);
+      } else {
+        tiles.push(<div key={'e' + i} style={{ ...tile, background: '#000' }} />);
+      }
+    }
+
     return (
       <div style={card} onClick={editMode ? undefined : onOpen}
-           onMouseEnter={e => { if (!editMode) e.currentTarget.style.outline = `2px solid ${T.orange}`; }}
-           onMouseLeave={e => { e.currentTarget.style.outline = 'none'; }}>
+           onMouseEnter={e => { setHot(true); if (!editMode) e.currentTarget.style.outline = `2px solid ${T.orange}`; }}
+           onMouseLeave={e => { setHot(false); e.currentTarget.style.outline = 'none'; }}>
         {editMode && (
           <button onClick={handleDelete} title="Delete project" style={delBtn}>×</button>
         )}
-        <div style={{ padding: '14px 16px 14px' }}>
+        <div style={{ padding: '16px 16px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
             <span style={{ ...S.pill('transparent', '#fff'), ...tag }}>{p.status}</span>
-            {(p.shoot || p.date) && <span style={{ fontFamily: S.mono, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)' }}>{p.shoot || p.date}</span>}
+            {!editMode && (p.shoot || p.date) && <span style={{ fontFamily: S.mono, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', textAlign: 'right' }}>{p.shoot || p.date}</span>}
           </div>
           {editMode ? (
             <input
@@ -44,36 +71,25 @@
                 if (e.key === 'Enter') e.target.blur();
                 if (e.key === 'Escape') { e.target.value = p.name; e.target.blur(); }
               }}
-              style={{ display: 'block', width: '100%', margin: '10px 0 4px', background: '#fff', border: `1px solid ${T.paperEdge}`, outline: 'none', fontSize: 20, lineHeight: 1.2, fontFamily: S.mono, padding: '4px 8px', color: T.ink }}
+              style={{ display: 'block', width: '100%', margin: '14px 0 4px', background: '#fff', border: `1px solid ${T.paperEdge}`, outline: 'none', fontSize: 16, lineHeight: 1.2, fontFamily: S.mono, padding: '4px 8px', color: T.ink }}
             />
           ) : (
-            <div style={{ fontSize: 20, lineHeight: 1.2, margin: '10px 0 4px', fontFamily: S.mono, letterSpacing: '0.01em', color: '#fff' }}>{p.name}</div>
+            <div style={{ fontFamily: S.mono, fontSize: 14, letterSpacing: '0.14em', textTransform: 'uppercase', lineHeight: 1.35, margin: '14px 0 0', color: 'rgba(255,255,255,0.88)' }}>{p.name}</div>
           )}
-          {meta && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>{meta}</div>}
-        </div>
-
-        {/* Kit strip: first items on white tiles, a +N tile, and the item count */}
-        <div style={kitStrip}>
-          {[0, 1, 2, 3].map(i => {
-            const pi = shown[i];
-            if (pi) return (
-              <div key={pi.id} style={kitChip} title={pi.name}>
-                <img src={pi.image_url || window.GEAR_PLACEHOLDER(pi.category)} onError={(e) => { e.currentTarget.src = window.GEAR_PLACEHOLDER(pi.category); }} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 4 }} alt="" />
-                {pi.qty > 1 && (
-                  <div style={{ position: 'absolute', bottom: 0, right: 0, background: T.orange, color: '#fff', fontSize: 10, padding: '1px 5px', fontFamily: S.mono }}>{pi.qty}</div>
-                )}
-              </div>
-            );
-            if (i === 3 && items.length > 4) return (
-              <div key="more" style={{ ...kitChip, background: 'transparent', border: '1px solid rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: S.mono, fontSize: 12, color: '#fff' }}>+{items.length - 3}</div>
-            );
-            return null;
-          })}
-          <div style={{ marginLeft: 'auto', fontFamily: S.mono, fontSize: 26, lineHeight: 1, display: 'flex', alignItems: 'baseline', gap: 5, color: '#fff' }}>
-            {totalQty}<span style={{ fontSize: 10, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.55)' }}>ITEM{totalQty === 1 ? '' : 'S'}</span>
+          {meta && <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>{meta}</div>}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginTop: 12, fontFamily: S.mono }}>
+            <span style={{ fontSize: 44, lineHeight: 1, color: T.orange }}>{totalQty}</span>
+            <span style={{ fontSize: 12, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)' }}>Item{totalQty === 1 ? '' : 's'}</span>
+            {n !== totalQty && <span style={{ marginLeft: 'auto', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)' }}>{n} unique</span>}
           </div>
         </div>
 
+        <div style={tileGrid}>{tiles}</div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 34, padding: '0 16px', fontFamily: S.mono, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8a827b' }}>
+          <span>Kit list</span>
+          <span style={{ color: hot && !editMode ? T.orange : '#8a827b' }}>Open ›</span>
+        </div>
       </div>
     );
   }
@@ -123,7 +139,7 @@
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '18px 24px', background: T.paper }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14, alignItems: 'start' }}>
             {filtered.map(p => (
               <ProjectCard key={p.id} p={p} items={projectItems[p.id] || []} editMode={editMode} onDelete={onDeleteProject} onRename={onRenameProject} onOpen={() => { onSelectProject(p.id); onOpenProject(p.id); }} />
             ))}
@@ -139,8 +155,8 @@
 
   const card = { background: `${T.ink} radial-gradient(circle, rgba(255,255,255,0.14) 1px, transparent 1.2px) 0 0 / 22px 22px`, color: '#fff', border: `1px solid ${T.ink}`, outlineOffset: -1, cursor: 'pointer', transition: 'border-color .12s', position: 'relative', display: 'flex', flexDirection: 'column' };
   const delBtn = { position: 'absolute', top: 10, right: 10, width: 24, height: 24, border: `1px solid #f3d9d0`, background: '#fff', color: '#c44a2c', cursor: 'pointer', fontSize: 14, lineHeight: 1, zIndex: 2 };
-  const kitStrip = { display: 'flex', alignItems: 'center', gap: 6, padding: '4px 16px 16px', marginTop: 'auto' };
-  const kitChip = { flex: '0 0 44px', width: 44, height: 44, background: '#fff', position: 'relative', overflow: 'hidden' };
+  const tileGrid = { display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 1, background: '#000', borderTop: '1px solid #000', borderBottom: '1px solid #000' };
+  const tile = { position: 'relative', aspectRatio: '1 / 1', background: '#fff', overflow: 'hidden' };
   const emptyCard = { background: 'transparent', border: `1px dashed ${T.ink}`, padding: 20, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 200, transition: 'border-color .14s' };
 
   window.STUDIO_PROJECTS = ProjectsPage;
