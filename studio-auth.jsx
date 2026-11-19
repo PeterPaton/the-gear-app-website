@@ -20,6 +20,28 @@
     return m;
   }
 
+  // Desktop sign-in backdrop: two set photos that crossfade every 30s. The
+  // starting photo is random on each load. Sits behind the panel's content.
+  const LOGIN_BACKDROPS = [
+    { src: 'login-bg-mars.jpg', shade: 'linear-gradient(90deg, rgba(15,8,4,0.78) 0%, rgba(15,8,4,0.35) 55%, rgba(15,8,4,0.15) 100%), linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0.7) 100%)' },
+    { src: 'login-bg-set.jpg', shade: 'linear-gradient(90deg, rgba(8,3,1,0.6) 0%, rgba(8,3,1,0.28) 55%, rgba(8,3,1,0) 100%), linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0) 35%, rgba(0,0,0,0.6) 100%)' },
+  ];
+  const BACKDROP_MS = 30000;
+  function LoginBackdrop() {
+    const [idx, setIdx] = useState(() => Math.floor(Math.random() * LOGIN_BACKDROPS.length));
+    useEffect(() => {
+      const t = setInterval(() => setIdx(i => (i + 1) % LOGIN_BACKDROPS.length), BACKDROP_MS);
+      return () => clearInterval(t);
+    }, []);
+    return (
+      <React.Fragment>
+        {LOGIN_BACKDROPS.map((b, i) => (
+          <div key={b.src} aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', opacity: i === idx ? 1 : 0, transition: 'opacity 1.6s ease-in-out', background: `${b.shade}, #0c0c0c url(${b.src}) center / cover no-repeat` }} />
+        ))}
+      </React.Fragment>
+    );
+  }
+
   // ─── Login page ─────────────────────────────────────────────
   function LoginPage({ onSignIn, catalog = [] }) {
     const isMobile = useIsMobile();
@@ -215,7 +237,7 @@
       <div style={{ width: '100vw', height: '100vh', display: 'flex', background: T.ink, color: '#fff', overflow: 'hidden' }}>
         {/* Left — brand panel, with the subtle dot grid behind the hero copy. */}
         <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '40px 56px', background: T.ink, borderRight: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)', backgroundSize: '22px 22px', pointerEvents: 'none' }} />
+          <LoginBackdrop />
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 12 }}>
             <img src="app-icon.jpg" alt="Gear" style={{ width: 36, height: 36, borderRadius: 8 }} />
             <div style={{ ...S.wordmark, fontSize: 22 }}>THE GEAR APP</div>
@@ -224,7 +246,7 @@
             <div style={{ fontFamily: S.sans, fontSize: 'clamp(56px, 7vw, 96px)', fontWeight: 700, letterSpacing: '-0.035em', lineHeight: 1.0, marginBottom: 22, maxWidth: 800 }}>
               All your gear,<br />in one place.
             </div>
-            <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.55)', maxWidth: 520, lineHeight: 1.55 }}>
+            <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.82)', maxWidth: 520, lineHeight: 1.55, textShadow: '0 1px 12px rgba(0,0,0,0.4)' }}>
               Organise your equipment, track your inventory and prep for every shoot.
             </div>
             <button onClick={() => setShowGuide(true)} style={{ marginTop: 26, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)', color: '#fff', padding: '10px 16px', cursor: 'pointer', fontFamily: S.mono, fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
