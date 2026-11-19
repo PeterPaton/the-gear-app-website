@@ -25,7 +25,8 @@
   // and dissolves into black through a radial mask. `pos` is the background
   // position (desktop / phone) that keeps each photo's subject in view.
   const LOGIN_BACKDROPS = [
-    { src: 'login-bg-mars.jpg', pos: { desk: '75% 0', phone: '42% 0' } },
+    // Mars is mirrored in the file, so its crop positions are mirrored too (was 75% / 42%).
+    { src: 'login-bg-mars.jpg', pos: { desk: '25% 0', phone: '58% 0' } },
     { src: 'login-bg-set.jpg',  pos: { desk: '70% 0', phone: '50% 0' } },
   ];
   const BACKDROP_MS = 30000;

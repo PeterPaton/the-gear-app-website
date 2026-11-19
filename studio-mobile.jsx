@@ -371,6 +371,64 @@
   }
 
   // ─── Projects ───────────────────────────────────────────────────────
+  // One project as a folder card, same as the laptop: status and shoot date,
+  // the name in spaced caps, a big orange item count, then a grid of white
+  // thumbnail tiles split by 1px black rules. The dot texture is on these
+  // cards only.
+  function ProjectFolder({ p, rows, onOpen }) {
+    const loaded = !!rows;
+    const list = rows || [];
+    const qty = totalQty(list);
+    const n = list.length;
+    const cells = n > 10 ? 15 : 10;
+    const cap = n > cells ? cells - 1 : cells;
+    const tag = p.status === 'active'
+      ? { background: T.orange, color: '#fff', border: `1px solid ${T.orange}` }
+      : { background: 'rgba(255,255,255,0.12)', color: '#fff', border: '1px solid rgba(255,255,255,0.28)' };
+    const meta = [p.client, p.location].filter(Boolean).join(' · ');
+    const tiles = [];
+    for (let i = 0; i < cells; i++) {
+      const pi = list[i];
+      if (i < cap && pi) {
+        tiles.push(
+          <div key={pi.id || i} style={folderTile}>
+            <img src={window.GEAR.itemImage(pi)} loading="lazy" alt=""
+              onError={(e) => { e.currentTarget.src = window.GEAR_PLACEHOLDER(pi.category); }}
+              style={{ position: 'absolute', inset: 4, width: 'calc(100% - 8px)', height: 'calc(100% - 8px)', objectFit: 'contain' }} />
+            {pi.qty > 1 && <div style={{ position: 'absolute', bottom: 0, right: 0, background: T.orange, color: '#fff', fontSize: 10, padding: '1px 5px', fontFamily: S.mono }}>{pi.qty}</div>}
+          </div>
+        );
+      } else if (i === cells - 1 && n > cells) {
+        tiles.push(<div key="more" style={{ ...folderTile, background: T.paperLight, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: S.mono, fontSize: 13, color: T.textMute }}>+{n - cap}</div>);
+      } else {
+        tiles.push(<div key={'e' + i} style={{ ...folderTile, background: '#000' }} />);
+      }
+    }
+    return (
+      <div onClick={onOpen} role="button" tabIndex={0} aria-label={`Open ${p.name}`}
+           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
+           style={folderCard}>
+        <div style={{ padding: '14px 14px 14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+            <span style={{ ...S.pill('transparent', '#fff'), ...tag }}>{p.status}</span>
+            {p.shoot && <span style={{ fontFamily: S.mono, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', textAlign: 'right' }}>{p.shoot}</span>}
+          </div>
+          <div style={{ fontFamily: S.mono, fontSize: 14, letterSpacing: '0.14em', textTransform: 'uppercase', lineHeight: 1.35, marginTop: 12, color: 'rgba(255,255,255,0.88)', wordBreak: 'break-word' }}>{p.name}</div>
+          {meta && <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>{meta}</div>}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginTop: 10, fontFamily: S.mono }}>
+            <span style={{ fontSize: 40, lineHeight: 1, color: T.orange }}>{loaded ? qty : '…'}</span>
+            <span style={{ fontSize: 12, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)' }}>Item{qty === 1 ? '' : 's'}</span>
+            {loaded && n !== qty && <span style={{ marginLeft: 'auto', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)' }}>{n} unique</span>}
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 1, background: '#000', borderTop: '1px solid #000', borderBottom: '1px solid #000' }}>{tiles}</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 34, padding: '0 14px', fontFamily: S.mono, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8a827b' }}>
+          <span>Kit list</span><span>Open ›</span>
+        </div>
+      </div>
+    );
+  }
+
   function ProjectsScreen({ projects, projectItems, billing, onOpen, onNew }) {
     const limit = billing && billing.max_projects != null ? billing.max_projects : null;
     return (
@@ -386,29 +444,8 @@
             <button style={{ ...S.btnP, padding: 12 }} onClick={onNew}>Create a project</button>
           </Empty>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 10px 16px' }}>
-            {projects.map(p => {
-              const rows = projectItems[p.id];
-              const c = window.GEAR.statusColor[p.status] || window.GEAR.statusColor.planning;
-              return (
-                <div key={p.id} onClick={() => onOpen(p.id)} style={{ background: '#fff', border: `1px solid ${T.ink}`, padding: 12, cursor: 'pointer' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                    <span style={S.pill(c.bg, c.fg)}>{p.status}</span>
-                    <span style={{ fontFamily: S.mono, fontSize: 11, color: T.textMute }}>{rows ? `${totalQty(rows)} item${totalQty(rows) === 1 ? '' : 's'}` : '…'}</span>
-                  </div>
-                  <div style={{ fontFamily: S.mono, fontSize: 19, fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1.2, wordBreak: 'break-word' }}>{p.name}</div>
-                  {[p.client, p.shoot, p.location].some(Boolean) && (
-                    <div style={{ fontSize: 12, color: T.textMute, marginTop: 4 }}>{[p.client, p.shoot, p.location].filter(Boolean).join(' · ')}</div>
-                  )}
-                  {rows && rows.length > 0 && (
-                    <div style={{ display: 'flex', gap: 4, marginTop: 12 }}>
-                      {rows.slice(0, 6).map(pi => <Thumb key={pi.id} it={pi} size={40} />)}
-                      {rows.length > 6 && <div style={{ ...qtyChip, alignSelf: 'center', marginLeft: 2 }}>+{rows.length - 6}</div>}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '0 10px 16px' }}>
+            {projects.map(p => <ProjectFolder key={p.id} p={p} rows={projectItems[p.id]} onOpen={() => onOpen(p.id)} />)}
           </div>
         )}
       </div>
@@ -436,27 +473,30 @@
     return (
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <div className="gm-scroll" style={{ flex: 1, minHeight: 0 }}>
-          <div style={{ background: '#fff', borderBottom: `1px solid ${T.ink}` }}>
-            <div onClick={rename} style={{ padding: '12px 12px 10px', fontFamily: S.mono, fontSize: 24, letterSpacing: '0.01em', lineHeight: 1.1, wordBreak: 'break-word', cursor: 'pointer' }}>
-              {project.name} <span style={{ fontSize: 14, color: T.textMute }}>✎</span>
+          {/* Ink header like the laptop: title, the shoot facts as a grid, then status blocks */}
+          <div style={{ background: T.ink, color: '#fff' }}>
+            <div onClick={rename} role="button" aria-label="Rename project" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 14px', cursor: 'pointer' }}>
+              <div style={{ flex: 1, minWidth: 0, fontFamily: S.mono, fontSize: 26, letterSpacing: '0.01em', lineHeight: 1.1, wordBreak: 'break-word' }}>{project.name}</div>
+              <span aria-hidden="true" style={{ color: T.orange, fontSize: 16, flexShrink: 0 }}>✎</span>
             </div>
-            <div style={{ display: 'flex', margin: '0 12px 12px', border: `1px solid ${T.ink}` }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: '1px solid #000' }}>
+              {[['Client', project.client], ['Shoot', project.shoot]].map(([k, v], i) => (
+                <div key={k} style={{ ...darkCell, borderRight: i === 0 ? '1px solid #333' : 'none' }}><div style={darkKey}>{k}</div><div style={darkVal}>{v || '—'}</div></div>
+              ))}
+              <div style={{ ...darkCell, gridColumn: 'span 2' }}><div style={darkKey}>Location</div><div style={darkVal}>{project.location || '—'}</div></div>
+              <div style={{ ...darkCell, borderRight: '1px solid #333', borderBottom: 'none' }}><div style={darkKey}>Items</div><div style={{ ...darkVal, fontSize: 20, color: T.orange }}>{totalQty(list)}</div></div>
+              <div style={{ ...darkCell, borderBottom: 'none' }}><div style={darkKey}>Unique</div><div style={{ ...darkVal, fontSize: 20, color: T.orange }}>{list.length}</div></div>
+            </div>
+            <div style={{ display: 'flex', height: 40, borderTop: '1px solid #000' }} role="group" aria-label="Project status">
               {['planning', 'active', 'wrapped'].map((st, i) => {
                 const on = project.status === st;
                 return (
-                  <button key={st} onClick={() => onStatus(st)} style={{ flex: 1, height: 36, border: 'none', borderLeft: i ? `1px solid ${T.ink}` : 'none', background: on ? T.orange : '#fff', color: on ? '#fff' : T.textMute, fontFamily: S.mono, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                  <button key={st} onClick={() => onStatus(st)} aria-pressed={on}
+                    style={{ flex: 1, border: 'none', borderRight: i < 2 ? '1px solid #000' : 'none', background: on ? T.orange : '#242424', color: on ? '#fff' : '#8a827b', fontFamily: S.mono, fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}>
                     {st}
                   </button>
                 );
               })}
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: `1px solid ${T.ink}` }}>
-              {[['Client', project.client], ['Shoot', project.shoot]].map(([k, v]) => (
-                <div key={k} style={{ ...factCell, borderRight: k === 'Client' ? `1px solid ${T.ink}` : 'none' }}><div style={factKey}>{k}</div><div style={factVal}>{v || '—'}</div></div>
-              ))}
-              <div style={{ ...factCell, gridColumn: 'span 2' }}><div style={factKey}>Location</div><div style={factVal}>{project.location || '—'}</div></div>
-              <div style={{ ...factCell, borderRight: `1px solid ${T.ink}`, borderBottom: 'none' }}><div style={factKey}>Items</div><div style={{ ...factVal, fontSize: 20, color: T.orange }}>{totalQty(list)}</div></div>
-              <div style={{ ...factCell, borderBottom: 'none' }}><div style={factKey}>Unique</div><div style={{ ...factVal, fontSize: 20, color: T.orange }}>{list.length}</div></div>
             </div>
           </div>
 
@@ -785,6 +825,13 @@
   const rowSub = { fontSize: 9, fontFamily: S.mono, color: T.textMute, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 3 };
   const qtyChip = { fontFamily: S.mono, fontSize: 12, color: T.textMute, flexShrink: 0, whiteSpace: 'nowrap' };
   const stepBtn = { width: 34, height: 34, background: 'none', border: 'none', fontSize: 18, color: T.ink, cursor: 'pointer' };
+  // Project folder card: ink with the dot texture (project cards only) and white thumbnail tiles.
+  const folderCard = { background: `${T.ink} radial-gradient(circle, rgba(255,255,255,0.14) 1px, transparent 1.2px) 0 0 / 22px 22px`, color: '#fff', border: `1px solid ${T.ink}`, cursor: 'pointer' };
+  const folderTile = { position: 'relative', aspectRatio: '1 / 1', background: '#fff', overflow: 'hidden' };
+  // Ink fact cells for the project header (labels dim, values white).
+  const darkCell = { padding: '8px 14px', borderBottom: '1px solid #333', minWidth: 0 };
+  const darkKey = { fontFamily: S.mono, fontSize: 9, letterSpacing: '0.12em', color: '#8a827b', textTransform: 'uppercase' };
+  const darkVal = { fontFamily: S.mono, fontSize: 13, marginTop: 2, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
   const factCell = { padding: '7px 12px', borderBottom: `1px solid ${T.ink}`, minWidth: 0 };
   const factKey = { fontFamily: S.mono, fontSize: 9, letterSpacing: '0.12em', color: T.textMute, textTransform: 'uppercase' };
   const factVal = { fontFamily: S.mono, fontSize: 13, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
