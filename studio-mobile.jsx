@@ -380,7 +380,7 @@
     const list = rows || [];
     const qty = totalQty(list);
     const n = list.length;
-    const cells = n > 10 ? 15 : 10;
+    const cells = 5; // one row of tiles
     const cap = n > cells ? cells - 1 : cells;
     const tag = p.status === 'active'
       ? { background: T.orange, color: '#fff', border: `1px solid ${T.orange}` }
