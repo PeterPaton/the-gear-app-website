@@ -204,7 +204,7 @@
     );
   }
 
-  function Sheet({ title, onClose, tall, children, footer }) {
+  function Sheet({ title, onClose, tall, children, footer, flush }) {
     return (
       <div style={sheetOverlay} onClick={onClose}>
         <div style={sheetBox(tall)} onClick={e => e.stopPropagation()} role="dialog" aria-label={title}>
@@ -213,7 +213,7 @@
             <div style={{ fontFamily: S.mono, fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</div>
             <button onClick={onClose} aria-label="Close" style={{ background: T.paperLight, border: 'none', width: 30, height: 30, fontSize: 18, lineHeight: 1, color: T.textMute, cursor: 'pointer', flexShrink: 0 }}>×</button>
           </div>
-          <div className="gm-scroll" style={{ flex: 1, minHeight: 0, padding: '0 16px 16px' }}>{children}</div>
+          <div className="gm-scroll" style={{ flex: 1, minHeight: 0, overflowX: 'hidden', padding: flush ? 0 : '0 16px 16px' }}>{children}</div>
           {footer}
         </div>
       </div>
@@ -477,19 +477,16 @@
         <div className="gm-scroll" style={{ flex: 1, minHeight: 0 }}>
           {/* Ink header like the laptop: title, the shoot facts as a grid, then status blocks */}
           <div style={{ background: T.ink, color: '#fff' }}>
-            <div onClick={rename} role="button" aria-label="Rename project" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 14px', cursor: 'pointer' }}>
-              <div style={{ flex: 1, minWidth: 0, fontFamily: S.mono, fontSize: 26, letterSpacing: '0.01em', lineHeight: 1.1, wordBreak: 'break-word' }}>{project.name}</div>
-              <span aria-hidden="true" style={{ color: T.orange, fontSize: 16, flexShrink: 0 }}>✎</span>
+            <div onClick={rename} role="button" aria-label="Rename project" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px 6px', cursor: 'pointer' }}>
+              <div style={{ flex: 1, minWidth: 0, fontFamily: S.mono, fontSize: 20, letterSpacing: '0.01em', lineHeight: 1.15, wordBreak: 'break-word' }}>{project.name}</div>
+              <span aria-hidden="true" style={{ color: T.orange, fontSize: 14, flexShrink: 0 }}>✎</span>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: '1px solid #000' }}>
-              {[['Client', project.client], ['Shoot', project.shoot]].map(([k, v], i) => (
-                <div key={k} style={{ ...darkCell, borderRight: i === 0 ? '1px solid #333' : 'none' }}><div style={darkKey}>{k}</div><div style={darkVal}>{v || '—'}</div></div>
-              ))}
-              <div style={{ ...darkCell, gridColumn: 'span 2' }}><div style={darkKey}>Location</div><div style={darkVal}>{project.location || '—'}</div></div>
-              <div style={{ ...darkCell, borderRight: '1px solid #333', borderBottom: 'none' }}><div style={darkKey}>Items</div><div style={{ ...darkVal, fontSize: 20, color: T.orange }}>{totalQty(list)}</div></div>
-              <div style={{ ...darkCell, borderBottom: 'none' }}><div style={darkKey}>Unique</div><div style={{ ...darkVal, fontSize: 20, color: T.orange }}>{list.length}</div></div>
+            <div style={{ padding: '0 14px 10px', fontSize: 12, lineHeight: 1.4, color: 'rgba(255,255,255,0.6)' }}>
+              {[project.client, project.shoot, project.location].filter(Boolean).join(' · ')}
+              {[project.client, project.shoot, project.location].some(Boolean) ? ' · ' : ''}
+              <span style={{ fontFamily: S.mono, color: T.orange }}>{totalQty(list)}</span> items · <span style={{ fontFamily: S.mono, color: T.orange }}>{list.length}</span> unique
             </div>
-            <div style={{ display: 'flex', height: 40, borderTop: '1px solid #000' }} role="group" aria-label="Project status">
+            <div style={{ display: 'flex', height: 34, borderTop: '1px solid #000' }} role="group" aria-label="Project status">
               {['planning', 'active', 'wrapped'].map((st, i) => {
                 const on = project.status === st;
                 return (
@@ -693,7 +690,8 @@
     };
 
     return (
-      <Sheet title={`Add to ${project.name}`} onClose={onClose} tall>
+      <Sheet title={`Add to ${project.name}`} onClose={onClose} tall flush>
+        <div style={{ padding: '0 16px' }}>
         <div style={{ display: 'flex', background: T.paperLight, padding: 3, marginBottom: 10 }}>
           {[['inventory', `My gear · ${items.length}`], ['catalog', 'Database']].map(([k, l]) => (
             <button key={k} onClick={() => setSource(k)} style={{ flex: 1, padding: '8px 0', border: 'none', background: source === k ? '#fff' : 'transparent', boxShadow: source === k ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', fontFamily: S.mono, fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', color: T.ink, cursor: 'pointer' }}>{l}</button>
@@ -701,6 +699,7 @@
         </div>
         <div style={{ marginBottom: 10 }}>
           <SearchBox value={query} onChange={setQuery} placeholder={source === 'inventory' ? 'Search your gear' : `Search ${catalog.length.toLocaleString()} items`} />
+        </div>
         </div>
         {results.length === 0 ? (
           <div style={{ ...emptyLine, margin: '20px 0' }}>
@@ -723,7 +722,7 @@
           </div>
         )}
         {pool.length > 50 && results.length === 50 && (
-          <div style={{ ...emptyLine, margin: '12px 0 0' }}>Showing the first 50. Search to narrow it down.</div>
+          <div style={{ ...emptyLine, margin: '12px 16px' }}>Showing the first 50. Search to narrow it down.</div>
         )}
       </Sheet>
     );
