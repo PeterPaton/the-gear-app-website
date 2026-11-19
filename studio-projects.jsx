@@ -11,8 +11,12 @@
       e.stopPropagation();
       if (window.confirm(`Delete "${p.name}"? This removes the project and its kit list.`)) onDelete(p.id);
     };
-    const meta = [p.client, p.shoot, p.location].filter(Boolean).join(' · ');
-    const shown = items.slice(0, items.length > 6 ? 5 : 6);
+    const meta = [p.client, p.location].filter(Boolean).join(' · ');
+    const shown = items.slice(0, items.length > 4 ? 3 : 4);
+    // Ink card: status reads on dark (active stays brand orange).
+    const tag = p.status === 'active'
+      ? { background: T.orange, color: '#fff', border: `1px solid ${T.orange}` }
+      : { background: 'rgba(255,255,255,0.12)', color: '#fff', border: '1px solid rgba(255,255,255,0.28)' };
     return (
       <div style={card} onClick={editMode ? undefined : onOpen}
            onMouseEnter={e => { if (!editMode) e.currentTarget.style.outline = `2px solid ${T.orange}`; }}
@@ -21,9 +25,9 @@
           <button onClick={handleDelete} title="Delete project" style={delBtn}>×</button>
         )}
         <div style={{ padding: '14px 16px 14px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={S.pill(sCol.bg, sCol.fg)}>{p.status}</span>
-            <span style={{ fontFamily: S.mono, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textMute }}>{totalQty} item{totalQty === 1 ? '' : 's'}</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+            <span style={{ ...S.pill('transparent', '#fff'), ...tag }}>{p.status}</span>
+            {(p.shoot || p.date) && <span style={{ fontFamily: S.mono, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)' }}>{p.shoot || p.date}</span>}
           </div>
           {editMode ? (
             <input
@@ -43,28 +47,31 @@
               style={{ display: 'block', width: '100%', margin: '10px 0 4px', background: '#fff', border: `1px solid ${T.paperEdge}`, outline: 'none', fontSize: 20, lineHeight: 1.2, fontFamily: S.mono, padding: '4px 8px', color: T.ink }}
             />
           ) : (
-            <div style={{ fontSize: 20, lineHeight: 1.2, margin: '10px 0 4px', fontFamily: S.mono, letterSpacing: '0.01em' }}>{p.name}</div>
+            <div style={{ fontSize: 20, lineHeight: 1.2, margin: '10px 0 4px', fontFamily: S.mono, letterSpacing: '0.01em', color: '#fff' }}>{p.name}</div>
           )}
-          {meta && <div style={{ fontSize: 13, color: T.textMute }}>{meta}</div>}
+          {meta && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>{meta}</div>}
         </div>
 
-        {/* Kit strip: the first items as photo cells, then a +N cell */}
+        {/* Kit strip: first items on white tiles, a +N tile, and the item count */}
         <div style={kitStrip}>
-          {[0, 1, 2, 3, 4, 5].map(i => {
+          {[0, 1, 2, 3].map(i => {
             const pi = shown[i];
             if (pi) return (
               <div key={pi.id} style={kitChip} title={pi.name}>
-                <img src={pi.image_url || window.GEAR_PLACEHOLDER(pi.category)} onError={(e) => { e.currentTarget.src = window.GEAR_PLACEHOLDER(pi.category); }} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 5 }} alt="" />
+                <img src={pi.image_url || window.GEAR_PLACEHOLDER(pi.category)} onError={(e) => { e.currentTarget.src = window.GEAR_PLACEHOLDER(pi.category); }} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 4 }} alt="" />
                 {pi.qty > 1 && (
                   <div style={{ position: 'absolute', bottom: 0, right: 0, background: T.orange, color: '#fff', fontSize: 10, padding: '1px 5px', fontFamily: S.mono }}>{pi.qty}</div>
                 )}
               </div>
             );
-            if (i === 5 && items.length > 6) return (
-              <div key="more" style={{ ...kitChip, background: T.paperLight, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: S.mono, fontSize: 12, color: T.textMute }}>+{items.length - 5}</div>
+            if (i === 3 && items.length > 4) return (
+              <div key="more" style={{ ...kitChip, background: 'transparent', border: '1px solid rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: S.mono, fontSize: 12, color: '#fff' }}>+{items.length - 3}</div>
             );
-            return <div key={'e' + i} style={kitChip} />;
+            return null;
           })}
+          <div style={{ marginLeft: 'auto', fontFamily: S.mono, fontSize: 26, lineHeight: 1, display: 'flex', alignItems: 'baseline', gap: 5, color: '#fff' }}>
+            {totalQty}<span style={{ fontSize: 10, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.55)' }}>ITEM{totalQty === 1 ? '' : 'S'}</span>
+          </div>
         </div>
 
       </div>
@@ -130,10 +137,10 @@
     );
   }
 
-  const card = { background: '#fff', border: `1px solid ${T.ink}`, outlineOffset: -1, cursor: 'pointer', transition: 'border-color .12s', position: 'relative', display: 'flex', flexDirection: 'column' };
+  const card = { background: `${T.ink} radial-gradient(circle, rgba(255,255,255,0.14) 1px, transparent 1.2px) 0 0 / 22px 22px`, color: '#fff', border: `1px solid ${T.ink}`, outlineOffset: -1, cursor: 'pointer', transition: 'border-color .12s', position: 'relative', display: 'flex', flexDirection: 'column' };
   const delBtn = { position: 'absolute', top: 10, right: 10, width: 24, height: 24, border: `1px solid #f3d9d0`, background: '#fff', color: '#c44a2c', cursor: 'pointer', fontSize: 14, lineHeight: 1, zIndex: 2 };
-  const kitStrip = { display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', borderTop: `1px solid ${T.ink}`, marginTop: 'auto' };
-  const kitChip = { height: 56, background: '#fff', position: 'relative', overflow: 'hidden', borderRight: `1px solid ${T.ink}` };
+  const kitStrip = { display: 'flex', alignItems: 'center', gap: 6, padding: '4px 16px 16px', marginTop: 'auto' };
+  const kitChip = { flex: '0 0 44px', width: 44, height: 44, background: '#fff', position: 'relative', overflow: 'hidden' };
   const emptyCard = { background: 'transparent', border: `1px dashed ${T.ink}`, padding: 20, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 200, transition: 'border-color .14s' };
 
   window.STUDIO_PROJECTS = ProjectsPage;
