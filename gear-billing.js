@@ -11,8 +11,8 @@
   const FALLBACK_CATALOG = {
     plans: {
       free: { id: 'free', name: 'Free', ai_enabled: true, monthly_credits: 3, max_projects: 2, max_inventory_items: 18, pdf_branding: true, price_pence: null, currency: 'gbp' },
-      pro: { id: 'pro', name: 'Pro', ai_enabled: false, monthly_credits: 0, max_projects: null, max_inventory_items: null, pdf_branding: false, price_pence: 699, currency: 'gbp' },
-      pro_ai: { id: 'pro_ai', name: 'Pro + AI', ai_enabled: true, monthly_credits: 30, max_projects: null, max_inventory_items: null, pdf_branding: false, price_pence: 999, currency: 'gbp' },
+      pro: { id: 'pro', name: 'Pro', ai_enabled: false, monthly_credits: 0, max_projects: null, max_inventory_items: null, pdf_branding: false, price_pence: 699, annual_price_pence: 6900, currency: 'gbp' },
+      pro_ai: { id: 'pro_ai', name: 'Pro + AI', ai_enabled: true, monthly_credits: 30, max_projects: null, max_inventory_items: null, pdf_branding: false, price_pence: 999, annual_price_pence: 9900, currency: 'gbp' },
     },
     packs: [{ id: 'credits_20', name: '20 Suggest credits', credits: 20, price_pence: 500, currency: 'gbp' }],
   };
@@ -88,8 +88,8 @@
   // Sends the browser to Stripe Checkout. `product` is a paid plan id ('pro',
   // 'pro_ai') or a credit pack
   // id. Remembers what was bought so the app can confirm it on return.
-  async function checkout(session, product, status) {
-    const url = await callBillingFunction(session, { action: 'checkout', product });
+  async function checkout(session, product, status, interval) {
+    const url = await callBillingFunction(session, { action: 'checkout', product, interval: interval === 'year' ? 'year' : 'month' });
     try {
       sessionStorage.setItem('gear.billing.pending', JSON.stringify({
         product, plan: status && status.plan, bonus: status ? status.bonus_credits : null, at: Date.now(),
@@ -111,6 +111,11 @@
   // Paid tiers are any plan other than Free. AI is per plan (Pro has none).
   const isPaid = (status) => !!status && status.plan !== 'free';
   const hasAI = (status) => !status || status.ai_enabled !== false;
+
+  // Annual price as a per-month figure and the saving against paying monthly.
+  const annualPerMonth = (plan) => plan && plan.annual_price_pence ? Math.round(plan.annual_price_pence / 12) : null;
+  const annualSavingPct = (plan) => plan && plan.annual_price_pence && plan.price_pence
+    ? Math.round((1 - plan.annual_price_pence / (plan.price_pence * 12)) * 100) : 0;
 
   const totalCredits = (status) => status ? (status.monthly_credits || 0) + (status.bonus_credits || 0) : 0;
 
@@ -140,7 +145,7 @@
     FALLBACK_CATALOG,
     loadCatalog, loadStatus, loadHistory,
     checkout, openPortal,
-    planLimitFromError, totalCredits, atLimit, isPaid, hasAI,
+    planLimitFromError, totalCredits, atLimit, isPaid, hasAI, annualPerMonth, annualSavingPct,
     money, shortDate,
   };
 })();

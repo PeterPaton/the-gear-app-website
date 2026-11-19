@@ -533,7 +533,9 @@ function App() {
     if (!outcome || !session?.access_token) return;
     const product = params.get('product');
     params.delete('billing');
+    const interval = params.get('interval');
     params.delete('product');
+    params.delete('interval');
     window.history.replaceState(null, '', window.location.pathname + (params.toString() ? '?' + params : '') + window.location.hash);
     if (outcome !== 'success') {
       setBillingNotice({ text: 'Checkout cancelled. Nothing was charged.', done: true });
@@ -550,7 +552,7 @@ function App() {
       const st = await refreshBilling();
       const isPlan = product === 'pro' || product === 'pro_ai';
       const applied = st && (isPlan
-        ? st.plan === product
+        ? st.plan === product && (!interval || st.billing_interval === interval)
         : st.bonus_credits > ((pending && pending.bonus) || 0));
       if (applied) {
         setBillingNotice({ text: isPlan ? `You’re on ${st.plan_name}. Thanks for upgrading!` : 'Credits added. Thanks!', done: true });
@@ -576,12 +578,12 @@ function App() {
   }, []);
 
   const openUpgrade = (reason) => { setBillingError(''); setPaywall({ reason: reason || 'upgrade' }); };
-  const startCheckout = async (product) => {
+  const startCheckout = async (product, interval) => {
     if (!session) return;
     setBillingError('');
     setBillingBusy(product);
     try {
-      await window.GEAR_BILLING.checkout(session, product, billing);
+      await window.GEAR_BILLING.checkout(session, product, billing, interval);
     } catch (err) {
       setBillingBusy(null);
       if (err.code === 'already-subscribed') { openBillingPortal(); return; }
