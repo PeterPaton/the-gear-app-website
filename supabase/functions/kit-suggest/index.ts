@@ -202,6 +202,13 @@ Deno.serve(async (req: Request) => {
   const mode: Mode = payload.mode ?? "generate";
   if (!["generate", "refine", "revise", "clarify"].includes(mode)) return json({ error: "Unknown mode" }, 400);
 
+  // Plans without AI (Pro) can't use any Suggest call, including the free clarify check.
+  if (mode === "clarify" || mode === "revise") {
+    const { data: ent } = await admin.rpc("ensure_entitlements", { p_user: userId });
+    const { data: plan } = await admin.from("plans").select("ai_enabled").eq("id", ent?.plan ?? "free").maybeSingle();
+    if (plan && !plan.ai_enabled) return json({ error: "AI Suggest isn't included in your plan", code: "no-ai" }, 403);
+  }
+
   // Clarify is free and needs no catalog: one quick call, no credits.
   if (mode === "clarify") {
     const brief = String(payload.prompt || "").trim().slice(0, 2000);
@@ -273,6 +280,7 @@ Deno.serve(async (req: Request) => {
   } else {
     const { data: run, error } = await admin.rpc("start_suggest_run", { p_user: userId, p_kind: mode, p_cost: CREDIT_COST });
     if (error) return json({ error: error.message, code: "billing" }, 500);
+    if (run.no_ai) return json({ error: "AI Suggest isn't included in your plan", code: "no-ai" }, 403);
     if (!run.ok) return json({ error: "You're out of Suggest credits", code: "no-credits", credits: creditsFrom(run) }, 402);
     runId = run.run_id;
     credits = creditsFrom(run);

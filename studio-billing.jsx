@@ -9,7 +9,7 @@
   // What each plan includes, in the order shown on cards.
   function planFeatures(plan) {
     return [
-      `${plan.monthly_credits} Suggest credits a month`,
+      plan.ai_enabled === false ? 'No AI features' : `${plan.monthly_credits} Suggest credits a month`,
       plan.max_projects == null ? 'Unlimited projects' : `${plan.max_projects} projects`,
       plan.max_inventory_items == null ? 'Unlimited inventory' : `${plan.max_inventory_items} inventory items`,
       plan.pdf_branding ? 'PDF exports with Gear branding' : 'Clean, unbranded PDF exports',
@@ -20,15 +20,19 @@
     const refill = status && status.next_refill ? ` Your monthly credits refill on ${B().shortDate(status.next_refill)}.` : '';
     switch (reason) {
       case 'projects':
-        return { title: `You've reached ${status?.max_projects ?? 'the'} projects on the Free plan`, sub: 'Upgrade to Pro for unlimited projects. Your existing projects stay as they are.' };
+        return { title: `You've reached ${status?.max_projects ?? 'the'} projects on the Free plan`, sub: 'Upgrade to Pro (£6.99/mo) for unlimited projects. Your existing projects stay as they are.' };
       case 'inventory':
-        return { title: `Your inventory is at the Free limit of ${status?.max_inventory_items ?? ''} items`, sub: 'Upgrade to Pro for unlimited inventory.' };
+        return { title: `Your inventory is at the Free limit of ${status?.max_inventory_items ?? ''} items`, sub: 'Upgrade to Pro (£6.99/mo) for unlimited inventory.' };
       case 'credits':
-        return { title: "You're out of Suggest credits", sub: `Top up, or go Pro for a bigger monthly allowance.${refill}` };
+        return status && status.ai_enabled === false
+          ? { title: 'AI Suggest is on Pro + AI', sub: 'Upgrade to Pro + AI to build and change kit lists with AI.' }
+          : { title: "You're out of Suggest credits", sub: `Top up, or go Pro + AI for a bigger monthly allowance.${refill}` };
+      case 'ai':
+        return { title: 'AI Suggest is on Pro + AI', sub: 'Upgrade to Pro + AI to build and change kit lists with AI.' };
       case 'branding':
         return { title: 'Export clean PDFs', sub: 'Pro removes The Gear App branding from your exported lists.' };
       default:
-        return { title: 'Upgrade to Pro', sub: 'More AI kit builds, no limits on projects or inventory, and clean PDF exports.' };
+        return { title: 'Upgrade your plan', sub: 'Pro removes the limits and branding. Pro + AI adds AI kit builds.' };
     }
   }
 
@@ -36,8 +40,9 @@
   function PricingModal({ reason, status, catalog, onClose, onCheckout, onManage, busy, error }) {
     const free = catalog.plans.free;
     const pro = catalog.plans.pro;
-    const pack = catalog.packs[0];
-    const isPro = status && status.plan === 'pro';
+    const proAi = catalog.plans.pro_ai;
+    const pack = B().hasAI(status) ? catalog.packs[0] : null;
+    const isPro = B().isPaid(status);
     const comped = isPro && !status.subscription_status; // Pro granted without a Stripe subscription
     const copy = reasonCopy(reason, status);
 
@@ -60,13 +65,13 @@
               </div>
             ))}
           </div>
-          {plan.id === 'pro' && (comped ? (
+          {plan.price_pence != null && (current && comped ? (
             <div style={{ fontFamily: S.mono, fontSize: 11, color: T.ok, textAlign: 'center', padding: 12 }}>Complimentary · no payment needed</div>
-          ) : isPro ? (
+          ) : current ? (
             <button onClick={onManage} disabled={!!busy} style={{ ...S.btnDark, padding: 12 }}>{busy === 'portal' ? 'Opening…' : 'Manage subscription'}</button>
-          ) : (
-            <button onClick={() => onCheckout('pro')} disabled={!!busy} style={{ ...S.btnP, padding: 12, opacity: busy ? 0.6 : 1 }}>
-              {busy === 'pro' ? 'Opening checkout…' : `Upgrade to Pro · ${B().money(plan.price_pence, plan.currency)}/mo`}
+          ) : comped ? null : (
+            <button onClick={() => onCheckout(plan.id)} disabled={!!busy} style={{ ...S.btnP, padding: 12, opacity: busy ? 0.6 : 1 }}>
+              {busy === plan.id ? 'Opening checkout…' : `${isPro ? 'Switch to' : 'Get'} ${plan.name} · ${B().money(plan.price_pence, plan.currency)}/mo`}
             </button>
           ))}
         </div>
@@ -75,7 +80,7 @@
 
     return (
       <div style={S.modalOverlay} onClick={busy ? undefined : onClose}>
-        <div style={{ ...S.modal, width: 720, maxWidth: 'calc(100vw - 32px)' }} onClick={e => e.stopPropagation()}>
+        <div style={{ ...S.modal, width: 1000, maxWidth: 'calc(100vw - 32px)' }} onClick={e => e.stopPropagation()}>
           <div style={{ padding: '24px 28px 18px', borderBottom: `1px solid ${T.paperEdge}`, display: 'flex', justifyContent: 'space-between', gap: 16 }}>
             <div>
               <div style={{ ...S.label, color: T.orange, marginBottom: 6 }}>{isPro ? 'Your plan' : 'Upgrade'}</div>
@@ -87,7 +92,8 @@
           <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto', flex: 1, minHeight: 0 }}>
             <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
               {planCard(free, false)}
-              {planCard(pro, true)}
+              {pro && planCard(pro, false)}
+              {proAi && planCard(proAi, true)}
             </div>
             {pack && (
               <div style={{ border: `1px solid ${T.paperEdge}`, padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
@@ -125,7 +131,7 @@
           {status.next_refill ? ` · refills ${B().shortDate(status.next_refill)}` : ''}
         </span>
         <button onClick={onGetMore} style={{ background: 'none', border: 'none', padding: 0, color: T.orange, fontFamily: S.mono, fontSize: 11, fontWeight: 600, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-          {status.plan === 'pro' ? 'Top up' : 'Get more'}
+          {B().isPaid(status) ? 'Top up' : 'Get more'}
         </button>
       </div>
     );
@@ -140,6 +146,7 @@
     credit_pack: 'Credits purchased',
     monthly_refill: 'Monthly credits refilled',
     upgraded_to_pro: 'Upgraded to Pro',
+    upgraded_to_pro_ai: 'Upgraded to Pro + AI',
     downgraded_to_free: 'Moved to Free',
   };
 
@@ -172,15 +179,16 @@
       );
     }
     const plan = catalog.plans[status.plan] || catalog.plans.free;
-    const pack = catalog.packs[0];
-    const isPro = status.plan === 'pro';
+    const aiOn = B().hasAI(status);
+    const pack = aiOn ? catalog.packs[0] : null;
+    const isPro = B().isPaid(status);
     const comped = isPro && !status.subscription_status;
     let planLine = 'Free forever. Upgrade any time.';
     if (comped) {
-      planLine = 'Complimentary Pro. No payment needed.';
+      planLine = `Complimentary ${plan.name}. No payment needed.`;
     } else if (isPro) {
-      if (status.subscription_status === 'past_due') planLine = "Your last payment didn't go through. Update your card to keep Pro.";
-      else if (status.cancel_at_period_end) planLine = `Cancelled. Pro stays active until ${B().shortDate(status.current_period_end)}.`;
+      if (status.subscription_status === 'past_due') planLine = `Your last payment didn't go through. Update your card to keep ${plan.name}.`;
+      else if (status.cancel_at_period_end) planLine = `Cancelled. ${plan.name} stays active until ${B().shortDate(status.current_period_end)}.`;
       else planLine = `${B().money(plan.price_pence, plan.currency)} / month · renews ${B().shortDate(status.current_period_end)}`;
     }
 
@@ -200,11 +208,12 @@
               {(isPro && !comped) || status.has_billing_account ? (
                 <button style={S.btnG} disabled={!!busy} onClick={onManage}>{busy === 'portal' ? 'Opening…' : (isPro && !comped ? 'Manage subscription' : 'Invoices')}</button>
               ) : null}
-              {!isPro && <button style={S.btnP} disabled={!!busy} onClick={onUpgrade}>Upgrade to Pro</button>}
+              {status.plan !== 'pro_ai' && !comped && <button style={S.btnP} disabled={!!busy} onClick={onUpgrade}>{isPro ? 'Upgrade to Pro + AI' : 'Upgrade'}</button>}
             </div>
           </div>
         </div>
 
+        {aiOn ? (
         <div style={card}>
           <div style={head}>Suggest credits</div>
           <div style={{ padding: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
@@ -227,6 +236,12 @@
             )}
           </div>
         </div>
+        ) : (
+        <div style={card}>
+          <div style={head}>Suggest (AI)</div>
+          <div style={{ padding: 20, fontSize: 12, color: T.textMute, lineHeight: 1.5 }}>AI kit builds aren’t part of Pro. Upgrade to Pro + AI to build and change kit lists with AI.</div>
+        </div>
+        )}
 
         <div style={card}>
           <div style={head}>Usage</div>

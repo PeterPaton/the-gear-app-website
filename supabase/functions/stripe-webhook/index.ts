@@ -52,6 +52,14 @@ async function syncSubscription(stripe: Stripe, subscriptionId: string, userHint
     return null;
   }
   const periodEnd = sub.items.data[0]?.current_period_end;
+  // Which paid tier: set on the subscription at checkout. Older subscriptions
+  // have no tag, so match them to a plan by what they pay.
+  let planId = sub.metadata?.plan as string | undefined;
+  if (!planId) {
+    const amount = sub.items.data[0]?.price?.unit_amount;
+    const { data: match } = await admin.from("plans").select("id").eq("price_pence", amount ?? -1).maybeSingle();
+    planId = match?.id ?? "pro";
+  }
   await rpc("apply_subscription", {
     p_user: userId,
     p_customer: customerId,
@@ -59,6 +67,7 @@ async function syncSubscription(stripe: Stripe, subscriptionId: string, userHint
     p_status: sub.status,
     p_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
     p_cancel_at_period_end: sub.cancel_at_period_end || sub.cancel_at != null,
+    p_plan: planId,
   });
   return userId;
 }

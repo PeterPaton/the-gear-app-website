@@ -235,6 +235,7 @@
     }, [zoom]);
     const free = catalog && catalog.plans && catalog.plans.free;
     const pro = catalog && catalog.plans && catalog.plans.pro;
+    const proAi = catalog && catalog.plans && catalog.plans.pro_ai;
     const B = window.GEAR_BILLING;
 
     return (
@@ -281,7 +282,7 @@
                 <div style={{ fontWeight: 700, fontSize: 15 }}>Free to start</div>
                 <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)', lineHeight: 1.55 }}>
                   Free includes {free.max_projects} projects, {free.max_inventory_items} inventory items and {free.monthly_credits} AI kit builds a month.
-                  Pro ({B.money(pro.price_pence, pro.currency)}/month) removes the limits and gives you {pro.monthly_credits} builds a month.
+                  Pro ({B.money(pro.price_pence, pro.currency)}/month) removes the limits, with no AI features.{proAi ? ` Pro + AI (${B.money(proAi.price_pence, proAi.currency)}/month) adds ${proAi.monthly_credits} AI kit builds a month.` : ''}
                 </div>
               </div>
             )}
@@ -355,6 +356,7 @@
     const [zoom, setZoom] = useState(null);
     const free = catalog && catalog.plans && catalog.plans.free;
     const pro = catalog && catalog.plans && catalog.plans.pro;
+    const proAi = catalog && catalog.plans && catalog.plans.pro_ai;
     const B = window.GEAR_BILLING;
 
     return (
@@ -425,7 +427,7 @@
               <div style={{ fontWeight: 700, fontSize: 15 }}>Free to start</div>
               <div style={{ fontSize: 13, color: T.textMute, lineHeight: 1.55, marginTop: 6 }}>
                 Free includes {free.max_projects} projects, {free.max_inventory_items} inventory items and {free.monthly_credits} AI kit builds a month.
-                Pro ({B.money(pro.price_pence, pro.currency)}/month) removes the limits and gives you {pro.monthly_credits} builds a month.
+                Pro ({B.money(pro.price_pence, pro.currency)}/month) removes the limits, with no AI features.{proAi ? ` Pro + AI (${B.money(proAi.price_pence, proAi.currency)}/month) adds ${proAi.monthly_credits} AI kit builds a month.` : ''}
               </div>
             </div>
           )}

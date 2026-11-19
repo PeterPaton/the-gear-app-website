@@ -548,11 +548,12 @@ function App() {
     let tries = 0;
     const poll = async () => {
       const st = await refreshBilling();
-      const applied = st && (product === 'pro'
-        ? st.plan === 'pro'
+      const isPlan = product === 'pro' || product === 'pro_ai';
+      const applied = st && (isPlan
+        ? st.plan === product
         : st.bonus_credits > ((pending && pending.bonus) || 0));
       if (applied) {
-        setBillingNotice({ text: product === 'pro' ? 'You’re on Pro. Thanks for upgrading!' : 'Credits added. Thanks!', done: true });
+        setBillingNotice({ text: isPlan ? `You’re on ${st.plan_name}. Thanks for upgrading!` : 'Credits added. Thanks!', done: true });
       } else if (++tries < 15) {
         setTimeout(poll, 2000);
       } else {
@@ -1294,7 +1295,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
         collapsed={collapsed} setCollapsed={setCollapsed}
         user={user}
         planName={billing ? billing.plan_name : null}
-        onUpgrade={billing && billing.plan !== 'pro' ? () => openUpgrade() : null}
+        onUpgrade={billing && billing.plan !== 'pro_ai' ? () => openUpgrade() : null}
         onOpenAccount={() => setShowAccount(true)}
         onFeedback={() => setShowFeedback(true)}
         onOpenProject={(id) => {
