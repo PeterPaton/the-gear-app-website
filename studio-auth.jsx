@@ -112,7 +112,7 @@
           {mode === 'signin' ? 'Sign in to the Gear App' : mode === 'signup' ? 'Create your account' : 'Reset your password'}
         </div>
         {mode === 'signup' && (
-          <div style={{ fontSize: 13, color: T.textMute, marginBottom: 24 }}>Start on the Free plan. No card needed; upgrade to Pro any time.</div>
+          <div style={{ fontSize: 13, color: T.textMute, marginBottom: 24 }}>Start on the Free plan. No card needed; upgrade any time.</div>
         )}
 
         {/* OAuth */}
@@ -415,7 +415,7 @@
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
     const ready = text.trim() === 'DELETE' && !busy;
-    const subscribed = billing && billing.plan === 'pro' && billing.subscription_status;
+    const subscribed = billing && billing.plan !== 'free' && billing.subscription_status;
     const submit = async () => {
       if (!ready) return;
       setBusy(true);
@@ -429,7 +429,7 @@
             <div style={{ fontFamily: S.mono, fontSize: 20, fontWeight: 700, color: '#B33A06' }}>Delete your account?</div>
             <div style={{ fontSize: 13, color: T.ink, lineHeight: 1.6 }}>
               This permanently deletes your inventory, groups, projects, kit lists, Suggest credits and history. It can’t be undone.
-              {subscribed && <span> Your Pro subscription is cancelled immediately and you won’t be charged again.</span>}
+              {subscribed && <span> Your {billing.plan_name} subscription is cancelled immediately and you won’t be charged again.</span>}
             </div>
             <div style={S.field}>
               <label style={S.label}>Type DELETE to confirm</label>

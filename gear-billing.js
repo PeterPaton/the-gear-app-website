@@ -10,8 +10,9 @@
   // Shown until the price list loads from Supabase (and if it can't).
   const FALLBACK_CATALOG = {
     plans: {
-      free: { id: 'free', name: 'Free', monthly_credits: 3, max_projects: 2, max_inventory_items: 18, pdf_branding: true, price_pence: null, currency: 'gbp' },
-      pro: { id: 'pro', name: 'Pro', monthly_credits: 40, max_projects: null, max_inventory_items: null, pdf_branding: false, price_pence: 1200, currency: 'gbp' },
+      free: { id: 'free', name: 'Free', ai_enabled: true, monthly_credits: 3, max_projects: 2, max_inventory_items: 18, pdf_branding: true, price_pence: null, currency: 'gbp' },
+      pro: { id: 'pro', name: 'Pro', ai_enabled: false, monthly_credits: 0, max_projects: null, max_inventory_items: null, pdf_branding: false, price_pence: 699, currency: 'gbp' },
+      pro_ai: { id: 'pro_ai', name: 'Pro + AI', ai_enabled: true, monthly_credits: 30, max_projects: null, max_inventory_items: null, pdf_branding: false, price_pence: 999, currency: 'gbp' },
     },
     packs: [{ id: 'credits_20', name: '20 Suggest credits', credits: 20, price_pence: 500, currency: 'gbp' }],
   };
@@ -84,7 +85,8 @@
     return data.url;
   }
 
-  // Sends the browser to Stripe Checkout. `product` is 'pro' or a credit pack
+  // Sends the browser to Stripe Checkout. `product` is a paid plan id ('pro',
+  // 'pro_ai') or a credit pack
   // id. Remembers what was bought so the app can confirm it on return.
   async function checkout(session, product, status) {
     const url = await callBillingFunction(session, { action: 'checkout', product });
@@ -105,6 +107,10 @@
     const m = String((err && err.message) || err || '').match(/plan_limit:(\w+):(\d+)/);
     return m ? { resource: m[1], limit: Number(m[2]) } : null;
   }
+
+  // Paid tiers are any plan other than Free. AI is per plan (Pro has none).
+  const isPaid = (status) => !!status && status.plan !== 'free';
+  const hasAI = (status) => !status || status.ai_enabled !== false;
 
   const totalCredits = (status) => status ? (status.monthly_credits || 0) + (status.bonus_credits || 0) : 0;
 
@@ -134,7 +140,7 @@
     FALLBACK_CATALOG,
     loadCatalog, loadStatus, loadHistory,
     checkout, openPortal,
-    planLimitFromError, totalCredits, atLimit,
+    planLimitFromError, totalCredits, atLimit, isPaid, hasAI,
     money, shortDate,
   };
 })();

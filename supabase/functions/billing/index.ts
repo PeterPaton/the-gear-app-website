@@ -1,11 +1,11 @@
 // Supabase Edge Function: billing
 // ------------------------------------------------------------------
-// Starts Stripe Checkout for Pro or a credit pack, and opens the Stripe
+// Starts Stripe Checkout for a Pro tier (switching tier updates the existing subscription) or a credit pack, and opens the Stripe
 // customer portal (card, invoices, cancel). Prices and credit amounts come
 // from the public.plans and public.credit_packs tables, so editing those rows
 // changes checkout too. Payments are applied by the stripe-webhook function.
 //
-//   POST { action: "checkout", product: "pro" | <credit_packs.id>, return_url }
+//   POST { action: "checkout", product: <plans.id: "pro" | "pro_ai"> | <credit_packs.id>, return_url }
 //   POST { action: "portal", return_url }
 //   → { url }   the browser redirects there
 //
@@ -103,32 +103,42 @@ Deno.serve(async (req: Request) => {
     }
 
     const product = String(body.product || "");
-    if (product === "pro") {
-      if (ent.plan === "pro" && ent.stripe_subscription_id) {
-        return json({ error: "You're already on Pro", code: "already-subscribed" }, 409);
+    const { data: plan } = await admin.from("plans").select("*").eq("id", product).not("price_pence", "is", null).maybeSingle();
+    if (plan) {
+      const features = [
+        plan.ai_enabled ? `${plan.monthly_credits} Suggest credits a month (AI kit builds)` : "No AI features",
+        "unlimited projects and inventory",
+        "unbranded PDF exports",
+      ].join(", ");
+      const priceData = { currency: plan.currency, unit_amount: plan.price_pence, recurring: { interval: "month" as const } };
+      const meta = { user_id: user.id, plan: plan.id };
+
+      if (ent.stripe_subscription_id && ent.plan !== "free") {
+        if (ent.plan === plan.id) return json({ error: `You're already on ${plan.name}`, code: "already-subscribed" }, 409);
+        // Switch tier on the existing subscription (prorated) instead of
+        // starting a second one. The webhook applies the change.
+        const sub = await stripe.subscriptions.retrieve(ent.stripe_subscription_id);
+        const stripeProduct = await stripe.products.create({ name: `The Gear App ${plan.name}`, description: features });
+        await stripe.subscriptions.update(sub.id, {
+          items: [{ id: sub.items.data[0].id, price_data: { ...priceData, product: stripeProduct.id } }],
+          metadata: meta,
+          proration_behavior: "create_prorations",
+        });
+        return json({ url: `${returnUrl}?billing=success&product=${encodeURIComponent(plan.id)}` });
       }
-      const { data: plan, error } = await admin.from("plans").select("*").eq("id", "pro").single();
-      if (error || !plan?.price_pence) return json({ error: "Pro plan isn't configured" }, 500);
+
       const session = await stripe.checkout.sessions.create({
         mode: "subscription",
         customer: customerId,
         client_reference_id: user.id,
         line_items: [{
           quantity: 1,
-          price_data: {
-            currency: plan.currency,
-            unit_amount: plan.price_pence,
-            recurring: { interval: "month" },
-            product_data: {
-              name: "The Gear App Pro",
-              description: `${plan.monthly_credits} Suggest credits a month, unlimited projects and inventory, unbranded PDF exports`,
-            },
-          },
+          price_data: { ...priceData, product_data: { name: `The Gear App ${plan.name}`, description: features } },
         }],
-        subscription_data: { metadata: { user_id: user.id } },
-        metadata: { user_id: user.id, product: "pro" },
+        subscription_data: { metadata: meta },
+        metadata: { ...meta, product: plan.id },
         allow_promotion_codes: true,
-        success_url: `${returnUrl}?billing=success&product=pro`,
+        success_url: `${returnUrl}?billing=success&product=${encodeURIComponent(plan.id)}`,
         cancel_url: `${returnUrl}?billing=cancelled`,
       });
       return json({ url: session.url });
@@ -136,6 +146,9 @@ Deno.serve(async (req: Request) => {
 
     const { data: pack } = await admin.from("credit_packs").select("*").eq("id", product).eq("active", true).maybeSingle();
     if (!pack) return json({ error: "Unknown product" }, 400);
+    if (!(await admin.from("plans").select("ai_enabled").eq("id", ent.plan).maybeSingle()).data?.ai_enabled) {
+      return json({ error: "Suggest credits are only for plans that include AI", code: "no-ai" }, 403);
+    }
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       customer: customerId,

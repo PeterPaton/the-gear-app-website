@@ -213,6 +213,11 @@
     // Shared failure handling. Returns true when the caller should fall back
     // to the offline assembler (only when the AI service itself is down).
     function handleFailure(e) {
+      if (e.code === 'no-ai') {
+        setError('AI Suggest is included with Pro + AI.');
+        onUpgrade && onUpgrade('ai');
+        return false;
+      }
       if (e.code === 'no-credits') {
         setError("You're out of Suggest credits.");
         onUpgrade && onUpgrade('credits');
@@ -397,6 +402,21 @@
     );
 
     // ── Render ───────────────────────────────────────────────────────────
+    // Pro (without AI) doesn't include Suggest: show what it is and how to get it.
+    if (billing && billing.ai_enabled === false) {
+      return (
+        <div style={{ flex: 1, overflowY: 'auto', background: T.paper }}>
+          <div style={{ maxWidth: 560, margin: '0 auto', padding: compact ? '40px 18px' : '90px 28px', textAlign: 'center' }}>
+            <div style={S.label}>Suggestions</div>
+            <h1 style={{ fontFamily: S.mono, fontSize: 26, fontWeight: 700, margin: '6px 0 10px', letterSpacing: '-0.02em' }}>AI kit lists are on Pro + AI</h1>
+            <div style={{ fontSize: 13, color: T.textMute, lineHeight: 1.55, marginBottom: 20 }}>
+              Describe a shoot and Suggest builds a kit list from the equipment database. It isn’t part of your {billing.plan_name} plan.
+            </div>
+            <button onClick={() => onUpgrade && onUpgrade('ai')} style={S.btnP}>Upgrade to Pro + AI</button>
+          </div>
+        </div>
+      );
+    }
     return (
       <div style={{ flex: 1, overflowY: 'auto', background: T.paper }}>
         <div style={{ maxWidth: 1180, margin: '0 auto', padding: compact ? '18px 14px 32px' : '32px 28px 80px' }}>
