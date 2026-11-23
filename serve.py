@@ -17,6 +17,11 @@ class GearHandler(http.server.SimpleHTTPRequestHandler):
             return 'application/javascript'
         return super().guess_type(path)
 
+    # Always revalidate, so edits show up on reload (no stale cached scripts).
+    def end_headers(self):
+        self.send_header('Cache-Control', 'no-store')
+        super().end_headers()
+
     def log_message(self, format, *args):
         print(f"  {self.address_string()} — {format % args}")
 

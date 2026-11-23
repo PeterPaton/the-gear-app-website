@@ -369,7 +369,7 @@
         const queue = items.slice();
         const worker = async () => {
           for (let pi; (pi = queue.shift());) {
-            thumbs.set(pi.id, await thumbFor(pi.image_url || window.GEAR_PLACEHOLDER(pi.category)));
+            thumbs.set(pi.id, await thumbFor(window.GEAR_CLEAN_IMG(pi.image_url) || window.GEAR_PLACEHOLDER(pi.category)));
           }
         };
         await Promise.all([worker(), worker(), worker()]);
@@ -830,5 +830,108 @@
     );
   }
 
-  window.STUDIO_MODALS = { NewProjectModal, EditItemModal, ExportPDFModal, FeedbackModal };
+  // ─── Share a kit list ──────────────────────────────────────────────
+  // Creates and manages the public link for a project (api/share.js serves it
+  // to anyone, no account needed). Client, location and dates stay hidden
+  // from visitors unless switched on here.
+  function ShareModal({ project, session, onClose }) {
+    const [share, setShare] = useState(undefined); // undefined = loading, null = no link yet
+    const [error, setError] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [copied, setCopied] = useState(false);
+    const inputRef = React.useRef(null);
+
+    React.useEffect(() => {
+      let live = true;
+      window.GEAR_DB.loadShare(project.id, session)
+        .then(row => { if (live) setShare(row); })
+        .catch(e => { if (live) { setError(e.message || 'Could not load sharing.'); setShare(null); } });
+      return () => { live = false; };
+    }, [project.id]);
+
+    // The slug is for people reading the link; only the token after it matters.
+    const slug = String(project.name || '').toLowerCase().normalize('NFKD')
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30).replace(/-+$/, '') || 'kit-list';
+    const url = share ? `${window.location.origin}/s/${slug}-${share.token}` : '';
+
+    const friendly = (e) => /foreign key|violates/i.test(e.message || '')
+      ? "This project hasn't finished saving yet. Try again in a moment."
+      : (e.message || 'Something went wrong. Try again.');
+    const run = async (fn) => {
+      setBusy(true); setError('');
+      try { await fn(); } catch (e) { setError(friendly(e)); }
+      setBusy(false);
+    };
+    const create = () => run(async () => { setShare(await window.GEAR_DB.createShare(project.id, session)); });
+    const patch = (p) => run(async () => {
+      const prev = share;
+      setShare({ ...share, ...p });
+      try { setShare(await window.GEAR_DB.updateShare(share.token, p, session)); }
+      catch (e) { setShare(prev); throw e; }
+    });
+    const copy = async () => {
+      try { await navigator.clipboard.writeText(url); }
+      catch (e) { if (inputRef.current) { inputRef.current.select(); try { document.execCommand('copy'); } catch (e2) { /* selected for manual copy */ } } }
+      setCopied(true); setTimeout(() => setCopied(false), 1800);
+    };
+
+    const options = [['show_client', 'client', project.client], ['show_location', 'location', project.location], ['show_dates', 'shoot dates', project.shoot]]
+      .filter(([, , v]) => v && String(v).trim());
+    const note = { fontSize: 13, lineHeight: 1.55, color: T.textMute };
+
+    return (
+      <ModalShell title="Share kit list" onClose={onClose} width={520}
+        footer={
+          <React.Fragment>
+            {share && (
+              <button style={{ ...S.btnG, marginRight: 'auto' }} disabled={busy} onClick={() => patch({ active: !share.active })}>
+                {share.active ? 'Turn off link' : 'Turn on link'}
+              </button>
+            )}
+            <button style={S.btnP} onClick={onClose}>Done</button>
+          </React.Fragment>
+        }>
+        {share === undefined ? (
+          <div style={{ ...note, fontFamily: S.mono, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Loading…</div>
+        ) : share === null ? (
+          <React.Fragment>
+            <div style={note}>Anyone with the link can see this kit list without an account: item names, photos, categories and quantities. You can turn the link off whenever you like.</div>
+            <div style={note}>Your client, location and shoot dates stay hidden unless you choose to show them.</div>
+            <div><button style={S.btnP} disabled={busy} onClick={create}>{busy ? 'Creating…' : 'Create link'}</button></div>
+          </React.Fragment>
+        ) : (
+          <React.Fragment>
+            <div style={S.field}>
+              <div style={S.label}>Link</div>
+              <div style={{ display: 'flex' }}>
+                <input ref={inputRef} readOnly value={url} onFocus={e => e.target.select()} aria-label="Share link"
+                       style={{ ...S.input, flex: 1, minWidth: 0, color: share.active ? T.ink : T.textMute }} />
+                <button style={{ ...S.btnDark, minWidth: 92 }} onClick={copy}>{copied ? 'Copied' : 'Copy link'}</button>
+              </div>
+              <div style={{ ...note, fontSize: 12 }}>
+                {share.active
+                  ? 'Anyone with this link can view the list.'
+                  : 'The link is off. Nobody can open it until you turn it back on.'}
+                {' '}{share.views > 0 ? `Viewed ${share.views} time${share.views === 1 ? '' : 's'}.` : 'Not viewed yet.'}
+              </div>
+            </div>
+            {options.length > 0 && (
+              <div style={S.field}>
+                <div style={S.label}>Show on the shared page</div>
+                {options.map(([key, label, value]) => (
+                  <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, cursor: busy ? 'default' : 'pointer', minWidth: 0 }}>
+                    <input type="checkbox" checked={!!share[key]} disabled={busy} onChange={e => patch({ [key]: e.target.checked })} style={{ accentColor: T.orange, width: 15, height: 15, margin: 0, flexShrink: 0 }} />
+                    <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Show {label} <span style={{ color: T.textMute }}>({String(value)})</span></span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </React.Fragment>
+        )}
+        {error && <div role="alert" style={{ fontSize: 13, color: T.err }}>{error}</div>}
+      </ModalShell>
+    );
+  }
+
+  window.STUDIO_MODALS = { NewProjectModal, EditItemModal, ExportPDFModal, FeedbackModal, ShareModal };
 })();

@@ -9,20 +9,27 @@ window.GEAR_PROJECTS = [
 
 window.GEAR_CATEGORIES = ['All','Camera','Lens','Lighting','Audio','Monitor','Storage','Rigging','Cinema'];
 
-// Inline-SVG placeholder per category. Built as plain strings (no encoding)
-// then base64'd for the data: URL — keeps category icons crisp at any size.
-window.GEAR_PLACEHOLDER = (category) => {
-  const C = '#191919', A = '#FF570C', BG = '#e8e2d8';
-  const svgs = {
-    Camera: `<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100' height='100' fill='${BG}'/><g fill='none' stroke='${C}' stroke-width='2'><rect x='18' y='34' width='64' height='40' rx='3'/><circle cx='50' cy='54' r='13'/><circle cx='50' cy='54' r='7'/><rect x='38' y='28' width='24' height='8' rx='1'/></g><circle cx='72' cy='42' r='2.2' fill='${A}'/></svg>`,
-    Lens: `<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100' height='100' fill='${BG}'/><g fill='none' stroke='${C}' stroke-width='2'><rect x='30' y='22' width='40' height='56' rx='2'/><circle cx='50' cy='50' r='14'/><circle cx='50' cy='50' r='8'/><line x1='30' y1='34' x2='70' y2='34'/><line x1='30' y1='66' x2='70' y2='66'/></g></svg>`,
-    Lighting: `<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100' height='100' fill='${BG}'/><g fill='none' stroke='${C}' stroke-width='2'><polygon points='30,30 70,30 78,55 22,55'/><line x1='50' y1='55' x2='50' y2='80'/><line x1='40' y1='80' x2='60' y2='80'/><line x1='40' y1='42' x2='60' y2='42'/></g></svg>`,
-    Audio: `<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100' height='100' fill='${BG}'/><g fill='none' stroke='${C}' stroke-width='2'><rect x='42' y='18' width='16' height='48' rx='8'/><path d='M30 50 a20 20 0 0 0 40 0'/><line x1='50' y1='70' x2='50' y2='84'/><line x1='40' y1='84' x2='60' y2='84'/></g></svg>`,
-    Monitor: `<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100' height='100' fill='${BG}'/><g fill='none' stroke='${C}' stroke-width='2'><rect x='14' y='26' width='72' height='48' rx='3'/><rect x='22' y='34' width='56' height='32'/></g><circle cx='80' cy='32' r='1.6' fill='${A}'/></svg>`,
-    Storage: `<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100' height='100' fill='${BG}'/><g fill='none' stroke='${C}' stroke-width='2'><rect x='22' y='28' width='56' height='44' rx='2'/><line x1='22' y1='44' x2='78' y2='44'/><line x1='22' y1='58' x2='78' y2='58'/></g><circle cx='70' cy='36' r='2' fill='${A}'/></svg>`,
-    Rigging: `<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100' height='100' fill='${BG}'/><g fill='none' stroke='${C}' stroke-width='2'><rect x='26' y='38' width='48' height='30' rx='2'/><line x1='38' y1='38' x2='38' y2='28'/><line x1='62' y1='38' x2='62' y2='28'/><circle cx='50' cy='53' r='8'/></g></svg>`,
-    Cinema: `<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100' height='100' fill='${BG}'/><g fill='none' stroke='${C}' stroke-width='2'><rect x='18' y='34' width='52' height='38' rx='2'/><circle cx='44' cy='53' r='12'/><rect x='70' y='42' width='14' height='22'/><rect x='30' y='28' width='16' height='6'/></g></svg>`,
+// Image placeholder: plain white. Used when an item has no photo URL or its
+// photo fails to load; the photo cells are white too, so the tile just stays
+// blank instead of showing a category icon. (Takes a category for call-site
+// compatibility; it no longer changes the result.)
+window.GEAR_PLACEHOLDER = () =>
+  'data:image/svg+xml;base64,' + btoa("<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100' height='100' fill='#ffffff'/></svg>");
+
+// Safety net: an older build stored a camera-icon SVG as an item's image (in
+// browser caches and saved lists). Photos are never SVG data URIs, so any such
+// image is treated as blank: shown white, and skipped by the PDF export.
+window.GEAR_CLEAN_IMG = (u) => (typeof u === 'string' && /^data:image\/svg\+xml/i.test(u.trim()) ? '' : u);
+(function () {
+  const WHITE = window.GEAR_PLACEHOLDER();
+  const fix = (img) => {
+    const s = img.getAttribute('src') || '';
+    if (s !== WHITE && /^data:image\/svg\+xml/i.test(s)) img.setAttribute('src', WHITE);
   };
-  const svg = svgs[category] || svgs.Camera;
-  return 'data:image/svg+xml;base64,' + btoa(svg);
-};
+  const scan = (root) => { if (root.nodeType !== 1) return; if (root.tagName === 'IMG') fix(root); root.querySelectorAll && root.querySelectorAll('img').forEach(fix); };
+  const start = () => new MutationObserver((ms) => {
+    ms.forEach(m => { if (m.type === 'attributes') fix(m.target); else m.addedNodes.forEach(scan); });
+  }).observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['src'] });
+  if (document.documentElement) start(); else document.addEventListener('DOMContentLoaded', start);
+})();
+

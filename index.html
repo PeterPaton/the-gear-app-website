@@ -646,6 +646,7 @@ function App() {
   const [modalNewProject, setModalNewProject] = useState(false);
   const [modalEditItem, setModalEditItem] = useState(null);  // item or null
   const [modalExport, setModalExport] = useState(null);      // project or null
+  const [modalShare, setModalShare] = useState(null);        // project whose share link is open, or null
   const [openProjectId, setOpenProjectId] = useState(null);  // for "Open project" full-screen view
   const [showAccount, setShowAccount] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -1219,6 +1220,13 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
           onSave={saveItem}
         />
       )}
+      {modalShare && (
+        <window.STUDIO_MODALS.ShareModal
+          project={modalShare}
+          session={session}
+          onClose={() => setModalShare(null)}
+        />
+      )}
       {modalExport && (
         <window.STUDIO_MODALS.ExportPDFModal
           project={modalExport}
@@ -1437,6 +1445,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
             catalog={catalog}
             onBack={() => setOpenProjectId(null)}
             onExport={() => setModalExport(openProject)}
+            onShare={window.GEAR_DB && window.GEAR_DB.enabled && session ? () => setModalShare(openProject) : undefined}
             onChangeQty={(id, d) => changeQty(id, d, openProject.id)}
             onRename={(name) => renameProject(openProject.id, name)}
             onChangeStatus={(s) => changeProjectStatus(openProject.id, s)}
@@ -1496,7 +1505,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
 }
 
 // Project detail view — full-screen kit list for one project.
-function ProjectDetailView({ project, projectItems = [], catalog, onBack, onExport, onChangeQty, onRename, onChangeStatus, onAddGear }) {
+function ProjectDetailView({ project, projectItems = [], catalog, onBack, onExport, onShare, onChangeQty, onRename, onChangeStatus, onAddGear }) {
   const T = window.GEAR.tokens;
   const S = window.STUDIO_STYLES;
   const R = window.GEAR_ROW;
@@ -1574,6 +1583,11 @@ function ProjectDetailView({ project, projectItems = [], catalog, onBack, onExpo
         {onRename && (
           <button style={editMode ? { ...toolBtn, background: T.orange, color: '#fff' } : toolBtn} onClick={() => setEditMode(e => !e)}>
             {editMode ? '✕ Done' : <React.Fragment><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.orange} strokeWidth="2"><path d="M4 20h4l11-11-4-4L4 16z"/><path d="M14 6l4 4"/></svg>Rename</React.Fragment>}
+          </button>
+        )}
+        {onShare && (
+          <button style={toolBtn} onClick={onShare} title="Get a link anyone can open, no account needed">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.orange} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Share
           </button>
         )}
         <button style={toolBtn} onClick={onExport}>
