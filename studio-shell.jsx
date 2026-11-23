@@ -200,10 +200,10 @@
           {collapsed && <button onClick={() => setCollapsed(!collapsed)} style={{ ...collapseBtn, position: 'absolute', right: -10, top: 22, background: T.ink, border: '1px solid rgba(255,255,255,0.15)' }}>›</button>}
         </div>
         <NavItem icon="▣" label="Inventory" count={items.length} active={page === 'inventory'} onClick={() => setPage('inventory')} collapsed={collapsed} />
-        <NavItem tour="nav-suggest" icon="✧" label="Suggest" active={page === 'suggest'} onClick={() => setPage('suggest')} collapsed={collapsed} />
-        <NavItem tour="nav-discover" icon="◎" label="Discover" active={page === 'discover'} onClick={() => setPage('discover')} collapsed={collapsed} />
         <NavItem icon="◈" label="Database" active={page === 'database'} onClick={() => setPage('database')} collapsed={collapsed} />
         <NavItem icon="◧" label="Projects" count={projects.length} active={page === 'projects'} onClick={() => setPage('projects')} collapsed={collapsed} />
+        <NavItem tour="nav-suggest" icon="✧" label="Suggest" active={page === 'suggest'} onClick={() => setPage('suggest')} collapsed={collapsed} />
+        <NavItem tour="nav-discover" icon="◎" label="Discover" active={page === 'discover'} onClick={() => setPage('discover')} collapsed={collapsed} />
         <NavItem tour="nav-guide" icon="?" label="Guide" active={page === 'guide'} onClick={() => setPage('guide')} collapsed={collapsed} />
         {!collapsed && <div style={{ ...S.label, color: 'rgba(255,255,255,0.4)', padding: '18px 16px 6px' }}>Recent projects</div>}
         {!collapsed && projects.slice(0, 3).map(p => (
