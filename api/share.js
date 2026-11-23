@@ -151,7 +151,8 @@ export function renderSharePage(kit, { origin, path }) {
     image: safeImage(it && it.image_url),
   }));
   const totalQty = items.reduce((s, it) => s + it.qty, 0);
-  const name = String(kit.name || 'Kit list');
+  const isInv = kit.kind === 'inventory';
+  const name = String(kit.name || (isInv ? 'Inventory' : 'Kit list'));
   const status = STATUSES.includes(kit.status) ? kit.status : null;
 
   const facts = [['Client', kit.client], ['Shoot', kit.shoot], ['Location', kit.location]]
@@ -172,12 +173,12 @@ export function renderSharePage(kit, { origin, path }) {
 
   const body = `
 <section class="head"><div class="in">
-  <div class="eyebrow"><span>Shared kit list</span>${status ? `<span class="pill ${status}">${status}</span>` : ''}</div>
+  <div class="eyebrow"><span>${isInv ? 'Shared inventory' : 'Shared kit list'}</span>${status ? `<span class="pill ${status}">${status}</span>` : ''}</div>
   <h1>${esc(name)}</h1>
   <dl class="facts">${facts}<div class="fact"><dt>Items</dt><dd class="n">${totalQty}</dd></div><div class="fact"><dt>Unique</dt><dd class="n">${items.length}</dd></div></dl>
 </div></section>
 <main class="kit"><div class="in">
-${items.length ? `<div class="thead"><div></div><div>Item</div><div>Category</div><div>Qty</div></div>${rows}` : '<div class="empty">No items on this list yet</div>'}
+${items.length ? `<div class="thead"><div></div><div>Item</div><div>Category</div><div>Qty</div></div>${rows}` : '<div class="empty">No items here yet</div>'}
 </div></main>
 <section class="cta"><div class="in">
   <div><h2>Make your own kit lists</h2><p>The Gear App keeps your inventory in one place and builds a kit list for every shoot. Free to start, on your laptop or phone.</p></div>
@@ -188,7 +189,7 @@ ${items.length ? `<div class="thead"><div></div><div>Item</div><div>Category</di
   const n = items.length;
   return page({
     title: `${name}: ${n} item${n === 1 ? '' : 's'} · The Gear App`,
-    description: `A kit list with ${totalQty} piece${totalQty === 1 ? '' : 's'} of gear, shared from The Gear App. Make your own, free.`,
+    description: `${isInv ? 'An inventory' : 'A kit list'} with ${totalQty} piece${totalQty === 1 ? '' : 's'} of gear, shared from The Gear App. Make your own, free.`,
     origin, path, body, robots: 'noindex, nofollow',
   });
 }

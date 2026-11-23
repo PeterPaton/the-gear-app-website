@@ -646,7 +646,7 @@ function App() {
   const [modalNewProject, setModalNewProject] = useState(false);
   const [modalEditItem, setModalEditItem] = useState(null);  // item or null
   const [modalExport, setModalExport] = useState(null);      // project or null
-  const [modalShare, setModalShare] = useState(null);        // project whose share link is open, or null
+  const [modalShare, setModalShare] = useState(null);        // project (or { kind: 'inventory' }) whose share link is open, or null
   const [openProjectId, setOpenProjectId] = useState(null);  // for "Open project" full-screen view
   const [showAccount, setShowAccount] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -1357,6 +1357,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
                 onMoveItemsToGroup={moveItemsToGroup}
                 onOpenDatabase={() => setPage('database')}
                 onSearchDatabase={(q) => { setDbSearch({ q }); setPage('database'); }}
+                onShareInventory={window.GEAR_DB && window.GEAR_DB.enabled && session ? () => setModalShare({ kind: 'inventory', id: null, name: 'Inventory' }) : undefined}
                 onExportInventory={() => setModalExport({ name: (user && user.name) ? `${user.name}'s Inventory` : 'Inventory', client: '', shoot: '', location: '' })}
                 draggedId={draggedId} setDraggedId={setDraggedId}
                 draggedGroupId={draggedGroupId} setDraggedGroupId={setDraggedGroupId}
