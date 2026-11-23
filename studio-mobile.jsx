@@ -71,7 +71,14 @@
           onGuide={window.STUDIO_GUIDE_MOBILE ? () => setShowGuide(true) : null}
           onBack={inProject ? () => setOpenProjectId(null) : null}
           backLabel="Projects"
-          action={inProject ? <button style={topAction} onClick={() => app.exportProject(openProj)}>PDF</button> : null}
+          action={inProject ? (
+            <span style={{ display: 'inline-flex', gap: 16 }}>
+              {app.openShare && <button style={topAction} onClick={() => app.openShare(openProj)}>Share</button>}
+              <button style={topAction} onClick={() => app.exportProject(openProj)}>PDF</button>
+            </span>
+          ) : (tab === 'inventory' && app.openShare && items.length > 0
+            ? <button style={topAction} onClick={() => app.openShare({ kind: 'inventory', id: null, name: 'Inventory' })}>Share</button>
+            : null)}
         />
 
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>

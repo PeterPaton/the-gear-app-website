@@ -1277,6 +1277,7 @@ const changeQty = (itemId, delta, projectId = activeProjectId) => {
           openFeedback: () => setShowFeedback(true),
           editItem: setModalEditItem,
           exportProject: setModalExport,
+          openShare: window.GEAR_DB && window.GEAR_DB.enabled && session ? setModalShare : null,
           suggestProps: {
             userId: session?.user?.id,
             catalog,
