@@ -835,6 +835,9 @@
   // to anyone, no account needed). Client, location and dates stay hidden
   // from visitors unless switched on here.
   function ShareModal({ project, session, onClose }) {
+    // project.kind === 'inventory' shares the whole inventory instead of one kit list.
+    const isInv = project.kind === 'inventory';
+    const what = isInv ? 'inventory' : 'kit list';
     const [share, setShare] = useState(undefined); // undefined = loading, null = no link yet
     const [error, setError] = useState('');
     const [busy, setBusy] = useState(false);
@@ -843,14 +846,14 @@
 
     React.useEffect(() => {
       let live = true;
-      window.GEAR_DB.loadShare(project.id, session)
+      window.GEAR_DB.loadShare(project.id, session, isInv ? 'inventory' : 'project')
         .then(row => { if (live) setShare(row); })
         .catch(e => { if (live) { setError(e.message || 'Could not load sharing.'); setShare(null); } });
       return () => { live = false; };
     }, [project.id]);
 
     // The slug is for people reading the link; only the token after it matters.
-    const slug = String(project.name || '').toLowerCase().normalize('NFKD')
+    const slug = isInv ? 'inventory' : String(project.name || '').toLowerCase().normalize('NFKD')
       .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30).replace(/-+$/, '') || 'kit-list';
     const url = share ? `${window.location.origin}/s/${slug}-${share.token}` : '';
 
@@ -862,7 +865,7 @@
       try { await fn(); } catch (e) { setError(friendly(e)); }
       setBusy(false);
     };
-    const create = () => run(async () => { setShare(await window.GEAR_DB.createShare(project.id, session)); });
+    const create = () => run(async () => { setShare(await window.GEAR_DB.createShare(project.id, session, isInv ? 'inventory' : 'project')); });
     const patch = (p) => run(async () => {
       const prev = share;
       setShare({ ...share, ...p });
@@ -875,12 +878,12 @@
       setCopied(true); setTimeout(() => setCopied(false), 1800);
     };
 
-    const options = [['show_client', 'client', project.client], ['show_location', 'location', project.location], ['show_dates', 'shoot dates', project.shoot]]
+    const options = isInv ? [] : [['show_client', 'client', project.client], ['show_location', 'location', project.location], ['show_dates', 'shoot dates', project.shoot]]
       .filter(([, , v]) => v && String(v).trim());
     const note = { fontSize: 13, lineHeight: 1.55, color: T.textMute };
 
     return (
-      <ModalShell title="Share kit list" onClose={onClose} width={520}
+      <ModalShell title={isInv ? 'Share inventory' : 'Share kit list'} onClose={onClose} width={520}
         footer={
           <React.Fragment>
             {share && (
@@ -895,8 +898,8 @@
           <div style={{ ...note, fontFamily: S.mono, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Loading…</div>
         ) : share === null ? (
           <React.Fragment>
-            <div style={note}>Anyone with the link can see this kit list without an account: item names, photos, categories and quantities. You can turn the link off whenever you like.</div>
-            <div style={note}>Your client, location and shoot dates stay hidden unless you choose to show them.</div>
+            <div style={note}>Anyone with the link can see your {what} without an account: item names, photos, categories and quantities. You can turn the link off whenever you like.</div>
+            <div style={note}>{isInv ? 'Your name and email are not shown. The link always shows your current inventory, so changes you make appear on it.' : 'Your client, location and shoot dates stay hidden unless you choose to show them.'}</div>
             <div><button style={S.btnP} disabled={busy} onClick={create}>{busy ? 'Creating…' : 'Create link'}</button></div>
           </React.Fragment>
         ) : (
@@ -910,7 +913,7 @@
               </div>
               <div style={{ ...note, fontSize: 12 }}>
                 {share.active
-                  ? 'Anyone with this link can view the list.'
+                  ? `Anyone with this link can view the ${what}.`
                   : 'The link is off. Nobody can open it until you turn it back on.'}
                 {' '}{share.views > 0 ? `Viewed ${share.views} time${share.views === 1 ? '' : 's'}.` : 'Not viewed yet.'}
               </div>

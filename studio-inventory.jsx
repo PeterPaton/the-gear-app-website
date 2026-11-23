@@ -10,7 +10,7 @@
     density, setDensity,
     onEditItem, onAddToCart, onChangeInvQty,
     groups = [], onCombineIntoGroup, onRenameGroup, onDeleteGroup, onMoveItemToGroup, onMoveItemsToGroup,
-    onOpenDatabase, onSearchDatabase, onExportInventory,
+    onOpenDatabase, onSearchDatabase, onExportInventory, onShareInventory,
     draggedId, setDraggedId, draggedGroupId, setDraggedGroupId,
     hoverCart, setHoverCart,
   }) {
@@ -344,6 +344,9 @@
             <button onClick={() => setDensity('tight')} style={R.densityBtn(density === 'tight')} title="Compact list">≡</button>
             <button onClick={() => setDensity('comfortable')} style={R.densityBtn(density === 'comfortable')} title="Large list">▤</button>
           </div>
+          {onShareInventory && (
+            <button style={R.headBtn} onClick={onShareInventory} title="Get a link anyone can open, no account needed">Share</button>
+          )}
           {onExportInventory && (
             <button style={R.headBtn} onClick={onExportInventory}>Export PDF</button>
           )}

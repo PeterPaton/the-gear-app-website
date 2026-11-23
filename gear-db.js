@@ -370,24 +370,23 @@ window.SUPABASE_CONFIG = __stored || {
     // ── Share links (supabase/migrations/20261119150000_shared_lists.sql) ──
     // One link per project. The public page itself is api/share.js; these are
     // the owner's controls, protected by row-level security.
-    async loadShare(projectId, session) {
+    // projectId null + kind 'inventory' = the user's whole-inventory link.
+    async loadShare(projectId, session, kind = 'project') {
       if (!isEnabled() || !session) return null;
       const sb = makeClient(session);
-      const { data, error } = await sb
-        .from('shared_lists')
-        .select('*')
-        .eq('project_id', projectId)
-        .maybeSingle();
+      let q = sb.from('shared_lists').select('*');
+      q = kind === 'inventory' ? q.eq('kind', 'inventory') : q.eq('project_id', projectId);
+      const { data, error } = await q.maybeSingle();
       if (error) throw new Error(error.message);
       return data || null;
     },
 
-    async createShare(projectId, session) {
+    async createShare(projectId, session, kind = 'project') {
       if (!isEnabled() || !session) throw new Error('Sign in to share a kit list.');
       const sb = makeClient(session);
       const { data, error } = await sb
         .from('shared_lists')
-        .insert({ project_id: projectId })
+        .insert(kind === 'inventory' ? { kind: 'inventory' } : { project_id: projectId })
         .select()
         .single();
       if (error) throw new Error(error.message);
